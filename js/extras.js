@@ -466,6 +466,10 @@ function viewSettings() {
       ${setRow('ชื่อที่แสดง', '', `<input class="text-input" id="name" value="${esc(S.name)}" maxlength="20" aria-label="ชื่อที่แสดง">`)}
       ${setRow('สีกรอบอวตาร', '', `<button class="price-btn ghost" data-act="pick-avatar">${hex('', 'sw-dot', `background:${S.avatar}`)}เปลี่ยน</button>`)}
     </div></section>
+    <section><h3 class="shop-sec">แอป</h3><div class="list-card">
+      ${setRow('ติดตั้ง BeeMath เป็นแอป', installHint(), isStandalone() ? '<span class="claimed">ติดตั้งแล้ว</span>' : UI.installPrompt ? '<button class="price-btn" data-act="install">ติดตั้ง</button>' : '')}
+      ${setRow('สถานะการเชื่อมต่อ', navigator.onLine ? 'ออนไลน์' : 'ออฟไลน์ ยังเรียนต่อได้ ความคืบหน้าบันทึกในเครื่อง', '')}
+    </div></section>
     <section><h3 class="shop-sec">ข้อมูลของฉัน</h3><div class="list-card">
       ${setRow('สำรองความคืบหน้า', 'ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น ดาวน์โหลดเก็บไว้กันหาย หรือย้ายไปเครื่องอื่น', '<button class="price-btn" data-act="export">ดาวน์โหลด</button>')}
       ${setRow('กู้คืนจากไฟล์', 'เลือกไฟล์สำรองที่ดาวน์โหลดไว้', '<label class="price-btn ghost file-btn">เลือกไฟล์<input type="file" id="import-file" accept="application/json,.json"></label>')}
@@ -473,6 +477,15 @@ function viewSettings() {
     </div></section>
     <p class="muted small center">BeeMath ต้นแบบ · เสียงประกอบสังเคราะห์ในเบราว์เซอร์</p>
   </div>`, { sub: { title: 'ตั้งค่า' } });
+}
+// PWA: เปิดแบบแอปอยู่หรือไม่ และคำแนะนำการติดตั้งตามเบราว์เซอร์
+const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+function installHint() {
+  if (isStandalone()) return 'เปิดแบบแอปอยู่ ใช้ได้แม้ไม่มีอินเทอร์เน็ต';
+  if (!location.protocol.startsWith('http')) return 'ต้องเปิดผ่านเว็บ (เช่น GitHub Pages) ก่อน จึงจะติดตั้งได้';
+  if (UI.installPrompt) return 'มีไอคอนบนหน้าจอ เปิดเต็มจอ และใช้ออฟไลน์ได้';
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return 'บน iPhone/iPad: แตะปุ่มแชร์ › "เพิ่มไปยังหน้าจอโฮม"';
+  return 'ใช้เมนูของเบราว์เซอร์ › "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"';
 }
 // สำรอง/กู้คืนข้อมูลเป็นไฟล์ JSON
 function exportProgress() {
@@ -532,6 +545,14 @@ Object.assign(ACT, {
   'text-size': (d) => { S.settings.textSize = d.s; save(); render(); },
   'sfx-test': () => SFX.play('complete'),
   export: () => exportProgress(),
+  install: async () => {
+    const p = UI.installPrompt;
+    if (!p) return;
+    p.prompt();
+    const { outcome } = await p.userChoice;
+    UI.installPrompt = null;
+    if (outcome !== 'accepted') render();
+  },
   'import-yes': () => {
     try { localStorage.setItem(KEY, JSON.stringify(UI.pendingImport.state)); } catch (e) { /* ignore */ }
     S = load(); save();

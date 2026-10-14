@@ -57,6 +57,16 @@ setInterval(() => {
   if (h !== S.hearts) render();
 }, 60000);
 
+// ---------- PWA: ติดตั้งเป็นแอป + ใช้ออฟไลน์ (ทำงานเมื่อเปิดผ่าน http/https เท่านั้น ไม่ใช่ file://) ----------
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+// เก็บคำขอติดตั้งไว้ แล้วแสดงปุ่ม "ติดตั้งแอป" ในหน้าตั้งค่า (Chrome/Edge/Android)
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); UI.installPrompt = e; if (UI.view === 'settings') render(); });
+window.addEventListener('appinstalled', () => { UI.installPrompt = null; showToast('ติดตั้ง BeeMath แล้ว!'); });
+window.addEventListener('online', () => { if (UI.view !== 'lesson') render(); });
+window.addEventListener('offline', () => showToast('ออฟไลน์อยู่ ยังเรียนต่อได้ตามปกติ'));
+
 render();
 scrollToCurrent();
 remindCheck();

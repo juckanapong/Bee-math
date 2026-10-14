@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#FFC21A"/>
+  <polygon points="256,60 426,158 426,354 256,452 86,354 86,158" fill="#FFF0C2" stroke="#2A1F14" stroke-width="18" stroke-linejoin="round"/>
+  <g transform="translate(116 116) scale(2.33)">
+    <ellipse cx="40" cy="32" rx="15" ry="22" transform="rotate(-30 40 32)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="3.5"/>
+    <ellipse cx="80" cy="32" rx="15" ry="22" transform="rotate(30 80 32)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="3.5"/>
+    <path d="M50 46 Q44 30 36 24" stroke="#2A1F14" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="36" cy="24" r="5" fill="#2A1F14"/>
+    <path d="M70 46 Q76 30 84 24" stroke="#2A1F14" stroke-width="3.5" fill="none" stroke-linecap="round"/><circle cx="84" cy="24" r="5" fill="#2A1F14"/>
+    <clipPath id="b"><ellipse cx="60" cy="74" rx="36" ry="32"/></clipPath>
+    <ellipse cx="60" cy="74" rx="36" ry="32" fill="#FFC21A"/>
+    <g clip-path="url(#b)" fill="#2A1F14"><rect x="20" y="88" width="80" height="8"/><rect x="20" y="101" width="80" height="8"/></g>
+    <ellipse cx="60" cy="74" rx="36" ry="32" fill="none" stroke="#2A1F14" stroke-width="3.5"/>
+    <ellipse cx="48" cy="64" rx="7" ry="8" fill="#fff" stroke="#2A1F14" stroke-width="2.5"/><circle cx="49.5" cy="65.5" r="3.6" fill="#2A1F14"/>
+    <ellipse cx="72" cy="64" rx="7" ry="8" fill="#fff" stroke="#2A1F14" stroke-width="2.5"/><circle cx="73.5" cy="65.5" r="3.6" fill="#2A1F14"/>
+    <ellipse cx="38" cy="75" rx="5" ry="3.5" fill="#FF8FA3" opacity=".75"/><ellipse cx="82" cy="75" rx="5" ry="3.5" fill="#FF8FA3" opacity=".75"/>
+    <path d="M52 77 Q60 85 68 77" stroke="#2A1F14" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
