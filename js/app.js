@@ -13,7 +13,7 @@ const GOALS = [[10, 'สบาย ๆ', 'ราว 5 นาที'], [20, 'ป�
 // ก้าวสำคัญของสตรีค: วัน → น้ำหวานที่ได้
 const MILESTONES = { 7: 20, 30: 50, 100: 100, 365: 365 };
 // น้ำหวานที่ได้เมื่อจบแต่ละแบบ
-const NECTAR = { lesson: 5, test: 20, practice: 3, legend: 20, perfect: 5, quest: 10 };
+const NECTAR = { lesson: 5, test: 20, practice: 3, legend: 20, jump: 10, perfect: 5, quest: 10 };
 
 // ---------- dates ----------
 const pad = (n) => String(n).padStart(2, '0');
@@ -37,7 +37,7 @@ function defaultState() {
     hearts: MAX_HEARTS, heartsTs: Date.now(),
     streak: 0, lastDay: null, days: {}, shields: 0, streakLost: null,
     nectar: 100, boostUntil: 0, outfit: null, owned: {},
-    done: {}, legend: {}, stories: {},
+    done: {}, legend: {}, stories: {}, chests: {},
     stats: { lessons: 0, solved: 0, bar: 0, perfect: 0, tests: 0, correct: 0, answered: 0, timedBest: 0 },
     records: { bestStreak: 0, bestDayXP: 0, bestCombo: 0 },
     today: { day: today(), xp: 0 },
@@ -115,6 +115,7 @@ function learnToday() {
 }
 
 const usesHearts = (kind) => kind === 'lesson' || kind === 'test';
+const twoStrikes = (kind) => kind === 'legend' || kind === 'jump'; // ผิดได้ไม่เกิน 2 ข้อ ไม่ใช้หัวใจ
 function loseHeart() {
   if (S.hearts >= MAX_HEARTS) S.heartsTs = Date.now();
   S.hearts = Math.max(0, S.hearts - 1);
@@ -326,7 +327,8 @@ function viewLearn() {
         <button class="guide" data-act="cards" data-i="${guide}" aria-label="ดูเนื้อหาบทเรียน">${icon('book', 22)}</button>
       </section>`;
     } else {
-      html += `<div class="unit-divider"><span>บทที่ ${ui + 1} · ${u.title}</span></div>`;
+      html += `<div class="unit-divider"><span>บทที่ ${ui + 1} · ${u.title}</span></div>
+        <button class="jump-btn" data-act="jump-sheet" data-u="${ui}">${icon('mountain', 16)} ทดสอบข้ามมาบทนี้</button>`;
     }
     html += '<div class="path">';
     items.forEach(({ n, i }) => {
@@ -341,11 +343,39 @@ function viewLearn() {
         <button class="node ${state}" data-act="node" data-i="${i}" aria-label="${esc(label)}"><span class="hex face">${ic}</span></button>
         ${isCur ? `<div class="path-bee" style="--side:${dx >= 0 ? -1 : 1}"><p class="say">${nudge(i)}</p>${bee(96)}</div>` : ''}
       </div>`;
+      // หีบสมบัติหลังบทเรียนที่ 2 ของแต่ละบท
+      if (n.kind === 'lesson' && n.id === u.lessons[1]?.id) html += chestRow(u, OFFSETS[k++ % OFFSETS.length]);
+      // ด่านทบทวนบท หลังผ่านด่านทดสอบแล้ว
+      if (n.kind === 'test' && done) html += reviewRow(ui, OFFSETS[k++ % OFFSETS.length]);
     });
     html += '</div>';
   });
   if (cur >= NODES.length) html += `<div class="all-done">${bee(110, 'cheer')}<h3>เรียนครบทุกบทแล้ว!</h3><p>ลองท้าทาย “ระดับตำนาน” ในศูนย์ฝึกฝนดูสิ</p></div>`;
   return shell(html);
+}
+
+// หีบสมบัติ: เปิดได้เมื่อผ่านบทเรียนก่อนหน้า ได้น้ำหวานแบบสุ่ม
+const CHEST_SVG = (open) => `<svg width="64" height="58" viewBox="0 0 64 58" aria-hidden="true">
+  ${open ? '<path d="M8 22 L14 6 H50 L56 22 Z" fill="#C85A00" stroke="#2A1F14" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="24" r="10" fill="#FFF0C2"/>'
+    : '<path d="M8 24 Q8 8 32 8 Q56 8 56 24 Z" fill="#E09A00" stroke="#2A1F14" stroke-width="3" stroke-linejoin="round"/>'}
+  <rect x="8" y="24" width="48" height="28" rx="4" fill="#FFC21A" stroke="#2A1F14" stroke-width="3"/>
+  <path d="M8 34 H56" stroke="#2A1F14" stroke-width="3"/>
+  ${open ? '' : '<rect x="27" y="28" width="10" height="12" rx="2" fill="#2A1F14"/><circle cx="32" cy="33" r="2" fill="#FFC21A"/>'}
+</svg>`;
+function chestRow(u, dx) {
+  const id = u.id + '-chest', opened = !!S.chests[id], ready = !!S.done[u.lessons[1].id];
+  const label = opened ? 'หีบสมบัติ เปิดแล้ว' : ready ? 'หีบสมบัติ แตะเพื่อเปิด' : 'หีบสมบัติ ผ่านบทเรียนก่อนหน้าเพื่อปลดล็อก';
+  return `<div class="node-row k-chest" style="--dx:${dx}px">
+    <button class="chest ${opened ? 'opened' : ready ? 'ready' : 'locked'}" data-act="chest" data-id="${id}" aria-label="${label}" ${ready && !opened ? '' : 'disabled'}>${CHEST_SVG(opened)}</button></div>`;
+}
+// ด่านทบทวนบท: ขึ้นจุดแจ้งเตือนเมื่อมีทักษะในบทที่อ่อนลง (ความแข็งแรง ≤ 2)
+const unitWeak = (ui) => NODES.filter((n) => n.ui === ui && n.kind === 'lesson').filter((n) => (lessonStrength(n)?.level ?? 4) <= 2);
+function reviewRow(ui, dx) {
+  const weak = unitWeak(ui).length;
+  return `<div class="node-row k-review" style="--dx:${dx}px">
+    <button class="node review" data-act="unit-review" data-u="${ui}" aria-label="ทบทวนบทที่ ${ui + 1}${weak ? ' มีทักษะที่ควรทบทวน' : ''}"><span class="hex face">${icon('dumbbell', 28)}</span></button>
+    ${weak ? '<span class="review-dot" aria-hidden="true">!</span>' : ''}
+    <span class="review-label">${weak ? 'ควรทบทวน' : 'ทบทวนบท'}</span></div>`;
 }
 
 // ---------- sheets ----------
@@ -392,6 +422,19 @@ const SHEETS = {
     return `<div class="sheet-card center">${badgeHex(b, got, 'badge-hex big')}<h3>${b.name}</h3><p>${b.desc}</p>
       <p class="small">${got ? 'ได้รับเมื่อ ' + thaiDate(got) : 'ยังไม่ได้รับ'}</p>
       <button class="btn primary" data-act="close">ตกลง</button></div>`;
+  },
+  chest(s) {
+    return `<div class="sheet-card center"><div class="chest-big">${CHEST_SVG(true)}</div><h3>เปิดหีบแล้ว!</h3>
+      <p>ได้รับ <b>${s.nectar} น้ำหวาน</b>${s.boost ? ' และ <b>XP สองเท่า 15 นาที</b>' : ''}</p>
+      <button class="btn primary" data-act="close">เยี่ยมเลย</button></div>`;
+  },
+  jump(s) {
+    const first = Math.min(s.u - 1, UNITS.findIndex((u, ui) => !unitDone(ui)));
+    return `<div class="sheet-card" style="${unitVars(UNITS[s.u])}"><span class="sheet-tag">ทดสอบข้ามบท</span>
+      <h3>ข้ามไปเรียนบทที่ ${s.u + 1}: ${UNITS[s.u].title}</h3>
+      <p>ตอบ 10 ข้อจากบทที่ ${first + 1}${s.u - 1 > first ? `–${s.u}` : ''} ผิดได้ไม่เกิน 2 ข้อ ไม่ใช้หัวใจ ผ่านแล้วบทก่อนหน้าจะนับว่าผ่านทั้งหมด</p>
+      <button class="btn primary" data-act="jump-start" data-u="${s.u}">เริ่มทดสอบ +20 XP</button>
+      <button class="btn ghost" data-act="close">ไว้ก่อน</button></div>`;
   },
   league() {
     const r = S.leagueResult, t = TIERS[r.to];
@@ -500,12 +543,13 @@ function viewLesson() {
     L.kind === 'test' ? `<span class="pill">${icon('trophy', 16)} ด่านทดสอบ</span>` : '',
     L.kind === 'practice' ? `<span class="pill green">${icon('dumbbell', 16)} ${L.meta.review ? 'ทบทวนข้อที่ผิด' : L.meta.weak ? 'ฝึกจุดอ่อน' : 'ฝึกฝน'}</span>` : '',
     L.kind === 'legend' ? `<span class="pill dark">${icon('crown', 16)} ระดับตำนาน</span>` : '',
+    L.kind === 'jump' ? `<span class="pill blue">${icon('mountain', 16)} ทดสอบข้ามบท</span>` : '',
     L.kind === 'placement' ? `<span class="pill blue">${icon('mountain', 16)} ทดสอบวัดระดับ ข้อ ${L.idx + 1}/10</span>` : '',
     q.tags.includes('bar') ? `<span class="pill blue">${icon('bar', 16)} บาร์โมเดล</span>` : '',
     q.retry ? `<span class="pill red">${icon('refresh', 16)} ทวนข้อที่ผิด</span>` : '',
   ].join('');
   const status = usesHearts(L.kind) ? `<span class="hearts-top">${icon('heart', 22)}${S.hearts}</span>`
-    : L.kind === 'legend' ? `<span class="hearts-top legend" aria-label="ผิดได้อีก ${Math.max(0, 2 - L.mistakes)} ข้อ">${icon('shield', 20)}${Math.max(0, 2 - L.mistakes)}</span>`
+    : twoStrikes(L.kind) ? `<span class="hearts-top legend" aria-label="ผิดได้อีก ${Math.max(0, 2 - L.mistakes)} ข้อ">${icon('shield', 20)}${Math.max(0, 2 - L.mistakes)}</span>`
     : `<span class="hearts-top">${icon('heart', 22)}∞</span>`;
   return `<div class="lesson ${L.kind}">
     <header class="lesson-top"><button class="x" data-act="quit" aria-label="ออก">${icon('x', 22)}</button>
@@ -584,7 +628,7 @@ function check() {
     if (usesHearts(L.kind) && L.run % 5 === 0 && S.hearts < MAX_HEARTS) { S.hearts++; L.msg = `ถูกติดกัน ${L.run} ข้อ ได้หัวใจคืน 1 ดวง!`; }
   } else {
     L.run = 0; L.mistakes++;
-    L.msg = L.kind === 'legend' && L.mistakes > 2 ? 'ผิดเกิน 2 ข้อแล้ว' : pick(COMFORT);
+    L.msg = twoStrikes(L.kind) && L.mistakes > 2 ? 'ผิดเกิน 2 ข้อแล้ว' : pick(COMFORT);
     L.wrong.push(q.gen);
     if (usesHearts(L.kind)) loseHeart();
     if ((L.kind === 'lesson' || L.kind === 'practice') && !q.retry) L.queue.push({ ...q, retry: true }); // ทวนข้อที่ผิดอีกครั้งท้ายบท
@@ -597,7 +641,7 @@ function check() {
 function next() {
   const L = UI.L;
   if (usesHearts(L.kind) && S.hearts <= 0) return finish(false);
-  if (L.kind === 'legend' && L.mistakes > 2) return finish(false);
+  if (twoStrikes(L.kind) && L.mistakes > 2) return finish(false);
   L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false;
   Object.assign(L, freshMatch());
   if (L.idx >= L.queue.length) return finish(true);
@@ -623,13 +667,14 @@ function finish(completed) {
     streak = learnToday();
     extra = { startUnit: reached };
   } else if (passed) {
-    xp = { test: 20, lesson: 10, legend: 30 }[L.kind] ?? 5 + Math.floor(L.firstTry / 2);
+    xp = { test: 20, lesson: 10, legend: 30, jump: 20 }[L.kind] ?? 5 + Math.floor(L.firstTry / 2);
     if (perfect && (L.kind === 'lesson' || L.kind === 'test')) xp += 5;
     xp = addXP(xp);
     nectar = NECTAR[L.kind] + (perfect && L.kind !== 'practice' ? NECTAR.perfect : 0);
     S.nectar += nectar;
     if (L.kind === 'practice') S.hearts = Math.min(MAX_HEARTS, S.hearts + 1);
     else if (L.kind === 'legend') S.legend[L.meta.unit] = true;
+    else if (L.kind === 'jump') NODES.filter((n) => n.ui < L.meta.unit).forEach((n) => { S.done[n.id] = true; });
     else {
       if (!S.done[NODES[L.meta.i].id]) UI.justDone = NODES[L.meta.i].id;
       S.done[NODES[L.meta.i].id] = true;
@@ -645,6 +690,8 @@ function finish(completed) {
   const n = L.meta.i !== undefined ? NODES[L.meta.i] : null;
   const sub = n ? `${n.kind === 'test' ? 'ด่านทดสอบ' : n.title} · บทที่ ${n.ui + 1}`
     : L.kind === 'legend' ? 'ระดับตำนาน · ' + UNITS.find((u) => u.id === L.meta.unit).title
+    : L.kind === 'jump' ? `ปลดล็อกบทที่ ${L.meta.unit + 1} · ${UNITS[L.meta.unit].title}`
+    : L.meta.unitReview !== undefined ? `ทบทวนบทที่ ${L.meta.unitReview + 1}`
     : L.meta.review ? 'ทบทวนข้อที่ผิด' : L.meta.weak ? 'ฝึกจุดอ่อน' : PRACTICE.find((p) => p.id === L.meta.practice)?.title || 'ฝึกฝน';
   UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, streakUp: !!streak, milestone: streak?.milestone, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
   UI.view = 'result'; UI.L = null;
@@ -680,6 +727,10 @@ function viewResult() {
       <div class="tiles">${statTile('green', 'ตอบถูก', 'target', `${r.correct}/10`)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}</div>
       <div class="result-actions"><button class="btn primary wide" data-act="tab" data-v="learn">เริ่มเรียน</button></div></div>`;
   }
+  if (!r.completed && r.kind === 'jump') {
+    return sadScreen('ยังข้ามบทไม่ได้', 'ผิดเกิน 2 ข้อ ไม่เป็นไร! เรียนตามเส้นทางไปก่อน หรือลองทดสอบอีกครั้ง',
+      `<button class="btn primary wide" data-act="jump-start" data-u="${r.meta.unit}">ลองอีกครั้ง</button><button class="btn link wide" data-act="tab" data-v="learn">กลับหน้าหลัก</button>`);
+  }
   if (!r.completed && r.kind === 'legend') {
     return sadScreen('ยังไม่ถึงระดับตำนาน', 'ผิดเกิน 2 ข้อ ทบทวนอีกนิดแล้วลองใหม่ได้เสมอ',
       `<button class="btn primary wide" data-act="legend-start" data-u="${r.meta.unit}">ลองอีกครั้ง</button><button class="btn link wide" data-act="tab" data-v="practice">กลับศูนย์ฝึกฝน</button>`);
@@ -694,8 +745,8 @@ function viewResult() {
       ${r.wrong.length ? '<button class="btn ghost wide" data-act="review">ทบทวนข้อที่ผิด</button>' : ''}
       <button class="btn link wide" data-act="tab" data-v="learn">กลับหน้าหลัก</button>`);
   }
-  const title = { test: 'ผ่านด่านทดสอบแล้ว!', practice: 'ฝึกฝนเสร็จแล้ว!', legend: 'ถึงระดับตำนานแล้ว!' }[r.kind] || 'จบบทเรียนแล้ว!';
-  const nextTab = r.kind === 'practice' || r.kind === 'legend' ? 'practice' : 'learn';
+  const title = { test: 'ผ่านด่านทดสอบแล้ว!', practice: 'ฝึกฝนเสร็จแล้ว!', legend: 'ถึงระดับตำนานแล้ว!', jump: 'ข้ามบทสำเร็จ!' }[r.kind] || 'จบบทเรียนแล้ว!';
+  const nextTab = (r.kind === 'practice' && r.meta.unitReview === undefined) || r.kind === 'legend' ? 'practice' : 'learn';
   return `<div class="result win">${HONEYCOMB}${confetti()}
     <div class="hero hex">${bee(170, 'cheer')}</div>
     <h2>${title}</h2><p>${esc(r.sub)}</p>
@@ -935,13 +986,35 @@ const ACT = {
   },
   'o-add': (d) => { SFX.play('tap'); UI.L.built.push(+d.k); render(); },
   'o-remove': (d) => { SFX.play('tap'); UI.L.built.splice(+d.k, 1); render(); },
+  chest: (d) => {
+    if (S.chests[d.id]) return;
+    S.chests[d.id] = true;
+    const nectar = R(15, 30), boost = Math.random() < 0.25 && !boostLeft();
+    S.nectar += nectar;
+    if (boost) S.boostUntil = Date.now() + BOOST_MS;
+    save();
+    SFX.play('levelup');
+    UI.sheet = { type: 'chest', nectar, boost };
+    render();
+  },
+  'unit-review': (d) => {
+    const ui = +d.u, weak = unitWeak(ui);
+    const gens = uniq((weak.length ? weak : NODES.filter((n) => n.ui === ui && n.kind === 'lesson')).flatMap((n) => n.gens));
+    startSession('practice', gens, { unitReview: ui });
+  },
+  'jump-sheet': (d) => { UI.sheet = { type: 'jump', u: +d.u }; render(); },
+  'jump-start': (d) => {
+    const target = +d.u, first = UNITS.findIndex((u, ui) => !unitDone(ui));
+    const gens = uniq(UNITS.slice(first, target).flatMap((u) => u.lessons.flatMap((l) => l.gens)));
+    startSession('jump', gens, { unit: target }, 10);
+  },
   check: () => check(),
   next: () => next(),
   quit: () => { UI.sheet = { type: 'quit' }; render(); },
   'quit-yes': () => {
-    const k = UI.L?.kind;
+    const k = UI.L?.kind, fromPath = UI.L?.meta.unitReview !== undefined;
     UI.L = null; UI.sheet = null;
-    UI.view = k === 'placement' ? 'onboarding' : k === 'practice' || k === 'legend' ? 'practice' : 'learn';
+    UI.view = k === 'placement' ? 'onboarding' : (k === 'practice' && !fromPath) || k === 'legend' ? 'practice' : 'learn';
     render(); scrollToCurrent();
   },
   claim: (d) => {

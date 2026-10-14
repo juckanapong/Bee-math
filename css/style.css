@@ -536,6 +536,21 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outl
   .m-item:not(:disabled):not(.sel):hover, .step-tile:not(:disabled):hover { background: #FFFBEF; border-color: #E8D49E; }
 }
 
+/* ---------- เส้นทาง: หีบสมบัติ · ด่านทบทวน · ข้ามบท ---------- */
+@keyframes chestWiggle { 0%, 80%, 100% { transform: rotate(0); } 85% { transform: rotate(-8deg); } 90% { transform: rotate(8deg); } 95% { transform: rotate(-4deg); } }
+.chest { width: 84px; height: 76px; display: grid; place-items: center; border-radius: 22px; }
+.chest.ready { background: #FFF0C2; box-shadow: 0 0 0 6px rgba(255, 194, 26, .25); animation: chestWiggle 2.4s ease-in-out infinite; }
+.chest.locked { filter: grayscale(1); opacity: .45; }
+.chest.opened { opacity: .55; }
+.chest-big { animation: popIn .5s cubic-bezier(.34, 1.56, .64, 1) both; }
+.chest-big svg { width: 120px; height: 108px; }
+.node.review { --nf: var(--honey-soft); --nd: #E9CF8A; color: var(--honey-text); width: 64px; height: 72px; }
+.k-review { margin-top: 4px; }
+.review-dot { position: absolute; top: -6px; right: -10px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--red); color: #fff; font-weight: 700; font-size: 14px; border: 2px solid var(--bg); }
+.review-label { margin-top: 10px; font-size: 13px; font-weight: 700; color: var(--honey-text); }
+.jump-btn { display: flex; align-items: center; gap: 6px; margin: 8px auto 0; min-height: 40px; padding: 0 14px; border-radius: 999px; background: #fff; border: 2px solid var(--line); border-bottom-width: 4px; font-size: 13px; font-weight: 700; color: var(--blue-dark); }
+@media (hover: hover) { .jump-btn:hover { background: var(--blue-soft); } .chest.ready:hover { transform: scale(1.05); } }
+
 /* ---------- หน้าตั้งค่า ---------- */
 .set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px 16px; }
 .set-row .setting-main { flex: 1 1 200px; }
