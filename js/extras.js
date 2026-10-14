@@ -258,13 +258,16 @@ function timedTick() {
   const left = UI.T.end - Date.now();
   if (left <= 0) return finishTimed();
   const n = document.querySelector('.timer-num'), ring = document.querySelector('.ring-fg');
-  if (n) n.textContent = Math.ceil(left / 1000);
+  const sec = Math.ceil(left / 1000);
+  if (sec <= 5 && sec !== UI.T.lastTick) { UI.T.lastTick = sec; SFX.play('tick'); } // นับถอยหลัง 5 วินาทีสุดท้าย
+  if (n) n.textContent = sec;
   document.querySelector('.ring')?.classList.toggle('low', left < 10000);
   if (ring) ring.setAttribute('stroke-dasharray', `${Math.min(1, left / 60000) * RING} ${RING}`);
 }
 function answerTimed(k) {
   const T = UI.T;
   const ok = T.q.choices[k] === T.q.answer;
+  SFX.play(ok ? 'correct' : 'wrong');
   T.n++;
   trackSkill(T.q.g, ok);
   S.stats.answered++;
@@ -293,6 +296,7 @@ function finishTimed() {
   const streak = T.score ? learnToday() : null;
   const badges = checkBadges();
   save();
+  SFX.play(T.score ? 'complete' : 'fail');
   UI.result = { kind: 'timed', score: T.score, xp, nectar, newBest, bestCombo: T.bestCombo, milestone: streak?.milestone, badges, wrong: [] };
   UI.view = 'result';
   render();
@@ -373,6 +377,7 @@ function checkStory() {
   const st = UI.st, cur = STORIES.find((x) => x.id === st.id).steps[st.step];
   st.ok = cur.q === 'choice' ? st.sel === cur.answer : Number(st.input.replace('−', '-')) === cur.answer;
   st.checked = true;
+  SFX.play(st.ok ? 'correct' : 'wrong');
   if (st.ok) st.correct++;
   render();
   window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -387,6 +392,7 @@ function nextStory() {
   const streak = learnToday();
   const badges = checkBadges();
   save();
+  SFX.play('complete');
   UI.result = { kind: 'story', title: story.title, xp, nectar: 5, correct: st.correct, total: story.steps.filter((s) => s.q).length, milestone: streak?.milestone, badges, wrong: [] };
   UI.st = null; UI.view = 'result';
   render();
@@ -435,10 +441,74 @@ function viewAchievements() {
   </div>`, { sub: { title: 'ความสำเร็จ' } });
 }
 
+// ---------- ตั้งค่า ----------
+const TEXT_SIZES = [['m', 'ปกติ'], ['l', 'ใหญ่'], ['xl', 'ใหญ่มาก']];
+const setRow = (title, desc, control) => `<div class="set-row"><span class="setting-main"><b>${title}</b>${desc ? `<small>${desc}</small>` : ''}</span>${control}</div>`;
+function viewSettings() {
+  const st = S.settings;
+  const sysReduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  return shell(`<div class="sub-body">
+    <section><h3 class="shop-sec">เสียง</h3><div class="list-card">
+      ${setRow('เสียงประกอบ', 'ตอบถูก ตอบผิด จบบทเรียน และรับรางวัล', switchHTML('sound', st.sound, 'เปิดเสียงประกอบ'))}
+      ${setRow('ระดับเสียง', '', `<span class="vol"><input type="range" id="volume" min="0" max="100" step="10" value="${Math.round(st.volume * 100)}" aria-label="ระดับเสียง" ${st.sound ? '' : 'disabled'}>
+        <button class="price-btn ghost" data-act="sfx-test" ${st.sound ? '' : 'disabled'}>ลองฟัง</button></span>`)}
+    </div></section>
+    <section><h3 class="shop-sec">การแสดงผล</h3><div class="list-card">
+      ${setRow('ลดการเคลื่อนไหว', sysReduce ? 'เครื่องของคุณตั้งค่าลดการเคลื่อนไหวไว้แล้ว แอปจะลดให้อัตโนมัติ' : 'ปิดแอนิเมชันเกือบทั้งหมด', switchHTML('motion', st.reduceMotion || sysReduce, 'ลดการเคลื่อนไหว'))}
+      ${setRow('ขนาดตัวอักษร', 'มีผลกับเนื้อหาและโจทย์', `<span class="seg" role="radiogroup" aria-label="ขนาดตัวอักษร">${TEXT_SIZES.map(([v, t]) =>
+        `<button role="radio" aria-checked="${st.textSize === v}" class="${st.textSize === v ? 'on' : ''}" data-act="text-size" data-s="${v}">${t}</button>`).join('')}</span>`)}
+    </div></section>
+    <section><h3 class="shop-sec">การเรียน</h3><div class="list-card">
+      ${setRow('เป้าหมายรายวัน', '', `<select id="goal-select" aria-label="เป้าหมายรายวัน">${GOALS.map(([xp, name]) => `<option value="${xp}" ${S.goal === xp ? 'selected' : ''}>${name} · ${xp} XP</option>`).join('')}</select>`)}
+      ${setRow('เตือนให้มาเรียน', 'ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์', `<span class="vol"><input type="time" id="remind-time" value="${S.remind.time}" aria-label="เวลาเตือน" ${S.remind.on ? '' : 'disabled'}>${switchHTML('remind', S.remind.on, 'เปิดการเตือน')}</span>`)}
+    </div></section>
+    <section><h3 class="shop-sec">โปรไฟล์</h3><div class="list-card">
+      ${setRow('ชื่อที่แสดง', '', `<input class="text-input" id="name" value="${esc(S.name)}" maxlength="20" aria-label="ชื่อที่แสดง">`)}
+      ${setRow('สีกรอบอวตาร', '', `<button class="price-btn ghost" data-act="pick-avatar">${hex('', 'sw-dot', `background:${S.avatar}`)}เปลี่ยน</button>`)}
+    </div></section>
+    <section><h3 class="shop-sec">ข้อมูลของฉัน</h3><div class="list-card">
+      ${setRow('สำรองความคืบหน้า', 'ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น ดาวน์โหลดเก็บไว้กันหาย หรือย้ายไปเครื่องอื่น', '<button class="price-btn" data-act="export">ดาวน์โหลด</button>')}
+      ${setRow('กู้คืนจากไฟล์', 'เลือกไฟล์สำรองที่ดาวน์โหลดไว้', '<label class="price-btn ghost file-btn">เลือกไฟล์<input type="file" id="import-file" accept="application/json,.json"></label>')}
+      ${setRow('รีเซ็ตความคืบหน้า', 'ลบทุกอย่างแล้วเริ่มใหม่', '<button class="price-btn danger-btn" data-act="reset">รีเซ็ต</button>')}
+    </div></section>
+    <p class="muted small center">BeeMath ต้นแบบ · เสียงประกอบสังเคราะห์ในเบราว์เซอร์</p>
+  </div>`, { sub: { title: 'ตั้งค่า' } });
+}
+// สำรอง/กู้คืนข้อมูลเป็นไฟล์ JSON
+function exportProgress() {
+  const data = JSON.stringify({ app: 'beemath', v: 1, exported: new Date().toISOString(), state: S }, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }));
+  a.download = `beemath-backup-${today()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  showToast('ดาวน์โหลดไฟล์สำรองแล้ว');
+}
+function readImport(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    try {
+      const obj = JSON.parse(fr.result);
+      if (obj?.app !== 'beemath' || typeof obj.state?.xp !== 'number' || typeof obj.state?.done !== 'object') throw Error('bad');
+      UI.pendingImport = obj;
+      UI.sheet = { type: 'import' };
+      render();
+    } catch (e) { showToast('ไฟล์นี้ไม่ใช่ไฟล์สำรองของ BeeMath'); }
+  };
+  fr.readAsText(file);
+}
+SHEETS.import = () => {
+  const st = UI.pendingImport.state;
+  return `<div class="sheet-card center"><h3>กู้คืนความคืบหน้า?</h3>
+    <p>ไฟล์นี้มี ${num(st.xp)} XP · ผ่าน ${Object.keys(st.done).length} ด่าน · สตรีค ${st.streak || 0} วัน${UI.pendingImport.exported ? ` · สำรองเมื่อ ${thaiDate(UI.pendingImport.exported.slice(0, 10))}` : ''}</p>
+    <p>ข้อมูลปัจจุบันในเครื่องนี้จะถูกแทนที่</p>
+    <button class="btn primary" data-act="import-yes">กู้คืน</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
+};
+
 // ---------- ลงทะเบียนหน้าจอและ action ----------
 Object.assign(VIEWS, {
   onboarding: viewOnboarding, streak: viewStreak, shop: viewShop, practice: viewPracticeHub,
-  timed: viewTimed, story: viewStory, achievements: viewAchievements,
+  timed: viewTimed, story: viewStory, achievements: viewAchievements, settings: viewSettings,
 });
 Object.assign(ACT, {
   'ob-goal': (d) => { UI.ob.goal = +d.g; render(); },
@@ -457,6 +527,17 @@ Object.assign(ACT, {
     S.onboarded = true; save();
     UI.view = 'learn'; render(); scrollToCurrent();
   },
+  'toggle-sound': () => { S.settings.sound = !S.settings.sound; save(); render(); SFX.play('tap'); },
+  'toggle-motion': () => { S.settings.reduceMotion = !S.settings.reduceMotion; save(); render(); },
+  'text-size': (d) => { S.settings.textSize = d.s; save(); render(); },
+  'sfx-test': () => SFX.play('complete'),
+  export: () => exportProgress(),
+  'import-yes': () => {
+    try { localStorage.setItem(KEY, JSON.stringify(UI.pendingImport.state)); } catch (e) { /* ignore */ }
+    S = load(); save();
+    UI.pendingImport = null; UI.sheet = null;
+    showToast('กู้คืนความคืบหน้าแล้ว');
+  },
   'toggle-remind': () => { S.remind.on = !S.remind.on; if (S.remind.on) requestNotify(); save(); render(); },
   buy: (d) => {
     const it = SHOP.find((x) => x.id === d.id);
@@ -466,6 +547,7 @@ Object.assign(ACT, {
     let msg;
     if (it.outfit) { S.owned[it.id] = true; S.outfit = it.id; msg = `น้องผึ้งใส่${it.name}แล้ว!`; } else msg = it.buy();
     save();
+    SFX.play('reward');
     showToast(msg);
   },
   wear: (d) => { S.outfit = S.outfit === d.id ? null : d.id; save(); render(); },
@@ -477,8 +559,8 @@ Object.assign(ACT, {
   'legend-start': (d) => { const u = UNITS.find((x) => x.id === d.u); startSession('legend', uniq(u.lessons.flatMap((l) => l.gens)), { unit: u.id }); },
   stories: () => { UI.sheet = { type: 'stories' }; render(); },
   'story-start': (d) => startStory(d.id),
-  's-opt': (d) => { UI.st.sel = +d.k; render(); },
-  's-key': (d) => { UI.st.input = editInput(UI.st.input, d.k); render(); },
+  's-opt': (d) => { SFX.play('tap'); UI.st.sel = +d.k; render(); },
+  's-key': (d) => { SFX.play('tap'); UI.st.input = editInput(UI.st.input, d.k); render(); },
   's-check': () => checkStory(),
   's-next': () => nextStory(),
   'quit-story': () => { UI.st = null; UI.view = 'practice'; render(); },

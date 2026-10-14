@@ -503,6 +503,35 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outl
 .ring.low .ring-fg { stroke: var(--red); }
 .ring.low b { color: var(--red-text); }
 
+/* ---------- หน้าตั้งค่า ---------- */
+.set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px 16px; }
+.set-row .setting-main { flex: 1 1 200px; }
+.vol { display: inline-flex; align-items: center; gap: 10px; }
+.vol input[type="range"] { width: 140px; accent-color: var(--honey-dark); }
+.vol input[type="time"], .set-row select, .text-input { height: 44px; padding: 0 10px; border: 2px solid var(--line); border-radius: 12px; background: #fff; font: inherit; font-size: 15px; color: var(--ink); }
+.text-input { width: 180px; }
+.vol input:disabled { opacity: .5; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--track); border-radius: 14px; }
+.seg button { min-height: 40px; padding: 0 14px; border-radius: 11px; font-weight: 700; font-size: 14px; color: var(--ink-2); }
+.seg button.on { background: #fff; color: var(--ink); box-shadow: 0 2px 0 var(--line); }
+.file-btn { position: relative; cursor: pointer; }
+.file-btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file-btn:focus-within { outline: 3px solid var(--blue); outline-offset: 2px; }
+.price-btn.danger-btn { background: var(--red-btn); border-color: var(--red-btn-dark); color: #fff; }
+.price-btn:disabled { opacity: .5; }
+.hex.sw-dot { width: 18px; height: 20px; box-shadow: none; outline: 0; }
+.side-bottom { margin-top: auto; }
+
+/* ขนาดตัวอักษร (ขยายเฉพาะเนื้อหา ไม่ขยายเมนูและแผงข้าง) */
+html.text-l .page, html.text-l .lesson-body, html.text-l .result, html.text-l .timed-body { zoom: 1.12; }
+html.text-xl .page, html.text-xl .lesson-body, html.text-xl .result, html.text-xl .timed-body { zoom: 1.25; }
+
+/* ลดการเคลื่อนไหวจากหน้าตั้งค่า (เหมือนการตั้งค่าของเครื่อง) */
+html.reduce-motion *, html.reduce-motion *::before, html.reduce-motion *::after {
+  animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition: none !important;
+}
+html.reduce-motion .demo-row { opacity: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important; transition: none !important; }
   .demo-row { opacity: 1; }

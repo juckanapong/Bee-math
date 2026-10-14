@@ -45,6 +45,7 @@ function defaultState() {
     quests: { day: today(), p: {}, claimed: {} },
     month: { key: monthKey(), points: 0 }, monthBadges: {},
     badges: {},
+    settings: { sound: true, volume: 0.7, reduceMotion: false, textSize: 'm' },
   };
 }
 function load() {
@@ -53,7 +54,7 @@ function load() {
     if (raw) {
       const d = defaultState();
       const s = { ...d, ...raw };
-      for (const k of ['stats', 'records', 'remind', 'league', 'today', 'month']) s[k] = { ...d[k], ...raw[k] };
+      for (const k of ['stats', 'records', 'remind', 'league', 'today', 'month', 'settings']) s[k] = { ...d[k], ...raw[k] };
       if (!AVATAR_COLORS.includes(s.avatar)) s.avatar = AVATAR_COLORS[0]; // ข้อมูลเก่าเก็บอวตารเป็นอีโมจิ
       if (!raw.joined) s.joined = null; // ไม่รู้วันเริ่มเรียนจริงของข้อมูลเก่า
       if (raw.onboarded === undefined) s.onboarded = true; // ผู้เล่นเดิมไม่ต้องผ่านหน้าเริ่มต้น
@@ -238,6 +239,7 @@ function sideNav() {
     <div class="side-brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>
     ${SIDE.map(([v, i, t, act]) => `<button class="side-item ${UI.view === v ? 'active' : ''}" data-act="${act}" data-v="${v}" ${UI.view === v ? 'aria-current="page"' : ''}>
       ${icon(i, 26)}<span>${t}</span>${v === 'quests' && dot ? '<i class="dot" aria-label="มีรางวัลรอรับ"></i>' : ''}</button>`).join('')}
+    <button class="side-item side-bottom ${UI.view === 'settings' ? 'active' : ''}" data-act="go" data-v="settings" ${UI.view === 'settings' ? 'aria-current="page"' : ''}>${icon('gear', 26)}<span>ตั้งค่า</span></button>
   </nav>`;
 }
 // แผงสรุปด้านขวา (เฉพาะจอคอม)
@@ -379,18 +381,6 @@ const SHEETS = {
   reset() {
     return `<div class="sheet-card center"><h3>รีเซ็ตความคืบหน้าทั้งหมด?</h3><p>XP บทเรียน น้ำหวาน ตราสัญลักษณ์ และสตรีคจะถูกลบ</p>
       <button class="btn danger" data-act="reset-yes">ลบทั้งหมด</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
-  },
-  settings() {
-    return `<div class="sheet-card"><h3>ตั้งค่า</h3>
-      <label class="field">เป้าหมายรายวัน
-        <select id="goal-select">${GOALS.map(([xp, name, time]) => `<option value="${xp}" ${S.goal === xp ? 'selected' : ''}>${name} · ${xp} XP (${time})</option>`).join('')}</select></label>
-      <div class="setting-row">
-        <span class="setting-main"><b>เตือนให้มาเรียน</b><small>ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์</small></span>
-        <input type="time" id="remind-time" value="${S.remind.time}" aria-label="เวลาเตือน" ${S.remind.on ? '' : 'disabled'}>
-        ${switchHTML('remind', S.remind.on, 'เปิดการเตือน')}
-      </div>
-      <button class="btn" data-act="pick-avatar">${icon('palette', 20)} เปลี่ยนสีกรอบอวตาร</button>
-      <button class="btn danger-text" data-act="reset">${icon('refresh', 18)} รีเซ็ตความคืบหน้า</button></div>`;
   },
   avatar() {
     return `<div class="sheet-card center"><h3>เลือกสีกรอบอวตาร</h3><div class="swatches">${AVATAR_COLORS
@@ -552,6 +542,7 @@ function check() {
     ok = xs === q.a && nums.length === 1 && Number(nums[0]) === q.b;
   }
   L.checked = true; L.ok = ok;
+  SFX.play(ok ? 'correct' : 'wrong');
   S.stats.answered++;
   trackSkill(q.gen, ok);
   if (q.tags.includes('bar')) { S.stats.bar++; quest('bar'); }
@@ -623,6 +614,7 @@ function finish(completed) {
   }
   const badges = checkBadges();
   save();
+  SFX.play(L.kind === 'placement' || passed ? 'complete' : 'fail');
   const n = L.meta.i !== undefined ? NODES[L.meta.i] : null;
   const sub = n ? `${n.kind === 'test' ? 'ด่านทดสอบ' : n.title} · บทที่ ${n.ui + 1}`
     : L.kind === 'legend' ? 'ระดับตำนาน · ' + UNITS.find((u) => u.id === L.meta.unit).title
@@ -826,7 +818,7 @@ function viewProfile() {
 
 // ---------- render & actions ----------
 const VIEWS = { learn: viewLearn, board: viewBoard, quests: viewQuests, profile: viewProfile, lesson: viewLesson, cards: viewCards, result: viewResult };
-const SUBPAGES = ['streak', 'shop', 'achievements'];
+const SUBPAGES = ['streak', 'shop', 'achievements', 'settings'];
 // ชื่อ "ฉาก" ปัจจุบัน: เปลี่ยนเมื่อไปหน้าใหม่หรือข้อใหม่ ใช้ตัดสินว่าจะเล่นแอนิเมชันตอนเข้าหรือไม่
 function sceneKey() {
   if (UI.view === 'lesson' && UI.L) return 'lesson:' + UI.L.uid + ':' + UI.L.idx;
@@ -836,7 +828,7 @@ function sceneKey() {
   if (UI.view === 'onboarding') return 'ob:' + UI.ob?.step;
   return UI.view;
 }
-const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const reduceMotion = () => S.settings.reduceMotion || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 // นับตัวเลขขึ้นจาก 0 (ใช้ในหน้าผลลัพธ์)
 function runCounters() {
   const els = [...document.querySelectorAll('.count[data-to]')];
@@ -854,7 +846,15 @@ function render() {
   tick();
   beeId = 0;
   if (!S.onboarded && !['onboarding', 'lesson', 'result'].includes(UI.view)) UI.view = 'onboarding';
-  if (S.leagueResult && UI.view === 'learn' && !UI.sheet) UI.sheet = { type: 'league' };
+  if (S.leagueResult && UI.view === 'learn' && !UI.sheet) {
+    UI.sheet = { type: 'league' };
+    SFX.play(S.leagueResult.to > S.leagueResult.from ? 'levelup' : 'tap');
+  }
+  // การตั้งค่าการแสดงผล: ลดการเคลื่อนไหว และขนาดตัวอักษร
+  const root = document.documentElement;
+  root.classList.toggle('reduce-motion', !!S.settings.reduceMotion);
+  root.classList.toggle('text-l', S.settings.textSize === 'l');
+  root.classList.toggle('text-xl', S.settings.textSize === 'xl');
   const chips = { streak: S.streak, nectar: S.nectar, hearts: S.hearts };
   UI.bump = UI.lastChips ? Object.fromEntries(Object.keys(chips).map((k) => [k, chips[k] > UI.lastChips[k]])) : {};
   const key = sceneKey(), enter = key !== UI.lastScene;
@@ -889,10 +889,10 @@ const ACT = {
   'cards-next': () => { UI.cards.k++; render(); },
   'cards-go': () => { const i = UI.cards.i; if (S.hearts <= 0) { UI.view = 'learn'; UI.sheet = { type: 'nohearts' }; return render(); } startSession(NODES[i].kind, NODES[i].gens, { i }); },
   review: () => startSession('practice', UI.result.wrong, { review: true }),
-  opt: (d) => { UI.L.sel = +d.k; render(); },
-  key: (d) => { UI.L.input = editInput(UI.L.input, d.k); render(); },
-  build: (d) => { UI.L.built.push(d.t); render(); },
-  unbuild: (d) => { UI.L.built.splice(+d.k, 1); render(); },
+  opt: (d) => { SFX.play('tap'); UI.L.sel = +d.k; render(); },
+  key: (d) => { SFX.play('tap'); UI.L.input = editInput(UI.L.input, d.k); render(); },
+  build: (d) => { SFX.play('tap'); UI.L.built.push(d.t); render(); },
+  unbuild: (d) => { SFX.play('tap'); UI.L.built.splice(+d.k, 1); render(); },
   check: () => check(),
   next: () => next(),
   quit: () => { UI.sheet = { type: 'quit' }; render(); },
@@ -909,9 +909,10 @@ const ACT = {
     const monthDone = S.month.points >= MONTH_GOAL && !S.monthBadges[S.month.key];
     if (monthDone) S.monthBadges[S.month.key] = true;
     checkBadges(); save();
+    SFX.play(monthDone ? 'levelup' : 'reward');
     showToast(monthDone ? 'ได้เหรียญประจำเดือนแล้ว!' : `+${q.reward} XP · +${NECTAR.quest} น้ำหวาน`);
   },
-  settings: () => { UI.sheet = { type: 'settings' }; render(); },
+  settings: () => ACT.go({ v: 'settings' }),
   badge: (d) => { UI.sheet = { type: 'badge', id: d.id }; render(); },
   'league-ok': () => { S.leagueResult = null; UI.sheet = null; save(); render(); },
   'pick-avatar': () => { UI.sheet = { type: 'avatar' }; render(); },

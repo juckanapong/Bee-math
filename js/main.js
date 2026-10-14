@@ -10,9 +10,13 @@ document.addEventListener('change', (e) => {
   if (t.id === 'name') S.name = t.value.trim() || 'ผู้เรียน';
   else if (t.id === 'goal-select') S.goal = +t.value;
   else if (t.id === 'remind-time') { S.remind.time = t.value; S.remindedDay = null; }
+  else if (t.id === 'volume') { S.settings.volume = +t.value / 100; SFX.play('tap'); }
+  else if (t.id === 'import-file') { if (t.files[0]) readImport(t.files[0]); t.value = ''; return; }
   else return;
   save();
 });
+// ปรับระดับเสียงแบบทันทีระหว่างลากแถบ
+document.addEventListener('input', (e) => { if (e.target.id === 'volume') S.settings.volume = +e.target.value / 100; });
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || UI.sheet) return;
   const clickFirst = (sel) => document.querySelector(sel)?.click();
