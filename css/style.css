@@ -503,6 +503,39 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outl
 .ring.low .ring-fg { stroke: var(--red); }
 .ring.low b { color: var(--red-text); }
 
+/* ---------- โจทย์แบบใหม่: จับคู่ · เรียงขั้นตอน · หาขั้นที่ผิด ---------- */
+.match { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.match-col { display: grid; gap: 10px; align-content: start; }
+.m-item {
+  min-height: 60px; padding: 8px 12px; display: flex; align-items: center; justify-content: center; text-align: center;
+  background: #fff; border: 2px solid var(--line); border-bottom-width: 5px; border-radius: 16px; font-size: 16px; font-weight: 600; line-height: 1.35;
+}
+.m-item .math { font-size: 19px; }
+.m-item.sel { border-color: #9DBBF5; background: var(--blue-soft); color: var(--blue-dark); }
+.m-item.wrong { border-color: var(--red); background: var(--red-soft); animation: shake .35s; }
+.m-item.matched { border-color: #B9E3A5; background: var(--green-soft); color: var(--green-text); opacity: .75; animation: bounce .35s ease-out; }
+.match-foot { justify-content: center !important; text-align: center; color: var(--ink-2); font-size: 15px; }
+.order { display: grid; gap: 10px; }
+.order-start { justify-self: center; padding: 6px 18px; border-radius: 14px; background: var(--honey-soft); font-size: 24px; }
+.order-slots { display: grid; gap: 8px; min-height: 74px; padding: 8px; border: 3px dashed #D9C79A; border-radius: 16px; }
+.order-slots.right { border-style: solid; border-color: var(--green); animation: bounce .4s ease-out; }
+.order-slots.wrong { border-style: solid; border-color: var(--red); animation: shake .35s; }
+.order-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.step-tile {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 6px 12px;
+  background: #fff; border: 2px solid var(--line); border-bottom-width: 5px; border-radius: 14px; font-size: 19px;
+}
+.step-tile.placed { justify-content: flex-start; border-color: #F5D27A; background: #FFFBEF; }
+.order-palette .step-tile:disabled { opacity: .3; }
+.step-no { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--honey-soft); color: var(--honey-text); font-size: 12px; font-weight: 700; font-family: var(--body); }
+.opt .step-no { margin-right: 4px; }
+.rectsvg { width: 100%; max-width: 300px; display: block; margin: 0 auto; }
+.rect-shape { fill: var(--tile-x); stroke: var(--ink); stroke-width: 3; }
+.rect-t { font: italic 600 20px 'Fraunces', serif; fill: var(--honey-text); text-anchor: middle; }
+@media (hover: hover) {
+  .m-item:not(:disabled):not(.sel):hover, .step-tile:not(:disabled):hover { background: #FFFBEF; border-color: #E8D49E; }
+}
+
 /* ---------- หน้าตั้งค่า ---------- */
 .set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px 16px; }
 .set-row .setting-main { flex: 1 1 200px; }

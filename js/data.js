@@ -89,9 +89,23 @@ function inputQ({ prompt, eq, answer, explain, tags = ['solve'], visual }) {
     type: 'input',
     prompt: prompt || `แก้สมการ หาค่าของ ${M('x')}`,
     visual: visual ?? `<div class="eq-big">${M(eq)}</div>`,
-    answer, explain, tags,
+    answer, explain, tags, eq,
   };
 }
+
+// สี่เหลี่ยมผืนผ้าที่มีป้ายด้านกว้าง/ยาว (ใช้กับโจทย์ความยาวรอบรูป)
+function rectSVG(wLabel, hLabel) {
+  return `<svg class="rectsvg" viewBox="0 0 300 150" role="img" aria-label="สี่เหลี่ยมผืนผ้า กว้าง ${wLabel} ยาว ${hLabel}">
+    <rect x="70" y="20" width="200" height="90" rx="6" class="rect-shape"/>
+    <text x="170" y="138" class="rect-t">${hLabel}</text>
+    <text x="40" y="72" class="rect-t">${wLabel}</text>
+  </svg>`;
+}
+// คู่สำหรับโจทย์จับคู่: a/b เป็น HTML ที่แสดงบนปุ่มฝั่งซ้าย/ขวา
+const matchQ = ({ prompt, pairs, tags = [], explain }) => {
+  const ids = pairs.map((_, i) => i);
+  return { type: 'match', prompt, pairs: pairs.map((p, i) => ({ ...p, id: i })), left: shuffle(ids), right: shuffle(ids), tags, explain };
+};
 
 // โจทย์ปัญหาที่แปลงเป็น ax + b = c ได้
 const WORD_TEMPLATES = [
@@ -331,6 +345,194 @@ const G = {
       explain: steps([[`x = ${b} - ${a}`, `ลบ ${a} ทั้งสองข้าง`], [`x = ${x}`]]),
     });
   },
+
+  // ----- โจทย์แบบใหม่: จับคู่ · เรียงขั้นตอน · หาขั้นที่ผิด -----
+  matchSolve() {
+    const pairs = [], used = new Set();
+    for (const g of shuffle(['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep'])) {
+      if (pairs.length >= 4) break;
+      for (let t = 0; t < 20; t++) {
+        const q = G[g]();
+        if (!used.has(q.answer)) { used.add(q.answer); pairs.push({ a: M(q.eq), b: M('x = ' + q.answer), eq: q.eq, x: q.answer }); break; }
+      }
+    }
+    return matchQ({
+      prompt: 'จับคู่สมการกับคำตอบที่ถูกต้อง', pairs, tags: ['solve'],
+      explain: `<div class="steps">${pairs.map((p, i) => `<div class="step"><span class="num">${i + 1}</span><div>${M(p.eq)}<small>คำตอบคือ ${M('x = ' + p.x)}</small></div></div>`).join('')}</div>`,
+    });
+  },
+  matchWords() {
+    const a = R(2, 9), b = pick([2, 3, 4, 5, 6, 7, 8, 9].filter((n) => n !== a));
+    const all = [
+      [`${a} เท่าของจำนวนหนึ่ง`, `${a}x`],
+      [`จำนวนหนึ่งเพิ่มขึ้น ${b}`, `x + ${b}`],
+      [`จำนวนหนึ่งลดลง ${b}`, `x - ${b}`],
+      ['ครึ่งหนึ่งของจำนวนหนึ่ง', 'frac(x,2)'],
+      [`${a} เท่าของจำนวนหนึ่ง แล้วบวก ${b}`, `${a}x + ${b}`],
+      [`จำนวนหนึ่งบวก ${b} แล้วคูณด้วย ${a}`, `${a}(x + ${b})`],
+    ];
+    const pairs = shuffle(all).slice(0, 4).map(([t, e]) => ({ a: t, b: M(e), e }));
+    return matchQ({
+      prompt: `จับคู่ข้อความกับนิพจน์ ให้ ${M('x')} แทน "จำนวนหนึ่ง"`, pairs,
+      explain: `<div class="steps">${pairs.map((p, i) => `<div class="step"><span class="num">${i + 1}</span><div>${M(p.e)}<small>${p.a}</small></div></div>`).join('')}</div>`,
+    });
+  },
+  orderSteps() {
+    let start, stepsList, notes, decoy;
+    if (Math.random() < 0.5) {
+      const a = R(4, 8), c = R(1, a - 2), x = R(1, 9), b = R(1, 9), d = (a - c) * x + b;
+      start = `${lin(a, b)} = ${lin(c, d)}`;
+      stepsList = [`${lin(a - c, b)} = ${d}`, `${a - c}x = ${d - b}`, `x = ${x}`];
+      notes = [`ลบ ${lin(c, 0)} ทั้งสองข้าง`, `ลบ ${b} ทั้งสองข้าง`, `หารด้วย ${a - c}`];
+      decoy = `${lin(a + c, b)} = ${d}`;
+    } else {
+      const a = R(2, 6), b = R(1, 6), x = R(1, 9), c = a * (x + b);
+      start = `${a}(x + ${b}) = ${c}`;
+      stepsList = [`${a}x + ${a * b} = ${c}`, `${a}x = ${a * x}`, `x = ${x}`];
+      notes = ['กระจายวงเล็บ', `ลบ ${a * b} ทั้งสองข้าง`, `หารด้วย ${a}`];
+      decoy = `${a}x + ${b} = ${c}`;
+    }
+    return {
+      type: 'order', tags: ['solve'],
+      prompt: 'แตะเรียงขั้นตอนการแก้สมการให้ถูกต้อง <span class="sub">(มีขั้นหลอกปนอยู่ 1 ขั้น)</span>',
+      start, steps: stepsList, palette: shuffle([...stepsList, decoy]),
+      explain: steps([[start], ...stepsList.map((st, i) => [st, notes[i]])]),
+    };
+  },
+  findError() {
+    const a = R(2, 6), b = R(1, 6), x = R(1, 9), ab = a * b, c = a * (x + b);
+    const right = [`${a}x + ${ab} = ${c}`, `${a}x = ${c - ab}`, `x = ${x}`];
+    const notes = ['กระจายวงเล็บ', `ลบ ${ab} ทั้งสองข้าง`, `หารด้วย ${a}`];
+    const e = R(0, 2);
+    let shown, reason;
+    if (e === 0) {
+      const r = c - b;
+      shown = [`${a}x + ${b} = ${c}`, `${a}x = ${r}`, `x = ${r % a === 0 ? r / a : `frac(${r},${a})`}`];
+      reason = `ต้องคูณ ${a} กับ ${b} ในวงเล็บด้วย จะได้ ${M(`${a}x + ${ab}`)}`;
+    } else if (e === 1) {
+      shown = [right[0], `${a}x = ${c + ab}`, `x = ${(c + ab) / a}`];
+      reason = `ต้อง <b>ลบ</b> ${ab} ทั้งสองข้าง ไม่ใช่บวก`;
+    } else {
+      shown = [right[0], right[1], `x = ${a * a * x}`];
+      reason = `ต้อง <b>หาร</b>ด้วย ${a} ไม่ใช่คูณ`;
+    }
+    return {
+      type: 'choice', tags: ['solve'],
+      prompt: 'ผึ้งน้อยแก้สมการนี้ผิดไป 1 ขั้น <b>ผิดที่ขั้นไหน?</b>',
+      visual: `<div class="eq-big">${M(`${a}(x + ${b}) = ${c}`)}</div>`,
+      choices: shown.map((st, i) => `<span class="step-no">ขั้นที่ ${i + 1}</span>${M(st)}`),
+      answer: e,
+      explain: `ขั้นที่ ${e + 1} ผิด: ${reason}` + steps(right.map((st, i) => [st, notes[i]])),
+    };
+  },
+
+  // ----- บทที่ 5: วงเล็บและเศษส่วน -----
+  distribute() {
+    const a = R(2, 9), b = R(1, 9);
+    if (Math.random() < 0.5) {
+      return choiceQ({
+        prompt: `${M(`${a}(x + ${b})`)} เท่ากับข้อใด?`,
+        correct: `${a}x + ${a * b}`, wrongs: [`${a}x + ${b}`, `x + ${a * b}`, `${a + b}x`, `${a}x + ${a + b}`],
+        explain: `คูณ ${a} เข้าไป <b>ทุกตัว</b> ในวงเล็บ: ${M(`${a} * x + ${a} * ${b} = ${a}x + ${a * b}`)}`,
+      });
+    }
+    return choiceQ({
+      prompt: `${M(`${a}(x - ${b})`)} เท่ากับข้อใด?`,
+      correct: `${a}x - ${a * b}`, wrongs: [`${a}x - ${b}`, `${a}x + ${a * b}`, `x - ${a * b}`, `${a}x - ${a + b}`],
+      explain: `คูณ ${a} เข้าไป <b>ทุกตัว</b> ในวงเล็บ: ${M(`${a} * x - ${a} * ${b} = ${a}x - ${a * b}`)}`,
+    });
+  },
+  bracketsBoth() {
+    const a = R(3, 6), c = R(1, a - 1), x = R(1, 9), b = R(1, 6), ab = a * b, d = (a - c) * x + ab;
+    const k = a - c;
+    return inputQ({
+      eq: `${a}(x + ${b}) = ${lin(c, d)}`, answer: x,
+      explain: steps([
+        [`${a}x + ${ab} = ${lin(c, d)}`, 'กระจายวงเล็บ'],
+        [`${lin(k, ab)} = ${d}`, `ลบ ${lin(c, 0)} ทั้งสองข้าง`],
+        [`${k === 1 ? '' : k}x = ${d - ab}`, `ลบ ${ab} ทั้งสองข้าง`],
+        [`x = ${x}`, k === 1 ? '' : `หารด้วย ${k}`],
+      ]),
+    });
+  },
+  fracTwoStep() {
+    const a = R(2, 6), y = R(1, 9), b = R(1, 10);
+    return inputQ({
+      eq: `frac(x,${a}) + ${b} = ${y + b}`, answer: a * y,
+      explain: steps([[`frac(x,${a}) = ${y}`, `ลบ ${b} ทั้งสองข้าง`], [`x = ${y} * ${a} = ${a * y}`, `คูณด้วย ${a} ทั้งสองข้าง`]]),
+    });
+  },
+  fracGroup() {
+    const a = R(2, 6), c = R(2, 9), b = R(1, a * c - 1), x = a * c - b;
+    return inputQ({
+      eq: `frac(x + ${b},${a}) = ${c}`, answer: x,
+      explain: steps([[`x + ${b} = ${a * c}`, `คูณด้วย ${a} ทั้งสองข้าง`], [`x = ${x}`, `ลบ ${b} ทั้งสองข้าง`]]),
+    });
+  },
+
+  // ----- บทที่ 6: สมการกับชีวิตจริง -----
+  wordRate() {
+    const kind = R(0, 2);
+    const [f, r, x] = kind === 0 ? [R(30, 40), R(5, 9), R(4, 15)] : kind === 1 ? [R(100, 200), R(2, 5), R(10, 60)] : [R(100, 300), R(20, 50), R(3, 12)];
+    const total = f + r * x;
+    const text = [
+      `ค่าแท็กซี่เริ่มต้น ${f} บาท บวกกิโลเมตรละ ${r} บาท จ่ายทั้งหมด ${total} บาท นั่งไปกี่กิโลเมตร?`,
+      `ค่าโทรศัพท์รายเดือน ${f} บาท บวกนาทีละ ${r} บาท เดือนนี้จ่าย ${total} บาท โทรไปกี่นาที?`,
+      `สมัครสมาชิกสระว่ายน้ำ ${f} บาท และจ่ายครั้งละ ${r} บาท จ่ายไปแล้ว ${total} บาท ว่ายไปกี่ครั้ง?`,
+    ][kind];
+    return inputQ({
+      prompt: text, visual: '', answer: x,
+      explain: steps([[`${lin(r, f)} = ${total}`, 'ค่าเริ่มต้น + อัตรา × จำนวน = ทั้งหมด'], [`${r}x = ${total - f}`, `ลบ ${f} ทั้งสองข้าง`], [`x = ${x}`, `หารด้วย ${r}`]]),
+    });
+  },
+  wordConsecutive() {
+    const x = R(5, 40), sum = 3 * x + 3;
+    return inputQ({
+      prompt: `ผลบวกของจำนวนนับ 3 จำนวนที่เรียงติดกันเท่ากับ ${sum} จำนวนที่น้อยที่สุดคือเท่าไร?`, visual: '', answer: x,
+      explain: steps([[`x + (x + 1) + (x + 2) = ${sum}`, 'ให้จำนวนที่น้อยที่สุดคือ x'], [`3x + 3 = ${sum}`, 'รวมพจน์'], [`3x = ${sum - 3}`, 'ลบ 3 ทั้งสองข้าง'], [`x = ${x}`, `สามจำนวนคือ ${x}, ${x + 1}, ${x + 2}`]]),
+    });
+  },
+  wordAge() {
+    const x = R(5, 20), d = R(20, 35), sum = 2 * x + d;
+    return inputQ({
+      prompt: `แม่อายุมากกว่าลูก ${d} ปี และอายุรวมกัน ${sum} ปี ลูกอายุกี่ปี?`, visual: '', answer: x,
+      explain: steps([[`x + (x + ${d}) = ${sum}`, `ลูกอายุ x ปี แม่อายุ x + ${d} ปี`], [`2x + ${d} = ${sum}`], [`2x = ${sum - d}`, `ลบ ${d} ทั้งสองข้าง`], [`x = ${x}`, 'หารด้วย 2']]),
+    });
+  },
+  wordPerimeter() {
+    const w = R(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
+    return inputQ({
+      prompt: `สี่เหลี่ยมผืนผ้ามีด้านยาวมากกว่าด้านกว้าง ${d} ซม. ความยาวรอบรูป ${P} ซม. ด้านกว้างยาวกี่ซม.?`,
+      visual: rectSVG('x', `x + ${d}`), answer: w,
+      explain: steps([[`2(x + x + ${d}) = ${P}`, 'ความยาวรอบรูป = 2 × (กว้าง + ยาว)'], [`4x + ${2 * d} = ${P}`, 'กระจายวงเล็บ'], [`4x = ${P - 2 * d}`, `ลบ ${2 * d} ทั้งสองข้าง`], [`x = ${w}`, 'หารด้วย 4']]),
+    });
+  },
+  wordToEq2() {
+    const kind = R(0, 2);
+    if (kind === 0) {
+      const f = R(30, 40), r = R(5, 9), x = R(4, 15), total = f + r * x;
+      return choiceQ({
+        prompt: `ค่าแท็กซี่เริ่มต้น ${f} บาท บวกกิโลเมตรละ ${r} บาท จ่ายทั้งหมด ${total} บาท<br><span class="sub">ให้ ${M('x')} แทนระยะทาง สมการใดถูกต้อง?</span>`,
+        correct: `${lin(r, f)} = ${total}`, wrongs: [`${lin(f, r)} = ${total}`, `${r}x - ${f} = ${total}`, `${r + f}x = ${total}`],
+        explain: `ค่าเริ่มต้น ${f} + กิโลเมตรละ ${r} × ${M('x')} = ${total}`,
+      });
+    }
+    if (kind === 1) {
+      const w = R(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
+      return choiceQ({
+        prompt: `สี่เหลี่ยมผืนผ้ายาวกว่ากว้าง ${d} ซม. ความยาวรอบรูป ${P} ซม.<br><span class="sub">ให้ด้านกว้างยาว ${M('x')} ซม. สมการใดถูกต้อง?</span>`,
+        visual: rectSVG('x', `x + ${d}`),
+        correct: `2(x + x + ${d}) = ${P}`, wrongs: [`x + x + ${d} = ${P}`, `2x + ${d} = ${P}`, `x(x + ${d}) = ${P}`],
+        explain: `ความยาวรอบรูป = 2 × (กว้าง + ยาว) = ${M(`2(x + x + ${d})`)}`,
+      });
+    }
+    const x = R(5, 40), sum = 3 * x + 3;
+    return choiceQ({
+      prompt: `ผลบวกของจำนวนนับ 3 จำนวนที่เรียงติดกันเท่ากับ ${sum}<br><span class="sub">ให้จำนวนที่น้อยที่สุดคือ ${M('x')} สมการใดถูกต้อง?</span>`,
+      correct: `x + (x + 1) + (x + 2) = ${sum}`, wrongs: [`3x = ${sum}`, `x + 2x + 3x = ${sum}`, `x + (x + 2) + (x + 4) = ${sum}`],
+      explain: `จำนวนที่เรียงติดกันคือ ${M('x')}, ${M('x + 1')}, ${M('x + 2')}`,
+    });
+  },
 };
 
 // ---------- curriculum ----------
@@ -379,7 +581,7 @@ const UNITS = [
         ],
       },
       {
-        id: 'u2l3', title: 'สมการสองขั้นตอน', gens: ['nextStep', 'twoStep', 'twoStep'],
+        id: 'u2l3', title: 'สมการสองขั้นตอน', gens: ['nextStep', 'twoStep', 'twoStep', 'matchSolve'],
         cards: [
           { title: 'สองขั้นตอน', body: 'กำจัดตัวเลขที่ <b>บวก/ลบ</b> ก่อน แล้วค่อย <b>หาร/คูณ</b>', demo: [['3x + 4 = 19'], ['3x = 15', 'ขั้นที่ 1: ลบ 4 ทั้งสองข้าง'], ['x = 5', 'ขั้นที่ 2: หารด้วย 3 ทั้งสองข้าง']] },
         ],
@@ -415,7 +617,7 @@ const UNITS = [
     color: '#FF7A1A', dark: '#C85A00', ink: '#2A1F14',
     lessons: [
       {
-        id: 'u4l1', title: 'แปลงโจทย์เป็นสมการ', gens: ['wordToEq'],
+        id: 'u4l1', title: 'แปลงโจทย์เป็นสมการ', gens: ['wordToEq', 'wordToEq', 'matchWords'],
         cards: [
           { title: 'อ่านโจทย์ให้เป็นสมการ', body: 'ให้ <b>x</b> แทนสิ่งที่โจทย์ถาม แล้วสังเกตคำสำคัญ:<br>• "ละ / แต่ละ / เท่า ๆ กัน" → คูณ<br>• "รวม / เพิ่ม" → บวก<br>• "เหลือ / ลดลง" → ลบ', demo: [['3x + 5 = 20', 'ซื้อของ 3 ชิ้น ชิ้นละ x บาท + ค่าส่ง 5 บาท = 20 บาท']] },
         ],
@@ -427,10 +629,61 @@ const UNITS = [
         ],
       },
       {
-        id: 'u4l3', title: 'ตัวแปรสองข้าง & วงเล็บ', gens: ['bothSides', 'brackets', 'negative'],
+        id: 'u4l3', title: 'ตัวแปรสองข้าง & วงเล็บ', gens: ['bothSides', 'brackets', 'negative', 'orderSteps'],
         cards: [
           { title: 'ตัวแปรอยู่สองข้าง', body: 'ย้าย x ไปไว้ข้างเดียวกันก่อน โดยลบ x ออกจากทั้งสองข้าง', demo: [['5x + 2 = 3x + 10'], ['2x + 2 = 10', 'ลบ 3x ทั้งสองข้าง'], ['2x = 8', 'ลบ 2 ทั้งสองข้าง'], ['x = 4']] },
           { title: 'สมการที่มีวงเล็บ', body: 'หารตัวเลขหน้าวงเล็บออกก่อน แล้วแก้ต่อตามปกติ', demo: [['3(x + 2) = 21'], ['x + 2 = 7', 'หารด้วย 3 ทั้งสองข้าง'], ['x = 5', 'ลบ 2 ทั้งสองข้าง']] },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'u5', title: 'วงเล็บและเศษส่วน', desc: 'กระจายวงเล็บ สมการเศษส่วน และตรวจหาจุดผิด',
+    color: '#7C4DDB', dark: '#5B33B0', ink: '#FFFFFF',
+    lessons: [
+      {
+        id: 'u5l1', title: 'กระจายวงเล็บ', gens: ['distribute', 'bracketsBoth', 'distribute'],
+        cards: [
+          { title: 'กระจายวงเล็บ', body: 'ตัวเลขหน้าวงเล็บต้องคูณ <b>ทุกตัว</b> ที่อยู่ในวงเล็บ', demo: [['3(x + 4)'], ['3x + 12', '3 × x และ 3 × 4']] },
+          { title: 'วงเล็บกับตัวแปรสองข้าง', body: 'กระจายวงเล็บก่อน แล้วย้าย x ไปไว้ข้างเดียวกัน', demo: [['2(x + 3) = x + 10'], ['2x + 6 = x + 10', 'กระจายวงเล็บ'], ['x + 6 = 10', 'ลบ x ทั้งสองข้าง'], ['x = 4', 'ลบ 6 ทั้งสองข้าง']] },
+        ],
+      },
+      {
+        id: 'u5l2', title: 'สมการที่มีเศษส่วน', gens: ['fracTwoStep', 'fracGroup', 'matchSolve'],
+        cards: [
+          { title: 'กำจัดตัวส่วน', body: 'ถ้า x ถูกหารอยู่ ให้ <b>คูณ</b> ด้วยตัวส่วนทั้งสองข้าง', demo: [['frac(x,4) + 3 = 8'], ['frac(x,4) = 5', 'ลบ 3 ทั้งสองข้าง'], ['x = 20', 'คูณด้วย 4 ทั้งสองข้าง']] },
+          { title: 'ทั้งก้อนถูกหาร', body: 'ถ้าตัวเศษเป็นก้อน ให้คูณตัวส่วนออกก่อน แล้วค่อยแก้ต่อ', demo: [['frac(x + 2,3) = 5'], ['x + 2 = 15', 'คูณด้วย 3 ทั้งสองข้าง'], ['x = 13', 'ลบ 2 ทั้งสองข้าง']] },
+        ],
+      },
+      {
+        id: 'u5l3', title: 'เรียงขั้นตอนและหาจุดผิด', gens: ['orderSteps', 'findError', 'bracketsBoth'],
+        cards: [
+          { title: 'ตรวจทีละขั้น', body: 'ทุกขั้นต้องทำ <b>อย่างเดียวกันทั้งสองข้าง</b> ถ้าขั้นไหนทำข้างเดียว หรือคิดเลขผิด ขั้นนั้นคือจุดผิด', demo: [['4(x + 1) = 20'], ['4x + 1 = 20', 'ผิด! ลืมคูณ 4 กับ 1'], ['4x + 4 = 20', 'ถูกต้อง']] },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'u6', title: 'สมการกับชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ และรูปเรขาคณิต',
+    color: '#2EC4A6', dark: '#1E9A82', ink: '#0B2E27',
+    lessons: [
+      {
+        id: 'u6l1', title: 'ค่าบริการและอัตรา', gens: ['wordRate', 'wordToEq2', 'matchWords'],
+        cards: [
+          { title: 'ค่าเริ่มต้น + อัตรา', body: 'โจทย์ค่าบริการมักเป็น <b>ค่าเริ่มต้น + อัตรา × จำนวน = ทั้งหมด</b>', demo: [['35 + 6x = 95', 'แท็กซี่เริ่ม 35 บาท กิโลเมตรละ 6 บาท'], ['6x = 60', 'ลบ 35 ทั้งสองข้าง'], ['x = 10', 'นั่งไป 10 กิโลเมตร']] },
+        ],
+      },
+      {
+        id: 'u6l2', title: 'จำนวนเรียงกันและอายุ', gens: ['wordConsecutive', 'wordAge', 'wordToEq2'],
+        cards: [
+          { title: 'จำนวนที่เรียงติดกัน', body: 'ให้จำนวนแรกเป็น x จำนวนถัดไปคือ x + 1 และ x + 2', demo: [['x + (x + 1) + (x + 2) = 33'], ['3x + 3 = 33', 'รวมพจน์'], ['x = 10', 'สามจำนวนคือ 10, 11, 12']] },
+          { title: 'โจทย์อายุ', body: 'ให้คนที่อายุน้อยกว่าเป็น x แล้วเขียนอายุอีกคนจากความต่าง', demo: [['x + (x + 25) = 41', 'แม่อายุมากกว่าลูก 25 ปี รวมกัน 41 ปี'], ['2x = 16'], ['x = 8', 'ลูกอายุ 8 ปี']] },
+        ],
+      },
+      {
+        id: 'u6l3', title: 'รูปเรขาคณิต', gens: ['wordPerimeter', 'wordToEq2', 'wordRate'],
+        cards: [
+          { title: 'ความยาวรอบรูป', body: 'ความยาวรอบรูปสี่เหลี่ยมผืนผ้า = <b>2 × (กว้าง + ยาว)</b>', visual: rectSVG('x', 'x + 3'), demo: [['2(x + x + 3) = 34'], ['4x + 6 = 34', 'กระจายวงเล็บ'], ['x = 7', 'ลบ 6 แล้วหารด้วย 4']] },
         ],
       },
     ],
@@ -443,6 +696,8 @@ const PRACTICE = [
   { id: 'solve', icon: 'equals', color: '#58C23A', ink: '#0F2E09', title: 'ฝึกแก้สมการ', desc: 'บวก ลบ คูณ หาร และสองขั้นตอน', unit: 1, gens: ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep'] },
   { id: 'bar', icon: 'bar', color: '#2F6FED', ink: '#FFFFFF', title: 'ฝึกบาร์โมเดล', desc: 'อ่าน สร้าง และแก้สมการด้วยบาร์', unit: 2, gens: ['barRead', 'barBuild', 'barSolve', 'barEqual'] },
   { id: 'challenge', icon: 'mountain', color: '#FF7A1A', ink: '#2A1F14', title: 'โจทย์ท้าทาย', desc: 'โจทย์ปัญหา ตัวแปรสองข้าง วงเล็บ', unit: 3, gens: ['word', 'bothSides', 'brackets', 'negative'] },
+  { id: 'steps', icon: 'target', color: '#7C4DDB', ink: '#FFFFFF', title: 'วงเล็บ เศษส่วน และจุดผิด', desc: 'กระจายวงเล็บ เศษส่วน เรียงขั้นตอน หาขั้นที่ผิด', unit: 4, gens: ['bracketsBoth', 'fracTwoStep', 'fracGroup', 'orderSteps', 'findError'] },
+  { id: 'reallife', icon: 'flag', color: '#2EC4A6', ink: '#0B2E27', title: 'โจทย์ชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ ความยาวรอบรูป', unit: 5, gens: ['wordRate', 'wordConsecutive', 'wordAge', 'wordPerimeter', 'matchWords'] },
 ];
 
 const QUESTS = [

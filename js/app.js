@@ -433,7 +433,7 @@ function startSession(kind, gens, meta = {}, n = kind === 'lesson' ? 6 : kind ==
   const base = [];
   for (let i = 0; i < n; i++) base.push(gens[i % gens.length]);
   const queue = (ordered ? base : shuffle(base)).map((g, uid) => ({ ...G[g](), uid, gen: g, pu: meta.units?.[uid] }));
-  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', wrong: [], unitOk: {} };
+  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', wrong: [], unitOk: {}, ...freshMatch() };
   UI.view = 'lesson'; UI.sheet = null;
   render();
   window.scrollTo(0, 0);
@@ -454,6 +454,25 @@ function viewLesson() {
     }).join('')}</div>`;
   } else if (q.type === 'input') {
     area = answerPad(L.input, L.checked, L.ok, 'key');
+  } else if (q.type === 'match') {
+    const item = (side, id) => {
+      const p = q.pairs[id], done = L.mDone.includes(id);
+      const sel = (side === 'l' ? L.mL : L.mR) === id;
+      const flash = L.mFlash && L.mFlash[side] === id;
+      return `<button class="m-item ${done ? 'matched' : sel ? 'sel' : flash ? 'wrong' : ''}" data-act="m-pick" data-side="${side}" data-id="${id}" ${done || L.checked ? 'disabled' : ''}>${side === 'l' ? p.a : p.b}</button>`;
+    };
+    area = `<div class="match">
+      <div class="match-col">${q.left.map((id) => item('l', id)).join('')}</div>
+      <div class="match-col">${q.right.map((id) => item('r', id)).join('')}</div>
+    </div>`;
+  } else if (q.type === 'order') {
+    const placed = L.built.map((k, i) => `<button class="step-tile placed" data-act="o-remove" data-k="${i}" ${L.checked ? 'disabled' : ''}><span class="step-no">${i + 1}</span>${M(q.palette[k])}</button>`).join('');
+    area = `<div class="order">
+      <div class="order-start">${M(q.start)}</div>
+      <div class="order-slots ${L.checked ? (L.ok ? 'right' : 'wrong') : ''}">${placed || '<span class="slot wide">แตะขั้นตอนด้านล่างเพื่อเรียงต่อจากสมการ</span>'}</div>
+      <div class="palette-label">ขั้นตอน</div>
+      <div class="order-palette">${q.palette.map((st, k) => `<button class="step-tile" data-act="o-add" data-k="${k}" ${L.checked || L.built.includes(k) ? 'disabled' : ''}>${M(st)}</button>`).join('')}</div>
+    </div>`;
   } else if (q.type === 'barbuild') {
     const used = (v) => L.built.filter((t) => t === String(v)).length;
     const tiles = L.built.map((t, i) =>
@@ -470,11 +489,13 @@ function viewLesson() {
         ${q.palette.map((v) => `<button class="tile tn" data-act="build" data-t="${v}" ${L.checked || used(v) ? 'disabled' : ''}>${v}</button>`).join('')}
       </div></div>`;
   }
-  const ready = q.type === 'choice' ? L.sel !== null : q.type === 'input' ? L.input !== '' && L.input !== '−' : L.built.length > 0;
+  const ready = q.type === 'choice' ? L.sel !== null : q.type === 'input' ? L.input !== '' && L.input !== '−' : q.type === 'match' ? false : L.built.length > 0;
   const answerHTML = q.type === 'choice' ? q.choices[q.answer] : q.type === 'input' ? M('x = ' + q.answer) : '';
   const foot = L.checked
     ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement')
-    : `<footer class="lesson-foot">${kbdHint(q.type)}<button class="btn primary wide" data-act="check" ${ready ? '' : 'disabled'}>ตรวจคำตอบ</button></footer>`;
+    : q.type === 'match'
+      ? `<footer class="lesson-foot match-foot"><span>แตะ 1 ช่องในแต่ละฝั่งเพื่อจับคู่ · จับคู่แล้ว <b>${L.mDone.length} / ${q.pairs.length}</b>${L.mMiss ? ` · ผิด ${L.mMiss} ครั้ง` : ''}</span></footer>`
+      : `<footer class="lesson-foot">${kbdHint(q.type)}<button class="btn primary wide" data-act="check" ${ready ? '' : 'disabled'}>ตรวจคำตอบ</button></footer>`;
   const pills = [
     L.kind === 'test' ? `<span class="pill">${icon('trophy', 16)} ด่านทดสอบ</span>` : '',
     L.kind === 'practice' ? `<span class="pill green">${icon('dumbbell', 16)} ${L.meta.review ? 'ทบทวนข้อที่ผิด' : L.meta.weak ? 'ฝึกจุดอ่อน' : 'ฝึกฝน'}</span>` : '',
@@ -501,6 +522,9 @@ function viewLesson() {
     ${sheetHTML()}
   </div>`;
 }
+
+// สถานะของโจทย์จับคู่ (ล้างใหม่ทุกข้อ)
+const freshMatch = () => ({ mL: null, mR: null, mDone: [], mMiss: 0, mFlash: null });
 
 // ช่องคำตอบตัวเลข + แป้นกด (act = ชื่อ action ของปุ่ม)
 function answerPad(input, checked, ok, act, label = 'x =') {
@@ -541,6 +565,8 @@ function check() {
     const nums = L.built.filter((t) => t !== 'x');
     ok = xs === q.a && nums.length === 1 && Number(nums[0]) === q.b;
   }
+  else if (q.type === 'match') ok = L.mMiss < 2; // จับคู่ผิดได้ 1 ครั้ง
+  else if (q.type === 'order') ok = L.built.length === q.steps.length && L.built.every((k, i) => q.palette[k] === q.steps[i]);
   L.checked = true; L.ok = ok;
   SFX.play(ok ? 'correct' : 'wrong');
   S.stats.answered++;
@@ -573,6 +599,7 @@ function next() {
   if (usesHearts(L.kind) && S.hearts <= 0) return finish(false);
   if (L.kind === 'legend' && L.mistakes > 2) return finish(false);
   L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false;
+  Object.assign(L, freshMatch());
   if (L.idx >= L.queue.length) return finish(true);
   render();
   window.scrollTo(0, 0);
@@ -893,6 +920,21 @@ const ACT = {
   key: (d) => { SFX.play('tap'); UI.L.input = editInput(UI.L.input, d.k); render(); },
   build: (d) => { SFX.play('tap'); UI.L.built.push(d.t); render(); },
   unbuild: (d) => { SFX.play('tap'); UI.L.built.splice(+d.k, 1); render(); },
+  // จับคู่: เลือกฝั่งละ 1 ช่อง ถ้าตรงกันจะล็อกเป็นสีเขียว ครบทุกคู่แล้วตรวจอัตโนมัติ
+  'm-pick': (d) => {
+    const L = UI.L, q = L.queue[L.idx], id = +d.id;
+    L.mFlash = null;
+    if (d.side === 'l') L.mL = L.mL === id ? null : id; else L.mR = L.mR === id ? null : id;
+    if (L.mL !== null && L.mR !== null) {
+      if (L.mL === L.mR) { L.mDone.push(L.mL); SFX.play('reward'); }
+      else { L.mMiss++; L.mFlash = { l: L.mL, r: L.mR }; SFX.play('wrong'); }
+      L.mL = L.mR = null;
+    } else SFX.play('tap');
+    if (L.mDone.length === q.pairs.length) return check();
+    render();
+  },
+  'o-add': (d) => { SFX.play('tap'); UI.L.built.push(+d.k); render(); },
+  'o-remove': (d) => { SFX.play('tap'); UI.L.built.splice(+d.k, 1); render(); },
   check: () => check(),
   next: () => next(),
   quit: () => { UI.sheet = { type: 'quit' }; render(); },
