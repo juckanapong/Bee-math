@@ -43,10 +43,11 @@ Read this before changing any UI. The values in it come from `css/style.css` (`:
 | Wrong / danger | `--red` / `--red-btn` / `--red-text` / `--red-soft` | `#E5484D` / `#C9343A` / `#A3262B` / `#FFE5E5` |
 | Hearts / streak | `--heart` / `--orange` / `--orange-text` | `#F0484E` / `#FF7A1A` / `#B84A00` |
 | Locked | `--locked` / `--locked-dark` / `--locked-ink` | `#EAE3D4` / `#CFC6B3` / `#8C8070` |
-| Variable *x* | `--var` | `#B87A00` |
+| Variable *x* | `--var` (large: the main equation, the `x =` answer label) / `--var-text` (every other size) | `#B87A00` / `#8F5E00` |
 | Bar model | `--tile-x` / `--tile-n` | `#FFD84D` / `#A9DCFF` |
 
 Text on a coloured background uses that colour's `-text` / `-ink` token, never neutral grey.
+`--var` passes only the large-text threshold (3.6:1 on white). A small *x* must use `--var-text`, which is at least 4.5:1 on white, the red/green feedback sheets and honey-soft.
 
 ## Type
 - **Headings:** `--head` (Mitr 500/600).

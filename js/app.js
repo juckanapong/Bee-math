@@ -537,9 +537,13 @@ function viewLesson() {
       const p = q.pairs[id], done = L.mDone.includes(id);
       const sel = (side === 'l' ? L.mL : L.mR) === id;
       const flash = L.mFlash && L.mFlash[side] === id;
-      return `<button class="m-item ${done ? 'matched' : sel ? 'sel' : flash ? 'wrong' : ''}" data-act="m-pick" data-side="${side}" data-id="${id}" ${done || L.checked ? 'disabled' : ''}>${side === 'l' ? p.a : p.b}</button>`;
+      return `<button class="m-item ${done ? 'matched' : sel ? 'sel' : flash ? 'wrong' : ''}" aria-pressed="${sel}" data-act="m-pick" data-side="${side}" data-id="${id}" ${done || L.checked ? 'disabled' : ''}>${side === 'l' ? p.a : p.b}</button>`;
     };
-    area = `<div class="match">
+    // กติกา: พลาดได้ 1 ครั้ง (ดู check()) บอกไว้ข้างช่องจับคู่ตั้งแต่เริ่ม
+    const left = Math.max(0, 1 - L.mMiss);
+    const rule = L.mMiss === 0 ? 'จับคู่พลาดได้ 1 ครั้ง' : L.mMiss === 1 ? 'พลาดอีกครั้ง ข้อนี้จะนับว่าผิด' : 'ข้อนี้นับว่าผิดแล้ว จับคู่ให้ครบเพื่อดูเฉลย';
+    area = `<p class="match-rule ${L.mMiss ? 'warn' : ''}" aria-live="polite"><span class="pips" aria-hidden="true">${'<i class="on"></i>'.repeat(left)}${'<i></i>'.repeat(1 - left)}</span>${rule}</p>
+    <div class="match">
       <div class="match-col">${q.left.map((id) => item('l', id)).join('')}</div>
       <div class="match-col">${q.right.map((id) => item('r', id)).join('')}</div>
     </div>`;
@@ -570,9 +574,9 @@ function viewLesson() {
   const ready = q.type === 'choice' ? L.sel !== null : q.type === 'input' ? L.input !== '' && L.input !== '−' : q.type === 'match' ? false : L.built.length > 0;
   const answerHTML = q.type === 'choice' ? q.choices[q.answer] : q.type === 'input' ? M('x = ' + q.answer) : '';
   const foot = L.checked
-    ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement', L.note)
+    ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement', L.note, heartLine(L))
     : q.type === 'match'
-      ? `<footer class="lesson-foot match-foot"><span>แตะ 1 ช่องในแต่ละฝั่งเพื่อจับคู่ · จับคู่แล้ว <b>${L.mDone.length} / ${q.pairs.length}</b>${L.mMiss ? ` · ผิด ${L.mMiss} ครั้ง` : ''}</span></footer>`
+      ? `<footer class="lesson-foot match-foot"><span>แตะ 1 ช่องในแต่ละฝั่งเพื่อจับคู่ · จับคู่แล้ว <b>${L.mDone.length} / ${q.pairs.length}</b></span></footer>`
       : `<footer class="lesson-foot">${kbdHint(q.type)}<button class="btn primary wide" data-act="check" ${ready ? '' : 'disabled'}>ตรวจคำตอบ</button></footer>`;
   const pills = [
     L.kind === 'test' ? `<span class="pill">${icon('trophy', 16)} ด่านทดสอบ</span>` : '',
@@ -584,7 +588,8 @@ function viewLesson() {
     q.retry ? `<span class="pill red">${icon('refresh', 16)} ทวนข้อที่ผิด</span>` : '',
     q.lvl === 2 && !q.retry && L.kind !== 'placement' ? `<span class="pill hard">${icon('mountain', 16)} โจทย์ท้าทาย +1 XP</span>` : '',
   ].join('');
-  const status = usesHearts(L.kind) ? `<span class="hearts-top">${icon('heart', 22)}${S.hearts}</span>`
+  const lost = L.heartAnim; L.heartAnim = false; // เล่นแอนิเมชันเสียหัวใจครั้งเดียวตอนตรวจคำตอบ
+  const status = usesHearts(L.kind) ? `<span class="hearts-top ${S.hearts <= 1 ? 'low' : ''} ${lost ? 'lose' : ''}" role="img" aria-label="หัวใจเหลือ ${S.hearts} ดวง">${icon('heart', 22)}${S.hearts}</span>`
     : twoStrikes(L.kind) ? `<span class="hearts-top legend" aria-label="ผิดได้อีก ${Math.max(0, 2 - L.mistakes)} ข้อ">${icon('shield', 20)}${Math.max(0, 2 - L.mistakes)}</span>`
     : `<span class="hearts-top">${icon('heart', 22)}∞</span>`;
   return `<div class="lesson ${L.kind}">
@@ -593,6 +598,7 @@ function viewLesson() {
       ${status}</header>
     <main class="lesson-body">
       ${pills ? `<div class="pills">${pills}</div>` : ''}
+      ${usesHearts(L.kind) && S.hearts === 1 && !L.checked ? `<p class="heart-warn">${icon('heart', 16)} เหลือหัวใจดวงสุดท้าย ค่อย ๆ คิดนะ ไม่ต้องรีบ</p>` : ''}
       ${L.run >= 3 && !L.checked ? `<div class="combo">${icon('flame', 18)} ถูกติดกัน ${L.run} ข้อ!</div>` : ''}
       <div class="talk">${bee(64, L.checked && L.kind !== 'placement' ? (L.ok ? 'wow' : 'sad') : 'happy')}<div class="bubble">${q.prompt}</div></div>
       ${q.visual ? `<div class="visual">${q.visual}</div>` : ''}
@@ -616,7 +622,14 @@ function answerPad(input, checked, ok, act, label = 'x =') {
 // คำใบ้ปุ่มลัดคีย์บอร์ด (แสดงเฉพาะจอใหญ่ที่ใช้เมาส์)
 const kbdHint = (type) => `<span class="kbd-hint">${type === 'choice' ? 'กด <kbd>1</kbd>–<kbd>4</kbd> เลือกคำตอบ · ' : type === 'input' ? 'พิมพ์ตัวเลขจากคีย์บอร์ด · ' : ''}<kbd>Enter</kbd> ${type === 'line' ? 'ไปต่อ' : 'ตรวจคำตอบ'}</span>`;
 // แผ่นผลตรวจคำตอบ (quiet = ไม่บอกถูกผิด ใช้กับทดสอบวัดระดับ)
-function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '') {
+// บรรทัดบอกหัวใจบนแผ่นเฉลย: เสียไปกี่ดวง เหลือเท่าไหร่ และหมดแล้วจะเกิดอะไรขึ้น
+function heartLine(L) {
+  if (!L.lostHeart) return null;
+  return S.hearts > 0
+    ? { text: `<span class="nw">เสียหัวใจ 1 ดวง</span> · <span class="nw">เหลือ ${S.hearts} ดวง</span>`, empty: false }
+    : { text: 'หัวใจหมดแล้ว บทนี้จะจบหลังข้อนี้ · ไปฝึกฝนเพื่อรับหัวใจคืนได้', empty: true };
+}
+function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '', heart = null) {
   if (quiet) {
     return `<footer class="lesson-foot fb neutral" aria-live="polite"><div class="fb-head"><span class="fb-ic">${icon('check', 22)}</span><div><h3>บันทึกคำตอบแล้ว</h3><p>ทำข้อต่อไปได้เลย</p></div></div>
       <button class="btn primary wide" data-act="${act}">ทำต่อ</button></footer>`;
@@ -624,10 +637,10 @@ function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '
   // บนจอใหญ่ แถบนี้จัดเป็นแถวเดียว: ผลตรวจ | เฉลย | ปุ่ม
   return `<footer class="lesson-foot fb ${ok ? 'ok' : 'bad'}" aria-live="polite">
     <div class="fb-head"><span class="fb-ic">${icon(ok ? 'check' : 'x', 22)}</span>
-      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div>
+      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${heart ? `<p class="fb-heart">${icon('heart', 15)} ${heart.text}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div>
       ${act === 'next' && typeof openFeedback === 'function' ? `<button class="fb-flag" data-act="report-q" aria-label="รายงานโจทย์ข้อนี้" title="รายงานโจทย์ข้อนี้">${icon('flag', 20)}</button>` : ''}</div>
     ${ok ? '' : `<div class="explain">${explain}</div>`}
-    <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span>
+    <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : heart?.empty ? 'เข้าใจแล้ว ดูผล' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span>
       ${act === 'next' && typeof askChips === 'function' ? `<button class="ask-btn" data-act="ask-open">${icon('chat', 18)} ถามน้องผึ้ง</button>` : ''}</div></footer>`;
 }
 // แก้ข้อความในช่องตัวเลข
@@ -668,9 +681,9 @@ function check() {
     if (usesHearts(L.kind) && L.run % 5 === 0 && S.hearts < MAX_HEARTS) { S.hearts++; L.msg = `ถูกติดกัน ${L.run} ข้อ ได้หัวใจคืน 1 ดวง!`; }
   } else {
     L.run = 0; L.mistakes++;
-    L.msg = twoStrikes(L.kind) && L.mistakes > 2 ? 'ผิดเกิน 2 ข้อแล้ว' : pick(COMFORT);
+    L.msg = twoStrikes(L.kind) && L.mistakes > 2 ? 'ผิดเกิน 2 ข้อแล้ว' : q.type === 'match' ? `จับคู่พลาด ${L.mMiss} ครั้ง (พลาดได้ 1 ครั้ง)` : pick(COMFORT);
     L.wrong.push(q.gen);
-    if (usesHearts(L.kind)) loseHeart();
+    if (usesHearts(L.kind)) { loseHeart(); L.lostHeart = true; L.heartAnim = true; }
     if ((L.kind === 'lesson' || L.kind === 'practice') && !q.retry) L.queue.push({ ...q, retry: true }); // ทวนข้อที่ผิดอีกครั้งท้ายบท
   }
   save(); render();
@@ -682,7 +695,7 @@ function next() {
   const L = UI.L;
   if (usesHearts(L.kind) && S.hearts <= 0) return finish(false);
   if (twoStrikes(L.kind) && L.mistakes > 2) return finish(false);
-  L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false; L.note = '';
+  L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false; L.note = ''; L.lostHeart = false;
   Object.assign(L, freshMatch());
   if (L.idx >= L.queue.length) return finish(true);
   materialize(L, L.idx);
