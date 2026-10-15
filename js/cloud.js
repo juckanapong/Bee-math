@@ -32,6 +32,7 @@ function cloudError(err) {
   if (/anonymous sign-ins are disabled/i.test(m)) return 'ยังเข้าห้องเรียนแบบไม่ใช้อีเมลไม่ได้ (ผู้ดูแลต้องเปิด Anonymous sign-ins ใน Supabase)';
   if (/not class owner/i.test(m)) return 'คุณไม่ใช่ครูของห้องนี้';
   if (/anonymous users cannot create/i.test(m)) return 'บัญชีห้องเรียนแบบไม่ใช้อีเมลสร้างห้องไม่ได้ ใช้บัญชีอีเมลแทน';
+  if (/feedback limit/i.test(m)) return 'วันนี้ส่งครบ 10 ข้อความแล้ว พรุ่งนี้ส่งใหม่ได้นะ';
   if (/class limit|assignment limit/i.test(m)) return 'ถึงจำนวนสูงสุดแล้ว';
   if (/could not find the function|function .* does not exist/i.test(m)) return 'ระบบนี้ยังไม่พร้อมใช้งาน (ผู้ดูแลต้องรันไฟล์ SQL ใน Supabase ให้ครบ)';
   return 'เกิดข้อผิดพลาด: ' + m;
@@ -171,7 +172,7 @@ function leagueRefresh() {
 
 // ---------- นโยบายความเป็นส่วนตัว (privacy.html) ----------
 // เปลี่ยน v เมื่อแก้นโยบาย → ผู้มีบัญชีจะถูกขอให้ยอมรับฉบับใหม่
-const PRIVACY = { v: '2026-10-15', url: 'privacy.html' };
+const PRIVACY = { v: '2026-10-15b', url: 'privacy.html' };
 const privacyLink = (t = 'นโยบายความเป็นส่วนตัว') => `<a href="${PRIVACY.url}" target="_blank" rel="noopener">${t}</a>`;
 const consentOk = () => S.consent?.v === PRIVACY.v;
 function giveConsent(via) { S.consent = { v: PRIVACY.v, at: Date.now(), via }; save(); }

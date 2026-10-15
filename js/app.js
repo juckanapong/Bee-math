@@ -624,7 +624,8 @@ function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '
   // บนจอใหญ่ แถบนี้จัดเป็นแถวเดียว: ผลตรวจ | เฉลย | ปุ่ม
   return `<footer class="lesson-foot fb ${ok ? 'ok' : 'bad'}" aria-live="polite">
     <div class="fb-head"><span class="fb-ic">${icon(ok ? 'check' : 'x', 22)}</span>
-      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div></div>
+      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div>
+      ${act === 'next' && typeof openFeedback === 'function' ? `<button class="fb-flag" data-act="report-q" aria-label="รายงานโจทย์ข้อนี้" title="รายงานโจทย์ข้อนี้">${icon('flag', 20)}</button>` : ''}</div>
     ${ok ? '' : `<div class="explain">${explain}</div>`}
     <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span>
       ${act === 'next' && typeof askChips === 'function' ? `<button class="ask-btn" data-act="ask-open">${icon('chat', 18)} ถามน้องผึ้ง</button>` : ''}</div></footer>`;

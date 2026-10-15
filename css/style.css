@@ -1063,3 +1063,19 @@ button.chip { min-height: 36px; }
 .consent input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--green-dark); }
 .consent a, .acct-card a, .sheet-card a, .onboarding a { color: var(--blue-dark); font-weight: 700; }
 a.price-btn { display: inline-flex; align-items: center; text-decoration: none; }
+
+/* ---------- แจ้งปัญหา / รายงานโจทย์ ---------- */
+.fb-flag { flex: none; margin-left: auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: inherit; opacity: .7; }
+.fb.ok .fb-flag { color: var(--green-text); }
+.fb.bad .fb-flag { color: var(--red-text); }
+@media (hover: hover) { .fb-flag:hover { opacity: 1; background: rgba(255, 255, 255, .6); } }
+.fb-sheet { max-height: 86dvh; overflow-y: auto; }
+.fb-kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.fb-kind { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid var(--line); background: #fff; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.fb-kind.on { border-color: var(--blue); background: var(--blue-soft); color: var(--blue-dark); }
+.fb-q { display: grid; gap: 4px; padding: 10px 14px; background: #fff; border: 2px solid var(--line); border-radius: 14px; font-size: 14px; }
+.fb-q span { font-size: 18px; }
+.fb-q small { color: var(--ink-2); }
+.fld textarea { min-height: 110px; padding: 10px 14px; border: 2px solid var(--line); border-radius: 14px; background: #fff; font: inherit; font-size: 16px; font-weight: 400; color: var(--ink); resize: vertical; }
+.fld textarea:focus { outline: none; border-color: var(--blue); }
+.fb-attach { font-size: 13px; }
