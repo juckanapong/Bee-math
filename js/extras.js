@@ -240,7 +240,11 @@ Object.assign(SHEETS, {
 const TIMED_GENS = ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep'];
 const RING = 352; // เส้นรอบวงของวงเวลา (r = 56)
 function timedQuestion() {
-  const g = pick(TIMED_GENS), q = G[g](), a = q.answer;
+  const g = pick(TIMED_GENS);
+  LEVEL = skillLevel(g);
+  let q;
+  try { q = G[g](); } finally { LEVEL = 1; }
+  const a = q.answer;
   const opts = new Set([a]);
   for (const c of shuffle([a + 1, a - 1, a + 2, a - 2, a * 2, a + 10, a + 3])) {
     if (opts.size >= 4) break;
@@ -472,6 +476,7 @@ function viewSettings() {
         `<button role="radio" aria-checked="${st.textSize === v}" class="${st.textSize === v ? 'on' : ''}" data-act="text-size" data-s="${v}">${t}</button>`).join('')}</span>`)}
     </div></section>
     <section><h3 class="shop-sec">การเรียน</h3><div class="list-card">
+      ${setRow('ปรับความยากอัตโนมัติ', 'ตอบถูกติดกันโจทย์จะท้าทายขึ้น (ได้โบนัส XP) · ผิดบ่อยจะง่ายลง', switchHTML('adaptive', st.adaptive !== false, 'ปรับความยากอัตโนมัติ'))}
       ${setRow('เป้าหมายรายวัน', '', `<select id="goal-select" aria-label="เป้าหมายรายวัน">${GOALS.map(([xp, name]) => `<option value="${xp}" ${S.goal === xp ? 'selected' : ''}>${name} · ${xp} XP</option>`).join('')}</select>`)}
       ${setRow('เตือนให้มาเรียน', 'ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์', `<span class="vol"><input type="time" id="remind-time" value="${S.remind.time}" aria-label="เวลาเตือน" ${S.remind.on ? '' : 'disabled'}>${switchHTML('remind', S.remind.on, 'เปิดการเตือน')}</span>`)}
     </div></section>
@@ -554,6 +559,7 @@ Object.assign(ACT, {
     UI.view = 'learn'; render(); scrollToCurrent();
   },
   'toggle-sound': () => { S.settings.sound = !S.settings.sound; save(); render(); SFX.play('tap'); },
+  'toggle-adaptive': () => { S.settings.adaptive = S.settings.adaptive === false; save(); render(); },
   'toggle-motion': () => { S.settings.reduceMotion = !S.settings.reduceMotion; save(); render(); },
   'text-size': (d) => { S.settings.textSize = d.s; save(); render(); },
   'sfx-test': () => SFX.play('complete'),

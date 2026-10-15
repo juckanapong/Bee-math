@@ -45,7 +45,7 @@ function defaultState() {
     quests: { day: today(), p: {}, claimed: {} },
     month: { key: monthKey(), points: 0 }, monthBadges: {},
     badges: {},
-    settings: { sound: true, volume: 0.7, reduceMotion: false, textSize: 'm' },
+    settings: { sound: true, volume: 0.7, reduceMotion: false, textSize: 'm', adaptive: true },
   };
 }
 function load() {
@@ -134,15 +134,42 @@ function addXP(n) {
   return n;
 }
 
-// บันทึกผลรายตัวสร้างโจทย์ ใช้คำนวณความแข็งแรงของทักษะและคลังข้อที่ผิด
+// ---------- ปรับความยากอัตโนมัติ ----------
+// แต่ละทักษะ (ตัวสร้างโจทย์) มีระดับ 0 ง่าย · 1 ปกติ · 2 ท้าทาย (เริ่มที่ปกติ)
+// ถูกติดกัน 4 ข้อ → ขึ้น 1 ระดับ · ผิดติดกัน 2 ข้อ → ลง 1 ระดับ · ระดับมีผลกับขนาดตัวเลขในโจทย์ (RV ใน js/data.js)
+const LEVEL_UP_AFTER = 4, LEVEL_DOWN_AFTER = 2;
+const skillLevel = (gen) => (S.settings.adaptive === false ? 1 : S.skills[gen]?.lvl ?? 1);
+// สร้างโจทย์จริงของช่องที่ i ตอนจะแสดง (ความยากจึงปรับตามคำตอบระหว่างบทเรียนได้)
+function materialize(L, i) {
+  const slot = L.queue[i];
+  if (!slot || slot.type) return;
+  const lvl = L.kind === 'placement' ? 1 : skillLevel(slot.gen);
+  LEVEL = lvl;
+  try { L.queue[i] = { ...G[slot.gen](), uid: slot.uid, gen: slot.gen, pu: slot.pu, lvl }; } finally { LEVEL = 1; }
+}
+
+// บันทึกผลรายตัวสร้างโจทย์ ใช้คำนวณความแข็งแรงของทักษะ คลังข้อที่ผิด และระดับความยาก
+// คืนค่า +1 / -1 เมื่อระดับความยากเปลี่ยน
 function trackSkill(gen, ok) {
-  if (!gen) return;
+  if (!gen) return 0;
   const sk = S.skills[gen] || (S.skills[gen] = { r: [], last: 0 });
   sk.r.push(ok ? 1 : 0);
   if (sk.r.length > 10) sk.r.shift();
   sk.last = Date.now();
+  let change = 0;
+  if (S.settings.adaptive !== false && UI.L?.kind !== 'placement') {
+    sk.lvl = sk.lvl ?? 1;
+    if (ok) {
+      sk.up = (sk.up || 0) + 1; sk.dn = 0;
+      if (sk.up >= LEVEL_UP_AFTER && sk.lvl < 2) { sk.lvl++; sk.up = 0; change = 1; }
+    } else {
+      sk.dn = (sk.dn || 0) + 1; sk.up = 0;
+      if (sk.dn >= LEVEL_DOWN_AFTER && sk.lvl > 0) { sk.lvl--; sk.dn = 0; change = -1; }
+    }
+  }
   if (!ok) { S.mistakes.push({ gen, ts: Date.now() }); if (S.mistakes.length > 60) S.mistakes.shift(); }
   else if (UI.L?.meta.review) S.mistakes = S.mistakes.filter((m) => m.gen !== gen); // ทบทวนถูกแล้ว เอาออกจากคลัง
+  return change;
 }
 
 function levelInfo(xp) {
@@ -481,8 +508,9 @@ function viewCards() {
 function startSession(kind, gens, meta = {}, n = kind === 'lesson' ? 6 : kind === 'legend' || kind === 'placement' ? 10 : 8, ordered = false) {
   const base = [];
   for (let i = 0; i < n; i++) base.push(gens[i % gens.length]);
-  const queue = (ordered ? base : shuffle(base)).map((g, uid) => ({ ...G[g](), uid, gen: g, pu: meta.units?.[uid] }));
-  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', wrong: [], unitOk: {}, ...freshMatch() };
+  const queue = (ordered ? base : shuffle(base)).map((g, uid) => ({ uid, gen: g, pu: meta.units?.[uid] })); // สร้างโจทย์จริงทีละข้อด้วย materialize()
+  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, hard: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', note: '', wrong: [], unitOk: {}, ...freshMatch() };
+  materialize(UI.L, 0);
   UI.view = 'lesson'; UI.sheet = null;
   render();
   window.scrollTo(0, 0);
@@ -541,7 +569,7 @@ function viewLesson() {
   const ready = q.type === 'choice' ? L.sel !== null : q.type === 'input' ? L.input !== '' && L.input !== '−' : q.type === 'match' ? false : L.built.length > 0;
   const answerHTML = q.type === 'choice' ? q.choices[q.answer] : q.type === 'input' ? M('x = ' + q.answer) : '';
   const foot = L.checked
-    ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement')
+    ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement', L.note)
     : q.type === 'match'
       ? `<footer class="lesson-foot match-foot"><span>แตะ 1 ช่องในแต่ละฝั่งเพื่อจับคู่ · จับคู่แล้ว <b>${L.mDone.length} / ${q.pairs.length}</b>${L.mMiss ? ` · ผิด ${L.mMiss} ครั้ง` : ''}</span></footer>`
       : `<footer class="lesson-foot">${kbdHint(q.type)}<button class="btn primary wide" data-act="check" ${ready ? '' : 'disabled'}>ตรวจคำตอบ</button></footer>`;
@@ -553,6 +581,7 @@ function viewLesson() {
     L.kind === 'placement' ? `<span class="pill blue">${icon('mountain', 16)} ทดสอบวัดระดับ ข้อ ${L.idx + 1}/10</span>` : '',
     q.tags.includes('bar') ? `<span class="pill blue">${icon('bar', 16)} บาร์โมเดล</span>` : '',
     q.retry ? `<span class="pill red">${icon('refresh', 16)} ทวนข้อที่ผิด</span>` : '',
+    q.lvl === 2 && !q.retry && L.kind !== 'placement' ? `<span class="pill hard">${icon('mountain', 16)} โจทย์ท้าทาย +1 XP</span>` : '',
   ].join('');
   const status = usesHearts(L.kind) ? `<span class="hearts-top">${icon('heart', 22)}${S.hearts}</span>`
     : twoStrikes(L.kind) ? `<span class="hearts-top legend" aria-label="ผิดได้อีก ${Math.max(0, 2 - L.mistakes)} ข้อ">${icon('shield', 20)}${Math.max(0, 2 - L.mistakes)}</span>`
@@ -586,7 +615,7 @@ function answerPad(input, checked, ok, act, label = 'x =') {
 // คำใบ้ปุ่มลัดคีย์บอร์ด (แสดงเฉพาะจอใหญ่ที่ใช้เมาส์)
 const kbdHint = (type) => `<span class="kbd-hint">${type === 'choice' ? 'กด <kbd>1</kbd>–<kbd>4</kbd> เลือกคำตอบ · ' : type === 'input' ? 'พิมพ์ตัวเลขจากคีย์บอร์ด · ' : ''}<kbd>Enter</kbd> ${type === 'line' ? 'ไปต่อ' : 'ตรวจคำตอบ'}</span>`;
 // แผ่นผลตรวจคำตอบ (quiet = ไม่บอกถูกผิด ใช้กับทดสอบวัดระดับ)
-function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false) {
+function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '') {
   if (quiet) {
     return `<footer class="lesson-foot fb neutral" aria-live="polite"><div class="fb-head"><span class="fb-ic">${icon('check', 22)}</span><div><h3>บันทึกคำตอบแล้ว</h3><p>ทำข้อต่อไปได้เลย</p></div></div>
       <button class="btn primary wide" data-act="${act}">ทำต่อ</button></footer>`;
@@ -594,7 +623,7 @@ function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false) {
   // บนจอใหญ่ แถบนี้จัดเป็นแถวเดียว: ผลตรวจ | เฉลย | ปุ่ม
   return `<footer class="lesson-foot fb ${ok ? 'ok' : 'bad'}" aria-live="polite">
     <div class="fb-head"><span class="fb-ic">${icon(ok ? 'check' : 'x', 22)}</span>
-      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}</div></div>
+      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div></div>
     ${ok ? '' : `<div class="explain">${explain}</div>`}
     <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span></div></footer>`;
 }
@@ -620,7 +649,9 @@ function check() {
   L.checked = true; L.ok = ok;
   SFX.play(ok ? 'correct' : 'wrong');
   S.stats.answered++;
-  trackSkill(q.gen, ok);
+  const lvlChange = trackSkill(q.gen, ok);
+  L.note = lvlChange > 0 ? 'เก่งมาก! โจทย์แบบนี้ข้อต่อไปจะท้าทายขึ้น' : lvlChange < 0 ? 'ข้อต่อไปจะง่ายลงหน่อย ค่อย ๆ ไปนะ' : '';
+  if (ok && q.lvl === 2 && !q.retry) L.hard++;
   if (q.tags.includes('bar')) { S.stats.bar++; quest('bar'); }
   if (ok) {
     S.stats.correct++;
@@ -648,9 +679,10 @@ function next() {
   const L = UI.L;
   if (usesHearts(L.kind) && S.hearts <= 0) return finish(false);
   if (twoStrikes(L.kind) && L.mistakes > 2) return finish(false);
-  L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false;
+  L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false; L.note = '';
   Object.assign(L, freshMatch());
   if (L.idx >= L.queue.length) return finish(true);
+  materialize(L, L.idx);
   render();
   window.scrollTo(0, 0);
 }
@@ -675,7 +707,8 @@ function finish(completed) {
   } else if (passed) {
     xp = { test: 20, lesson: 10, legend: 30, jump: 20 }[L.kind] ?? 5 + Math.floor(L.firstTry / 2);
     if (perfect && (L.kind === 'lesson' || L.kind === 'test')) xp += 5;
-    xp = addXP(xp);
+    extra.hardBonus = Math.min(5, L.hard); // โบนัสโจทย์ท้าทาย ข้อละ 1 XP (สูงสุด 5)
+    xp = addXP(xp + extra.hardBonus);
     nectar = NECTAR[L.kind] + (perfect && L.kind !== 'practice' ? NECTAR.perfect : 0);
     S.nectar += nectar;
     if (L.kind === 'practice') S.hearts = Math.min(MAX_HEARTS, S.hearts + 1);
@@ -719,6 +752,7 @@ function rewardsHTML(r) {
   let d = 0; // เลื่อนเวลาให้รางวัลโผล่ทีละชิ้น
   const delay = () => `style="--d:${0.7 + 0.25 * d++}s"`;
   return `${r.nectar ? `<span class="earn" ${delay()}>${icon('drop', 16)} +${r.nectar} น้ำหวาน</span>` : ''}
+    ${r.hardBonus ? `<span class="earn hard" ${delay()}>${icon('mountain', 16)} รวมโบนัสโจทย์ท้าทาย +${r.hardBonus} XP</span>` : ''}
     ${r.milestone ? `<div class="new-badge" ${delay()}>${hex(icon('flame', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ก้าวสำคัญ! สตรีค ${r.milestone.days} วัน</small><b>รับ ${r.milestone.nectar} น้ำหวาน${r.milestone.days === 30 ? ' + ดอกไม้ประดับ' : ''}</b></div></div>` : ''}
     ${(r.badges || []).map((b) => `<div class="new-badge" ${delay()}>${badgeHex(b, true)}<div><small>ได้ตราสัญลักษณ์ใหม่</small><b>${b.name}</b></div></div>`).join('')}`;
 }

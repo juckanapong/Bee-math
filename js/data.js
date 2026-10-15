@@ -2,6 +2,15 @@
 
 // ---------- utilities ----------
 const R = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+// ระดับความยากของโจทย์ที่กำลังสร้าง: 0 ง่าย · 1 ปกติ · 2 ท้าทาย (ตั้งโดย materialize() ใน js/app.js)
+let LEVEL = 1;
+// สุ่ม "ขนาดตัวเลข" ตามระดับความยาก: ง่าย = 60% ล่างของช่วง · ท้าทาย = เลื่อนขึ้น 30% และขยายช่วงบนอีก 60%
+// ใช้เฉพาะตัวเลขที่เป็นอิสระ (ไม่ใช้กับจำนวนกล่องบาร์โมเดลหรือค่าที่ต้องน้อยกว่าค่าอื่น)
+function RV(a, b) {
+  if (LEVEL <= 0) return R(a, Math.max(a, a + Math.floor((b - a) * 0.6)));
+  if (LEVEL >= 2) return R(a + Math.floor((b - a) * 0.3), b + Math.ceil((b - a) * 0.6));
+  return R(a, b);
+}
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const shuffle = (arr) => {
   const a = [...arr];
@@ -119,7 +128,7 @@ const WORD_TEMPLATES = [
 const G = {
   // ----- บทที่ 1 -----
   whichIsEquation() {
-    const a = R(2, 9), x = R(1, 9), b = R(1, 9), c = a * x + b;
+    const a = R(2, 9), x = RV(1, 9), b = RV(1, 9), c = a * x + b;
     return choiceQ({
       prompt: 'ข้อใดเป็น <b>สมการ</b>?',
       correct: `${lin(a, b)} = ${c}`,
@@ -128,7 +137,7 @@ const G = {
     });
   },
   findVariable() {
-    const v = pick(VARS), a = R(2, 9), x = R(2, 9), b = R(1, a * x - 1), c = a * x - b;
+    const v = pick(VARS), a = R(2, 9), x = RV(2, 9), b = R(1, a * x - 1), c = a * x - b;
     return choiceQ({
       prompt: `ในสมการ ${M(`${lin(a, -b, v)} = ${c}`)} ข้อใดคือ <b>ตัวแปร</b>?`,
       correct: v,
@@ -137,7 +146,7 @@ const G = {
     });
   },
   checkSolution() {
-    const a = R(2, 6), x = R(1, 9), b = R(1, 12), c = a * x + b;
+    const a = R(2, 6), x = RV(1, 9), b = RV(1, 12), c = a * x + b;
     const yes = Math.random() < 0.5;
     const t = yes ? x : x + pick([-1, 1, 2]);
     const val = a * t + b;
@@ -150,7 +159,7 @@ const G = {
     });
   },
   guessSolution() {
-    const x = R(1, 15), a = R(2, 12), b = x + a;
+    const x = RV(1, 15), a = RV(2, 12), b = x + a;
     return choiceQ({
       prompt: `ค่าใดของ ${M('x')} ทำให้สมการ ${M(`x + ${a} = ${b}`)} เป็นจริง?`,
       correct: x,
@@ -184,28 +193,28 @@ const G = {
 
   // ----- บทที่ 2 -----
   addEq() {
-    const x = R(1, 20), a = R(1, 15), b = x + a;
+    const x = RV(1, 20), a = RV(1, 15), b = x + a;
     return inputQ({
       eq: `x + ${a} = ${b}`, answer: x,
       explain: steps([[`x + ${a} - ${a} = ${b} - ${a}`, `ลบ ${a} ทั้งสองข้าง`], [`x = ${x}`]]),
     });
   },
   subEq() {
-    const a = R(1, 12), x = R(a + 1, a + 15), b = x - a;
+    const a = RV(1, 12), x = R(a + 1, a + 15), b = x - a;
     return inputQ({
       eq: `x - ${a} = ${b}`, answer: x,
       explain: steps([[`x - ${a} + ${a} = ${b} + ${a}`, `บวก ${a} ทั้งสองข้าง`], [`x = ${x}`]]),
     });
   },
   mulEq() {
-    const a = R(2, 9), x = R(1, 12), b = a * x;
+    const a = RV(2, 9), x = RV(1, 12), b = a * x;
     return inputQ({
       eq: `${a}x = ${b}`, answer: x,
       explain: steps([[`frac(${a}x,${a}) = frac(${b},${a})`, `หารด้วย ${a} ทั้งสองข้าง`], [`x = ${x}`]]),
     });
   },
   divEq() {
-    const a = R(2, 6), y = R(1, 10), x = a * y;
+    const a = R(2, 6), y = RV(1, 10), x = a * y;
     return inputQ({
       eq: `frac(x,${a}) = ${y}`, answer: x,
       explain: steps([[`frac(x,${a}) * ${a} = ${y} * ${a}`, `คูณด้วย ${a} ทั้งสองข้าง`], [`x = ${x}`]]),
@@ -230,7 +239,7 @@ const G = {
     });
   },
   nextStep() {
-    const a = R(2, 6), x = R(1, 9), b = R(1, 12), c = a * x + b;
+    const a = R(2, 6), x = RV(1, 9), b = RV(1, 12), c = a * x + b;
     return choiceQ({
       prompt: 'ขั้นแรกของการแก้สมการนี้ควรทำอะไร?',
       visual: `<div class="eq-big">${M(`${lin(a, b)} = ${c}`)}</div>`,
@@ -242,8 +251,8 @@ const G = {
     });
   },
   twoStep() {
-    const a = R(2, 7), x = R(1, 10);
-    let b = pick([1, -1]) * R(1, 12);
+    const a = R(2, 7), x = RV(1, 10);
+    let b = pick([1, -1]) * RV(1, 12);
     if (a * x + b <= 0) b = -b;
     const c = a * x + b;
     return inputQ({
@@ -302,7 +311,7 @@ const G = {
 
   // ----- บทที่ 4: โจทย์ท้าทาย -----
   wordToEq() {
-    const a = R(2, 6), x = R(3, 15), b = R(2, 20), c = a * x + b;
+    const a = R(2, 6), x = RV(3, 15), b = RV(2, 20), c = a * x + b;
     return choiceQ({
       prompt: `${pick(WORD_TEMPLATES)(a, b, c)}<br><span class="sub">ให้ ${M('x')} แทนสิ่งที่โจทย์ถาม สมการใดถูกต้อง?</span>`,
       correct: `${lin(a, b)} = ${c}`,
@@ -311,7 +320,7 @@ const G = {
     });
   },
   word() {
-    const a = R(2, 6), x = R(3, 15), b = R(2, 20), c = a * x + b;
+    const a = R(2, 6), x = RV(3, 15), b = RV(2, 20), c = a * x + b;
     return inputQ({
       prompt: pick(WORD_TEMPLATES)(a, b, c),
       visual: '',
@@ -320,7 +329,7 @@ const G = {
     });
   },
   bothSides() {
-    const a = R(3, 8), c = R(1, a - 1), x = R(1, 10), b = R(1, 10), d = (a - c) * x + b;
+    const a = R(3, 8), c = R(1, a - 1), x = RV(1, 10), b = RV(1, 10), d = (a - c) * x + b;
     return inputQ({
       eq: `${lin(a, b)} = ${lin(c, d)}`, answer: x,
       explain: steps([
@@ -331,14 +340,14 @@ const G = {
     });
   },
   brackets() {
-    const a = R(2, 5), b = R(1, 8), x = R(1, 10), c = a * (x + b);
+    const a = R(2, 5), b = RV(1, 8), x = RV(1, 10), c = a * (x + b);
     return inputQ({
       eq: `${a}(x + ${b}) = ${c}`, answer: x,
       explain: steps([[`x + ${b} = ${x + b}`, `หารด้วย ${a} ทั้งสองข้าง`], [`x = ${x}`, `ลบ ${b} ทั้งสองข้าง`]]),
     });
   },
   negative() {
-    const a = R(6, 15), x = -R(1, a - 1), b = x + a;
+    const a = RV(6, 15), x = -R(1, a - 1), b = x + a;
     return inputQ({
       prompt: `แก้สมการ หาค่าของ ${M('x')} <span class="sub">(คำตอบอาจติดลบ!)</span>`,
       eq: `x + ${a} = ${b}`, answer: x,
@@ -380,13 +389,13 @@ const G = {
   orderSteps() {
     let start, stepsList, notes, decoy;
     if (Math.random() < 0.5) {
-      const a = R(4, 8), c = R(1, a - 2), x = R(1, 9), b = R(1, 9), d = (a - c) * x + b;
+      const a = R(4, 8), c = R(1, a - 2), x = RV(1, 9), b = RV(1, 9), d = (a - c) * x + b;
       start = `${lin(a, b)} = ${lin(c, d)}`;
       stepsList = [`${lin(a - c, b)} = ${d}`, `${a - c}x = ${d - b}`, `x = ${x}`];
       notes = [`ลบ ${lin(c, 0)} ทั้งสองข้าง`, `ลบ ${b} ทั้งสองข้าง`, `หารด้วย ${a - c}`];
       decoy = `${lin(a + c, b)} = ${d}`;
     } else {
-      const a = R(2, 6), b = R(1, 6), x = R(1, 9), c = a * (x + b);
+      const a = R(2, 6), b = R(1, 6), x = RV(1, 9), c = a * (x + b);
       start = `${a}(x + ${b}) = ${c}`;
       stepsList = [`${a}x + ${a * b} = ${c}`, `${a}x = ${a * x}`, `x = ${x}`];
       notes = ['กระจายวงเล็บ', `ลบ ${a * b} ทั้งสองข้าง`, `หารด้วย ${a}`];
@@ -400,7 +409,7 @@ const G = {
     };
   },
   findError() {
-    const a = R(2, 6), b = R(1, 6), x = R(1, 9), ab = a * b, c = a * (x + b);
+    const a = R(2, 6), b = R(1, 6), x = RV(1, 9), ab = a * b, c = a * (x + b);
     const right = [`${a}x + ${ab} = ${c}`, `${a}x = ${c - ab}`, `x = ${x}`];
     const notes = ['กระจายวงเล็บ', `ลบ ${ab} ทั้งสองข้าง`, `หารด้วย ${a}`];
     const e = R(0, 2);
@@ -428,7 +437,7 @@ const G = {
 
   // ----- บทที่ 5: วงเล็บและเศษส่วน -----
   distribute() {
-    const a = R(2, 9), b = R(1, 9);
+    const a = RV(2, 9), b = RV(1, 9);
     if (Math.random() < 0.5) {
       return choiceQ({
         prompt: `${M(`${a}(x + ${b})`)} เท่ากับข้อใด?`,
@@ -443,7 +452,7 @@ const G = {
     });
   },
   bracketsBoth() {
-    const a = R(3, 6), c = R(1, a - 1), x = R(1, 9), b = R(1, 6), ab = a * b, d = (a - c) * x + ab;
+    const a = R(3, 6), c = R(1, a - 1), x = RV(1, 9), b = RV(1, 6), ab = a * b, d = (a - c) * x + ab;
     const k = a - c;
     return inputQ({
       eq: `${a}(x + ${b}) = ${lin(c, d)}`, answer: x,
@@ -456,14 +465,14 @@ const G = {
     });
   },
   fracTwoStep() {
-    const a = R(2, 6), y = R(1, 9), b = R(1, 10);
+    const a = R(2, 6), y = RV(1, 9), b = RV(1, 10);
     return inputQ({
       eq: `frac(x,${a}) + ${b} = ${y + b}`, answer: a * y,
       explain: steps([[`frac(x,${a}) = ${y}`, `ลบ ${b} ทั้งสองข้าง`], [`x = ${y} * ${a} = ${a * y}`, `คูณด้วย ${a} ทั้งสองข้าง`]]),
     });
   },
   fracGroup() {
-    const a = R(2, 6), c = R(2, 9), b = R(1, a * c - 1), x = a * c - b;
+    const a = R(2, 6), c = RV(2, 9), b = R(1, a * c - 1), x = a * c - b;
     return inputQ({
       eq: `frac(x + ${b},${a}) = ${c}`, answer: x,
       explain: steps([[`x + ${b} = ${a * c}`, `คูณด้วย ${a} ทั้งสองข้าง`], [`x = ${x}`, `ลบ ${b} ทั้งสองข้าง`]]),
@@ -473,7 +482,7 @@ const G = {
   // ----- บทที่ 6: สมการกับชีวิตจริง -----
   wordRate() {
     const kind = R(0, 2);
-    const [f, r, x] = kind === 0 ? [R(30, 40), R(5, 9), R(4, 15)] : kind === 1 ? [R(100, 200), R(2, 5), R(10, 60)] : [R(100, 300), R(20, 50), R(3, 12)];
+    const [f, r, x] = kind === 0 ? [R(30, 40), R(5, 9), RV(4, 15)] : kind === 1 ? [R(100, 200), R(2, 5), RV(10, 60)] : [R(100, 300), R(20, 50), RV(3, 12)];
     const total = f + r * x;
     const text = [
       `ค่าแท็กซี่เริ่มต้น ${f} บาท บวกกิโลเมตรละ ${r} บาท จ่ายทั้งหมด ${total} บาท นั่งไปกี่กิโลเมตร?`,
@@ -486,21 +495,21 @@ const G = {
     });
   },
   wordConsecutive() {
-    const x = R(5, 40), sum = 3 * x + 3;
+    const x = RV(5, 40), sum = 3 * x + 3;
     return inputQ({
       prompt: `ผลบวกของจำนวนนับ 3 จำนวนที่เรียงติดกันเท่ากับ ${sum} จำนวนที่น้อยที่สุดคือเท่าไร?`, visual: '', answer: x,
       explain: steps([[`x + (x + 1) + (x + 2) = ${sum}`, 'ให้จำนวนที่น้อยที่สุดคือ x'], [`3x + 3 = ${sum}`, 'รวมพจน์'], [`3x = ${sum - 3}`, 'ลบ 3 ทั้งสองข้าง'], [`x = ${x}`, `สามจำนวนคือ ${x}, ${x + 1}, ${x + 2}`]]),
     });
   },
   wordAge() {
-    const x = R(5, 20), d = R(20, 35), sum = 2 * x + d;
+    const x = RV(5, 20), d = R(20, 35), sum = 2 * x + d;
     return inputQ({
       prompt: `แม่อายุมากกว่าลูก ${d} ปี และอายุรวมกัน ${sum} ปี ลูกอายุกี่ปี?`, visual: '', answer: x,
       explain: steps([[`x + (x + ${d}) = ${sum}`, `ลูกอายุ x ปี แม่อายุ x + ${d} ปี`], [`2x + ${d} = ${sum}`], [`2x = ${sum - d}`, `ลบ ${d} ทั้งสองข้าง`], [`x = ${x}`, 'หารด้วย 2']]),
     });
   },
   wordPerimeter() {
-    const w = R(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
+    const w = RV(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
     return inputQ({
       prompt: `สี่เหลี่ยมผืนผ้ามีด้านยาวมากกว่าด้านกว้าง ${d} ซม. ความยาวรอบรูป ${P} ซม. ด้านกว้างยาวกี่ซม.?`,
       visual: rectSVG('x', `x + ${d}`), answer: w,
@@ -510,7 +519,7 @@ const G = {
   wordToEq2() {
     const kind = R(0, 2);
     if (kind === 0) {
-      const f = R(30, 40), r = R(5, 9), x = R(4, 15), total = f + r * x;
+      const f = R(30, 40), r = R(5, 9), x = RV(4, 15), total = f + r * x;
       return choiceQ({
         prompt: `ค่าแท็กซี่เริ่มต้น ${f} บาท บวกกิโลเมตรละ ${r} บาท จ่ายทั้งหมด ${total} บาท<br><span class="sub">ให้ ${M('x')} แทนระยะทาง สมการใดถูกต้อง?</span>`,
         correct: `${lin(r, f)} = ${total}`, wrongs: [`${lin(f, r)} = ${total}`, `${r}x - ${f} = ${total}`, `${r + f}x = ${total}`],
@@ -518,7 +527,7 @@ const G = {
       });
     }
     if (kind === 1) {
-      const w = R(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
+      const w = RV(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
       return choiceQ({
         prompt: `สี่เหลี่ยมผืนผ้ายาวกว่ากว้าง ${d} ซม. ความยาวรอบรูป ${P} ซม.<br><span class="sub">ให้ด้านกว้างยาว ${M('x')} ซม. สมการใดถูกต้อง?</span>`,
         visual: rectSVG('x', `x + ${d}`),
@@ -526,7 +535,7 @@ const G = {
         explain: `ความยาวรอบรูป = 2 × (กว้าง + ยาว) = ${M(`2(x + x + ${d})`)}`,
       });
     }
-    const x = R(5, 40), sum = 3 * x + 3;
+    const x = RV(5, 40), sum = 3 * x + 3;
     return choiceQ({
       prompt: `ผลบวกของจำนวนนับ 3 จำนวนที่เรียงติดกันเท่ากับ ${sum}<br><span class="sub">ให้จำนวนที่น้อยที่สุดคือ ${M('x')} สมการใดถูกต้อง?</span>`,
       correct: `x + (x + 1) + (x + 2) = ${sum}`, wrongs: [`3x = ${sum}`, `x + 2x + 3x = ${sum}`, `x + (x + 2) + (x + 4) = ${sum}`],

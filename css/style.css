@@ -1014,3 +1014,10 @@ button.chip { min-height: 36px; }
 
 /* หน้ากว้าง (แดชบอร์ดครู): หัวหน้าจอให้ตรงแนวกับเนื้อหา */
 .layout.wide .subhead { padding-inline: max(16px, calc((100% - 1100px) / 2)); }
+
+/* ปรับความยากอัตโนมัติ */
+.pill.hard { background: #FFE3D1; color: #8A3700; }
+.lvl-note { display: flex; align-items: center; gap: 4px; margin-top: 4px !important; font-size: 14px; font-weight: 700; }
+.fb.ok .lvl-note { color: var(--green-text); }
+.fb.bad .lvl-note { color: var(--ink-2); }
+.earn.hard { background: #FFE3D1; color: #8A3700; }
