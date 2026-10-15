@@ -212,6 +212,20 @@
 
 คำอธิบายทั้งหมดคำนวณจากสมการของข้อนั้นเอง (`analyze()` ใน `js/askbee.js` แยกแต่ละข้างเป็น a·x + b) จึง **ฟรี ถูกต้องเสมอ ใช้ออฟไลน์ได้ และไม่มีข้อมูลออกจากเครื่อง** · โจทย์ที่ใช้ได้ต้องมีฟิลด์ `eq` (สร้างโดย `inputQ`/ตัวสร้างใน `js/data.js`) · ทดสอบกับโจทย์สุ่ม 8,100 ข้อ: แทนค่าแล้วสองข้างเท่ากันทุกข้อ
 
+## เข้าสู่ระบบด้วย Google
+ปุ่ม "เข้าสู่ระบบด้วย Google" / "สมัครด้วย Google" อยู่ในหน้าบัญชี (แท็บเข้าสู่ระบบและสมัครบัญชี) ใช้ `signInWithOAuth` ของ Supabase
+- สมัครด้วย Google ต้องติ๊กยอมรับนโยบายก่อนเหมือนสมัครด้วยอีเมล · เข้าสู่ระบบด้วยบัญชีเดิมไม่ต้องติ๊ก (ถ้ายังไม่เคยยอมรับ แอปจะถามหลังเข้าสู่ระบบ)
+- แอปไม่ใช้ชื่อจริงหรือรูปจาก Google: ชื่อในลีก/เพื่อน/ห้องเรียนคือ "ชื่อที่แสดง" ที่ผู้ใช้ตั้งเอง
+- อีเมลเดียวกันที่เคยสมัครด้วยรหัสผ่าน (และยืนยันอีเมลแล้ว) Supabase จะรวมเป็นบัญชีเดียวกันให้อัตโนมัติ
+
+**ตั้งค่าครั้งแรก**
+1. [Google Cloud Console](https://console.cloud.google.com/) › สร้างโปรเจกต์ › **APIs & Services › OAuth consent screen**: User type = External · App name = BeeMath · ใส่อีเมลติดต่อ · Scopes ใช้ค่าเริ่มต้น (email, profile, openid) · **Publish app** (ถ้าค้างที่ Testing จะเข้าได้เฉพาะ test users)
+2. **Credentials › Create credentials › OAuth client ID** › Web application
+   - Authorized JavaScript origins: `https://juckanapong.github.io`
+   - Authorized redirect URIs: `https://vgzyystxqwtchtianjzw.supabase.co/auth/v1/callback`
+3. Supabase › **Authentication › Sign In / Providers › Google** › Enable › วาง Client ID และ Client Secret › Save
+4. Supabase › **Authentication › URL Configuration**: Site URL = `https://juckanapong.github.io/Bee-math/` และมีที่อยู่เดียวกันใน Redirect URLs
+
 ## นโยบายความเป็นส่วนตัว (PDPA)
 - หน้า `privacy.html` (เปิดได้โดยตรง ส่งลิงก์ให้ผู้ปกครอง/โรงเรียนได้ พิมพ์ได้) อธิบายว่าเก็บข้อมูลอะไร ใช้ทำอะไร ใครเห็น ผู้ให้บริการภายนอก ระยะเวลาเก็บ และวิธีใช้สิทธิ์ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562
 - ช่องทางติดต่อเรื่องข้อมูลอยู่ในข้อ 1 · เซิร์ฟเวอร์ Supabase อยู่ที่สิงคโปร์ (ระบุในข้อ 5) ถ้าย้ายโปรเจกต์ต้องแก้ข้อนี้ด้วย

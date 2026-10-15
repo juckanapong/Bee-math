@@ -1079,3 +1079,9 @@ a.price-btn { display: inline-flex; align-items: center; text-decoration: none; 
 .fld textarea { min-height: 110px; padding: 10px 14px; border: 2px solid var(--line); border-radius: 14px; background: #fff; font: inherit; font-size: 16px; font-weight: 400; color: var(--ink); resize: vertical; }
 .fld textarea:focus { outline: none; border-color: var(--blue); }
 .fb-attach { font-size: 13px; }
+
+/* ---------- เข้าสู่ระบบด้วย Google ---------- */
+.or-line { display: flex; align-items: center; gap: 10px; margin: 4px 0; color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.or-line::before, .or-line::after { content: ''; flex: 1; height: 2px; background: var(--line); }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: #fff; border: 2px solid #DADCE0; border-bottom-width: 4px; color: #1F1F1F; font-family: 'Anuphan', system-ui, sans-serif; font-weight: 700; }
+@media (hover: hover) { .google-btn:hover { background: #F8F9FA; } }

@@ -29,6 +29,7 @@ function cloudError(err) {
   if (/invalid.*email|email.*invalid/i.test(m)) return 'รูปแบบอีเมลไม่ถูกต้อง';
   if (/rate limit|too many/i.test(m)) return 'ลองบ่อยเกินไป รอสักครู่แล้วลองใหม่';
   if (/fetch|network|failed to load/i.test(m)) return 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  if (/provider is not enabled|unsupported provider/i.test(m)) return 'ยังเข้าสู่ระบบด้วย Google ไม่ได้ (ผู้ดูแลต้องเปิด Google ใน Supabase › Authentication › Providers)';
   if (/anonymous sign-ins are disabled/i.test(m)) return 'ยังเข้าห้องเรียนแบบไม่ใช้อีเมลไม่ได้ (ผู้ดูแลต้องเปิด Anonymous sign-ins ใน Supabase)';
   if (/not class owner/i.test(m)) return 'คุณไม่ใช่ครูของห้องนี้';
   if (/anonymous users cannot create/i.test(m)) return 'บัญชีห้องเรียนแบบไม่ใช้อีเมลสร้างห้องไม่ได้ ใช้บัญชีอีเมลแทน';
@@ -58,6 +59,7 @@ async function cloudInit() {
       if (Cloud.user && Cloud.user.id !== prev) setTimeout(() => cloudPull(), 0); // ล็อกอินจากแท็บอื่น/ลิงก์ยืนยันอีเมล
     });
     if (Cloud.user) await cloudPull();
+    oauthReturn();
   } catch (e) {
     Cloud.status = 'error';
     Cloud.error = 'โหลดระบบบัญชีไม่สำเร็จ (ยังเล่นแบบไม่มีบัญชีได้ตามปกติ)';
@@ -170,9 +172,12 @@ function leagueRefresh() {
   if (Cloud.user && Date.now() - Cloud.leagueAt > 30000) setTimeout(() => leagueSync(true), 0);
 }
 
+// โลโก้ Google แบบสี่สี (ตามแนวทางปุ่ม "Sign in with Google")
+const GOOGLE_G = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
 // ---------- นโยบายความเป็นส่วนตัว (privacy.html) ----------
 // เปลี่ยน v เมื่อแก้นโยบาย → ผู้มีบัญชีจะถูกขอให้ยอมรับฉบับใหม่
-const PRIVACY = { v: '2026-10-15b', url: 'privacy.html' };
+const PRIVACY = { v: '2026-10-15c', url: 'privacy.html' };
 const privacyLink = (t = 'นโยบายความเป็นส่วนตัว') => `<a href="${PRIVACY.url}" target="_blank" rel="noopener">${t}</a>`;
 const consentOk = () => S.consent?.v === PRIVACY.v;
 function giveConsent(via) { S.consent = { v: PRIVACY.v, at: Date.now(), via }; save(); }
@@ -191,6 +196,31 @@ async function cloudSignUp(email, password, name) {
   if (error) throw error;
   if (data.session) { Cloud.user = data.user; S.name = name || S.name; await cloudPull(); return { confirmed: true }; }
   return { confirmed: false };
+}
+// เข้าสู่ระบบด้วย Google: พาไปหน้า Google แล้วกลับมาที่แอป (supabase-js อ่าน session จาก URL ให้เอง)
+async function cloudGoogle() {
+  const a = UI.acct || (UI.acct = { tab: 'signin' });
+  if (a.tab === 'signup') {
+    if (!document.getElementById('acct-consent')?.checked) { a.err = 'ติ๊กยอมรับนโยบายความเป็นส่วนตัวก่อนนะ'; return render(); }
+    const name = document.getElementById('acct-name')?.value.trim();
+    if (name) S.name = name.slice(0, 20);
+    giveConsent('google');
+  }
+  try { sessionStorage.setItem('bm-oauth', '1'); } catch (e) { /* ignore */ }
+  a.err = null; a.busy = true; render();
+  const { error } = await Cloud.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: siteUrl(), queryParams: { prompt: 'select_account' } } });
+  if (error) { a.busy = false; a.err = cloudError(error); render(); }
+}
+// กลับจากหน้า Google: แจ้งผล (สำเร็จ / ยกเลิก / ผิดพลาด) แล้วล้างพารามิเตอร์ออกจาก URL
+function oauthReturn() {
+  let pending = false;
+  try { pending = sessionStorage.getItem('bm-oauth') === '1'; sessionStorage.removeItem('bm-oauth'); } catch (e) { /* ignore */ }
+  const p = new URLSearchParams(location.search + '&' + location.hash.slice(1));
+  const code = p.get('error'), err = p.get('error_description') || code;
+  if (err) {
+    history.replaceState(null, '', siteUrl());
+    UI.view = 'account'; UI.acct = { tab: 'signin', err: code === 'access_denied' ? 'ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว' : cloudError(err) };
+  } else if (pending && Cloud.user) showToast('เข้าสู่ระบบด้วย Google แล้ว');
 }
 async function cloudSignIn(email, password) {
   const { data, error } = await Cloud.client.auth.signInWithPassword({ email, password });
@@ -237,7 +267,7 @@ function viewAccount() {
       <p class="muted">ผู้ดูแลต้องสร้างโปรเจกต์ Supabase แล้วใส่ค่าใน <code>js/config.js</code> (ดูขั้นตอนใน README) ระหว่างนี้ใช้ "สำรองความคืบหน้า" ในหน้าตั้งค่าเพื่อย้ายเครื่องได้</p></div>`;
   } else if (Cloud.user) {
     body = `<div class="card acct-card">
-      <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน (ไม่ใช้อีเมล) · ใช้ได้บนเครื่องนี้' : esc(Cloud.user.email || '')}</small></span></div>
+      <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน (ไม่ใช้อีเมล) · ใช้ได้บนเครื่องนี้' : esc(Cloud.user.email || '') + (Cloud.user.app_metadata?.provider === 'google' ? ' · บัญชี Google' : '')}</small></span></div>
       <p class="sync-line ${Cloud.status}">${icon(Cloud.status === 'error' ? 'x' : Cloud.status === 'offline' ? 'clock' : 'check', 16)} ${esc(syncLabel())}</p>
       <button class="btn primary" data-act="cloud-sync" ${Cloud.status === 'syncing' ? 'disabled' : ''}>${icon('refresh', 18)} ซิงก์ตอนนี้</button>
       <button class="btn" data-act="${Cloud.user.is_anonymous ? 'cloud-signout-anon' : 'cloud-signout'}">ออกจากระบบ</button>
@@ -267,7 +297,10 @@ function viewAccount() {
           ${a.tab === 'signup' ? consentBox(`ฉันอ่าน${privacyLink()}แล้ว · ถ้าอายุต่ำกว่า 20 ปี ผู้ปกครองรับทราบและยินยอมแล้ว`) : ''}
           <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>${a.busy ? 'กำลังดำเนินการ…' : a.tab === 'signup' ? 'สมัครบัญชี' : 'เข้าสู่ระบบ'}</button>
           ${a.tab === 'signin' ? '<button class="btn link" type="button" data-act="acct-tab" data-t="forgot">ลืมรหัสผ่าน?</button>' : '<p class="muted small">ความคืบหน้าที่ทำไว้ในเครื่องนี้จะถูกย้ายเข้าบัญชีใหม่</p>'}
-        </form>`;
+        </form>
+        <div class="or-line"><span>หรือ</span></div>
+        <button class="btn google-btn" type="button" data-act="acct-google" ${a.busy ? 'disabled' : ''}>${GOOGLE_G}${a.tab === 'signup' ? 'สมัครด้วย Google' : 'เข้าสู่ระบบด้วย Google'}</button>
+        ${a.tab === 'signup' ? '<p class="muted small">สมัครด้วย Google ก็ต้องติ๊กยอมรับนโยบายด้านบนก่อน · แอปใช้ชื่อที่แสดงที่คุณตั้ง ไม่แสดงชื่อจริงหรือรูปจาก Google</p>' : ''}`;
     body = `<div class="card acct-card">
       <div class="acct-intro">${bee(64, 'happy')}<p>เก็บความคืบหน้าไว้บนคลาวด์ เรียนต่อได้ทุกเครื่อง ไม่หายแม้ล้างเบราว์เซอร์</p></div>
       <p class="muted small">ไม่สมัครก็เรียนได้ครบทุกบท (ข้อมูลอยู่ในเครื่องนี้เท่านั้น) · ${privacyLink('อ่านว่าเราเก็บข้อมูลอะไรบ้าง')}</p>
@@ -334,6 +367,7 @@ async function submitAccount(kind) {
   render();
 }
 Object.assign(ACT, {
+  'acct-google': () => cloudGoogle(),
   'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); },
   'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
