@@ -74,6 +74,7 @@ function mergeStates(a, b) {
   out.records = { ...(other.records || {}), ...(base.records || {}) };
   for (const k of Object.keys(other.records || {})) out.records[k] = Math.max(other.records[k] || 0, base.records?.[k] || 0);
   out.onboarded = !!(base.onboarded || other.onboarded);
+  if ((other.consent?.at || 0) > (base.consent?.at || 0)) out.consent = other.consent;
   return out;
 }
 // แทนที่ความคืบหน้าในเครื่องด้วยชุดใหม่ (ผ่าน load() เพื่อเติมค่าที่ขาดและแปลงข้อมูลรุ่นเก่า)
@@ -111,6 +112,7 @@ async function cloudPull() {
   if (typeof friendsSync === 'function') friendsSync(true);
   if (typeof classroomSync === 'function') classroomSync(true);
   if (merged) showToast('รวมความคืบหน้าในเครื่องนี้เข้ากับบัญชีแล้ว');
+  consentCheck();
   cloudRender();
 }
 
@@ -165,6 +167,20 @@ async function leagueSync(force = false) {
 // เปิดหน้าอันดับ: ดึงข้อมูลใหม่ถ้าเก่ากว่า 30 วินาที
 function leagueRefresh() {
   if (Cloud.user && Date.now() - Cloud.leagueAt > 30000) setTimeout(() => leagueSync(true), 0);
+}
+
+// ---------- นโยบายความเป็นส่วนตัว (privacy.html) ----------
+// เปลี่ยน v เมื่อแก้นโยบาย → ผู้มีบัญชีจะถูกขอให้ยอมรับฉบับใหม่
+const PRIVACY = { v: '2026-10-15', url: 'privacy.html' };
+const privacyLink = (t = 'นโยบายความเป็นส่วนตัว') => `<a href="${PRIVACY.url}" target="_blank" rel="noopener">${t}</a>`;
+const consentOk = () => S.consent?.v === PRIVACY.v;
+function giveConsent(via) { S.consent = { v: PRIVACY.v, at: Date.now(), via }; save(); }
+function consentBox(text) {
+  return `<label class="consent"><input type="checkbox" id="acct-consent" required><span>${text}</span></label>`;
+}
+// หลังซิงก์: บัญชีที่ยังไม่ยอมรับนโยบายฉบับปัจจุบัน → ถาม (ไม่ขัดจังหวะระหว่างทำโจทย์)
+function consentCheck() {
+  if (Cloud.user && !consentOk() && !UI.sheet && !['lesson', 'timed', 'story', 'onboarding'].includes(UI.view)) { UI.sheet = { type: 'consent' }; render(); }
 }
 
 // ---------- บัญชี ----------
@@ -226,6 +242,7 @@ function viewAccount() {
       <button class="btn" data-act="${Cloud.user.is_anonymous ? 'cloud-signout-anon' : 'cloud-signout'}">ออกจากระบบ</button>
     </div>
     <p class="muted small">ออกจากระบบแล้วความคืบหน้าในเครื่องนี้จะถูกล้าง (เก็บไว้ในบัญชีแล้ว) เพื่อให้คนอื่นใช้เครื่องนี้ต่อได้อย่างปลอดภัย</p>
+    <p class="muted small">${consentOk() ? `ยอมรับ${privacyLink()}แล้ว` : `ยังไม่ได้ยอมรับ${privacyLink()}ฉบับปัจจุบัน`}</p>
     <button class="btn danger-text" data-act="cloud-delete-ask">ลบบัญชีและข้อมูลทั้งหมด</button>`;
   } else {
     const tabs = [['signin', 'เข้าสู่ระบบ'], ['signup', 'สมัครบัญชี'], ['class', 'รหัสห้องเรียน']];
@@ -234,6 +251,7 @@ function viewAccount() {
           <p class="muted">สำหรับนักเรียนที่ไม่มีอีเมล: กรอกชื่อและรหัสห้องจากครู ความคืบหน้าจะซิงก์ให้ครูเห็น (บัญชีนี้ใช้ได้บนเครื่องนี้ ย้ายเครื่องด้วยไฟล์สำรองในหน้าตั้งค่า)</p>
           <label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" value="${esc(S.name)}" required></label>
           <label class="fld">รหัสห้องเรียน<input id="class-code" placeholder="HIVE-XXXX" maxlength="9" autocapitalize="characters" autocomplete="off" required></label>
+          ${consentBox(`ฉันอ่าน${privacyLink()}แล้ว และครูหรือผู้ปกครองแจ้งเรื่องการใช้ข้อมูลให้ทราบแล้ว`)}
           <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>${a.busy ? 'กำลังเข้าห้อง…' : 'เข้าห้องเรียน'}</button></form>`
       : a.tab === 'forgot'
       ? `<form class="acct-form" data-form="forgot">
@@ -245,11 +263,13 @@ function viewAccount() {
           ${a.tab === 'signup' ? `<label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" value="${esc(S.name)}" autocomplete="nickname" required></label>` : ''}
           <label class="fld">อีเมล<input type="email" id="acct-email" autocomplete="email" required></label>
           <label class="fld">รหัสผ่าน<input type="password" id="acct-pw" minlength="6" autocomplete="${a.tab === 'signup' ? 'new-password' : 'current-password'}" required></label>
+          ${a.tab === 'signup' ? consentBox(`ฉันอ่าน${privacyLink()}แล้ว · ถ้าอายุต่ำกว่า 20 ปี ผู้ปกครองรับทราบและยินยอมแล้ว`) : ''}
           <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>${a.busy ? 'กำลังดำเนินการ…' : a.tab === 'signup' ? 'สมัครบัญชี' : 'เข้าสู่ระบบ'}</button>
           ${a.tab === 'signin' ? '<button class="btn link" type="button" data-act="acct-tab" data-t="forgot">ลืมรหัสผ่าน?</button>' : '<p class="muted small">ความคืบหน้าที่ทำไว้ในเครื่องนี้จะถูกย้ายเข้าบัญชีใหม่</p>'}
         </form>`;
     body = `<div class="card acct-card">
       <div class="acct-intro">${bee(64, 'happy')}<p>เก็บความคืบหน้าไว้บนคลาวด์ เรียนต่อได้ทุกเครื่อง ไม่หายแม้ล้างเบราว์เซอร์</p></div>
+      <p class="muted small">ไม่สมัครก็เรียนได้ครบทุกบท (ข้อมูลอยู่ในเครื่องนี้เท่านั้น) · ${privacyLink('อ่านว่าเราเก็บข้อมูลอะไรบ้าง')}</p>
       ${a.tab === 'forgot' ? '' : `<div class="seg wide" role="tablist">${tabs.map(([t, l]) => `<button role="tab" aria-selected="${a.tab === t}" class="${a.tab === t ? 'on' : ''}" data-act="acct-tab" data-t="${t}">${l}</button>`).join('')}</div>`}
       ${a.err ? `<p class="acct-msg err" role="alert">${esc(a.err)}</p>` : ''}${a.msg ? `<p class="acct-msg ok" role="status">${esc(a.msg)}</p>` : ''}
       ${form}
@@ -258,6 +278,13 @@ function viewAccount() {
   return shell(`<div class="sub-body">${body}</div>`, { sub: { title: 'บัญชี' } });
 }
 Object.assign(SHEETS, {
+  consent() {
+    return `<div class="sheet-card"><h3>นโยบายความเป็นส่วนตัว</h3>
+      <p>บัญชีนี้เก็บชื่อที่แสดงและความคืบหน้าการเรียนบนเซิร์ฟเวอร์ เพื่อซิงก์ข้ามเครื่อง ลีก เพื่อน และห้องเรียน ไม่มีโฆษณาและไม่ขายข้อมูล</p>
+      <p>${privacyLink('อ่านนโยบายฉบับเต็ม')} · ถ้าอายุต่ำกว่า 20 ปี ให้ผู้ปกครองอ่านด้วยนะ</p>
+      <button class="btn primary" data-act="consent-yes">ยอมรับและใช้บัญชีต่อ</button>
+      <button class="btn ghost" data-act="consent-no">ไม่ยอมรับ (ออกจากระบบ)</button></div>`;
+  },
   'cloud-signout-anon'() {
     return `<div class="sheet-card center"><h3>ออกจากบัญชีห้องเรียน?</h3>
       <p>บัญชีนี้ไม่มีอีเมลและรหัสผ่าน ถ้าออกจากระบบแล้วจะ<b>กลับเข้าบัญชีเดิมไม่ได้อีก</b> แนะนำให้ดาวน์โหลดไฟล์สำรองในหน้าตั้งค่าก่อน</p>
@@ -288,6 +315,7 @@ async function submitAccount(kind) {
     if (kind === 'signin') { await cloudSignIn(email, pw); showToast('เข้าสู่ระบบแล้ว'); }
     else if (kind === 'signup') {
       if (name) S.name = name.slice(0, 20);
+      giveConsent('signup');
       const r = await cloudSignUp(email, pw, S.name);
       if (r.confirmed) showToast('สร้างบัญชีแล้ว!');
       else { a.tab = 'signin'; a.msg = `ส่งลิงก์ยืนยันไปที่ ${email} แล้ว เปิดลิงก์ในอีเมลแล้วกลับมาเข้าสู่ระบบ`; }
@@ -305,6 +333,8 @@ async function submitAccount(kind) {
   render();
 }
 Object.assign(ACT, {
+  'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); },
+  'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
   'cloud-sync': async () => { await cloudPull(); if (Cloud.status === 'synced') showToast('ซิงก์แล้ว'); },
   'cloud-signout': async () => { UI.sheet = null; await cloudSignOut(); UI.acct = { tab: 'signin' }; showToast('ออกจากระบบแล้ว'); },

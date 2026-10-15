@@ -15,7 +15,8 @@ function viewOnboarding() {
         <span class="setting-main"><b>เตือนให้มาเรียน</b><small>ทุกวัน เวลา ${S.remind.time} น. (เปลี่ยนได้ในตั้งค่า)</small></span>
         ${switchHTML('ob-remind', o.remind, 'เปิดการเตือน')}
       </div>
-      ${typeof Cloud !== 'undefined' && Cloud.enabled() ? '<button class="btn link" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}`
+      ${typeof Cloud !== 'undefined' && Cloud.enabled() ? '<button class="btn link" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}
+      <p class="muted small center">ไม่ต้องสมัครก็เรียนได้ ความคืบหน้าเก็บในเครื่องนี้เท่านั้น · <a href="privacy.html" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a></p>`
     : `<h1 class="ob-title">เคยเรียนสมการมาก่อนไหม?</h1>
       <p class="muted">เลือกจุดเริ่มต้นที่เหมาะกับตัวเอง</p>
       <button class="big-pick ${o.level === 'basic' ? 'sel' : ''}" data-act="ob-level" data-l="basic">
@@ -491,6 +492,7 @@ function viewSettings() {
     <section><h3 class="shop-sec">ข้อมูลของฉัน</h3><div class="list-card">
       ${setRow('สำรองความคืบหน้า', 'ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น ดาวน์โหลดเก็บไว้กันหาย หรือย้ายไปเครื่องอื่น', '<button class="price-btn" data-act="export">ดาวน์โหลด</button>')}
       ${setRow('กู้คืนจากไฟล์', 'เลือกไฟล์สำรองที่ดาวน์โหลดไว้', '<label class="price-btn ghost file-btn">เลือกไฟล์<input type="file" id="import-file" accept="application/json,.json"></label>')}
+      ${setRow('นโยบายความเป็นส่วนตัว', 'เก็บข้อมูลอะไร ใครเห็น และวิธีขอลบข้อมูล', `<a class="price-btn ghost" href="privacy.html" target="_blank" rel="noopener">อ่าน</a>`)}
       ${setRow('รีเซ็ตความคืบหน้า', 'ลบทุกอย่างแล้วเริ่มใหม่', '<button class="price-btn danger-btn" data-act="reset">รีเซ็ต</button>')}
     </div></section>
     <p class="muted small center">BeeMath ต้นแบบ · เสียงประกอบสังเคราะห์ในเบราว์เซอร์</p>

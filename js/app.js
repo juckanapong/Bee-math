@@ -480,6 +480,7 @@ const SHEETS = {
 function sheetHTML() {
   const s = UI.sheet;
   if (!s || !SHEETS[s.type]) return '';
+  if (s.type === 'league' && !S.leagueResult) { UI.sheet = null; return ''; } // ข้อมูลถูกแทนที่ระหว่างซิงก์/เปลี่ยนบัญชี
   return `<div class="overlay" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true">${SHEETS[s.type](s)}</div></div>`;
 }
 
@@ -1018,7 +1019,7 @@ const ACT = {
   back: () => { UI.view = UI.back || 'learn'; render(); window.scrollTo(0, 0); },
   node: (d) => { UI.sheet = { type: 'node', i: +d.i }; render(); },
   close: () => { UI.sheet = null; render(); },
-  'close-bg': (d, el, e) => { if (e.target === el) (UI.sheet?.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
+  'close-bg': (d, el, e) => { if (e.target === el && UI.sheet?.type !== 'consent') (UI.sheet?.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
   start: (d) => openNode(+d.i),
   cards: (d) => { UI.cards = { i: +d.i, k: 0 }; UI.view = 'cards'; UI.sheet = null; render(); },
   'cards-next': () => { UI.cards.k++; render(); },

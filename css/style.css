@@ -1057,3 +1057,9 @@ button.chip { min-height: 36px; }
 .ask-chips { position: sticky; bottom: -24px; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 4px; background: var(--bg); }
 .ask-chip { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #C9DAFA; background: var(--blue-soft); color: var(--blue-dark); font-size: 14px; font-weight: 700; }
 @media (hover: hover) { .ask-chip:hover { background: #fff; } }
+
+/* ---------- ความยินยอม (PDPA) ---------- */
+.consent { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--honey-soft); border-radius: 12px; font-size: 14px; font-weight: 500; line-height: 1.5; color: var(--ink); cursor: pointer; }
+.consent input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--green-dark); }
+.consent a, .acct-card a, .sheet-card a, .onboarding a { color: var(--blue-dark); font-weight: 700; }
+a.price-btn { display: inline-flex; align-items: center; text-decoration: none; }

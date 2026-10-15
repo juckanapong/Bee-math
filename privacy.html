@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>นโยบายความเป็นส่วนตัว · BeeMath</title>
+<meta name="theme-color" content="#FFC21A">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@500;600&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #FFF8E6; --card: #FFFFFF; --honey: #FFC21A; --honey-soft: #FFF0C2; --honey-text: #7A4E00; --ink: #2A1F14; --ink-2: #6B5B45; --line: #F0E2BF; --blue: #2F6FED; --green-soft: #E8F8E0; --green-text: #2B6A17; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.7 'Anuphan', system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 8px; font: 600 20px 'Mitr', sans-serif; color: var(--ink); text-decoration: none; }
+  .brand img { width: 32px; height: 32px; }
+  .back { padding: 8px 16px; border-radius: 12px; background: var(--honey); color: var(--ink); font-weight: 700; text-decoration: none; white-space: nowrap; }
+  h1 { font: 600 30px/1.3 'Mitr', sans-serif; margin: 24px 0 4px; }
+  h2 { font: 600 21px/1.35 'Mitr', sans-serif; margin: 36px 0 8px; }
+  .meta { color: var(--ink-2); margin: 0 0 16px; }
+  .summary { padding: 16px 20px; background: var(--honey-soft); border-radius: 16px; }
+  .summary h2 { margin-top: 0; }
+  .summary ul { margin: 0; padding-left: 22px; }
+  .box { padding: 14px 18px; background: var(--card); border: 2px solid var(--line); border-radius: 16px; }
+  .note { padding: 12px 16px; background: var(--green-soft); color: var(--green-text); border-radius: 12px; font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; min-width: 560px; border-collapse: collapse; background: var(--card); border: 2px solid var(--line); border-radius: 16px; overflow: hidden; font-size: 15px; }
+  th, td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+  th { background: var(--honey-soft); font-weight: 700; }
+  tr:last-child td { border-bottom: 0; }
+  a { color: var(--blue); }
+  li { margin: 4px 0; }
+  .todo { background: #FFE1E1; color: #8F1F24; padding: 0 6px; border-radius: 6px; font-weight: 700; }
+  footer { margin-top: 40px; color: var(--ink-2); font-size: 14px; }
+  @media (max-width: 600px) {
+    table { min-width: 0; border: 0; background: none; }
+    thead { display: none; }
+    tr { display: block; margin-bottom: 10px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; }
+    td { display: block; padding: 6px 14px; border: 0; }
+    td:first-child { padding-top: 12px; font-weight: 700; }
+    td:last-child { padding-bottom: 12px; }
+    td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; font-size: 13px; font-weight: 700; color: var(--honey-text); }
+  }
+  @media print { .back { display: none; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <a class="brand" href="./"><img src="icons/icon.svg" alt="">BeeMath</a>
+    <a class="back" href="./">กลับไปที่แอป</a>
+  </div>
+
+  <h1>นโยบายความเป็นส่วนตัว</h1>
+  <p class="meta">ฉบับวันที่ 15 ตุลาคม 2569 · ใช้กับเว็บแอป BeeMath (juckanapong.github.io/Bee-math)</p>
+
+  <section class="summary">
+    <h2>สรุปสั้น ๆ</h2>
+    <ul>
+      <li><b>ใช้ได้โดยไม่ต้องสมัครบัญชี</b> ถ้าไม่สมัคร ความคืบหน้าทั้งหมดเก็บในเครื่องของคุณเท่านั้น ไม่ส่งขึ้นเซิร์ฟเวอร์</li>
+      <li>ถ้าสมัครบัญชีหรือเข้าห้องเรียน เราเก็บ<b>ชื่อที่แสดง อีเมล (ถ้ามี) และความคืบหน้าการเรียน</b> เพื่อซิงก์ข้ามเครื่อง ลีก เพื่อน และให้ครูดูความคืบหน้า</li>
+      <li><b>ไม่มีโฆษณา ไม่ขายข้อมูล ไม่มีตัวติดตามหรือระบบวิเคราะห์พฤติกรรม</b> และไม่ส่งข้อมูลให้ AI</li>
+      <li>ผู้ใช้อายุต่ำกว่า 20 ปี ต้องให้<b>ผู้ปกครองรับทราบและยินยอม</b>ก่อนสมัครบัญชี (หรือครูเป็นผู้แจ้งผู้ปกครองเมื่อใช้ในห้องเรียน)</li>
+      <li>ลบบัญชีและข้อมูลทั้งหมดได้เองทุกเมื่อ ที่ ตั้งค่า › บัญชี › ลบบัญชีและข้อมูลทั้งหมด</li>
+    </ul>
+  </section>
+
+  <h2>1. ผู้ดูแลข้อมูลและช่องทางติดต่อ</h2>
+  <div class="box">
+    <p style="margin:0">ผู้ดูแลแอป BeeMath (ผู้ควบคุมข้อมูลส่วนบุคคล): <span class="todo">[ใส่ชื่อผู้ดูแลหรือโรงเรียน]</span><br>
+    ติดต่อเรื่องข้อมูลส่วนบุคคล: <span class="todo">[ใส่อีเมลติดต่อ]</span></p>
+  </div>
+  <p>ถ้าใช้ BeeMath ผ่านห้องเรียน สามารถติดต่อครูประจำห้องได้ด้วย ครูนำนักเรียนออกจากห้องและลบห้องเรียนได้จากแดชบอร์ดครู</p>
+
+  <h2>2. ใช้แบบไม่มีบัญชี</h2>
+  <p>ความคืบหน้า (XP สตรีค ด่านที่ผ่าน ข้อที่เคยตอบผิด และการตั้งค่า) บันทึกใน <b>localStorage ของเบราว์เซอร์ในเครื่องนี้เท่านั้น</b> เราไม่เห็นข้อมูลนี้ ลบได้ด้วยปุ่ม "รีเซ็ตความคืบหน้า" ในหน้าตั้งค่า หรือล้างข้อมูลเว็บไซต์ในเบราว์เซอร์</p>
+
+  <h2>3. ข้อมูลที่เก็บเมื่อมีบัญชี</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>ข้อมูล</th><th>ใช้ทำอะไร</th><th>ใครเห็นได้</th></tr></thead>
+    <tbody>
+      <tr><td>อีเมลและรหัสผ่าน<br><small>(ไม่มีในบัญชีห้องเรียนแบบไม่ใช้อีเมล)</small></td><td>เข้าสู่ระบบ และส่งลิงก์ตั้งรหัสผ่านใหม่</td><td>ไม่แสดงให้ผู้ใช้คนอื่นเห็น · รหัสผ่านถูกเข้ารหัสทางเดียว (hash) ไม่มีใครอ่านได้</td></tr>
+      <tr><td>ชื่อที่แสดงและสีกรอบอวตาร</td><td>แสดงในลีก รายชื่อเพื่อน และห้องเรียน</td><td>ผู้เล่นในกลุ่มลีกเดียวกัน · เพื่อน · ครูของห้องที่เข้า</td></tr>
+      <tr><td>ความคืบหน้าการเรียน: XP สตรีค ด่านที่ผ่าน ความแม่นยำรายทักษะ ระดับความยาก ข้อที่เคยตอบผิด ของในร้านค้า และการตั้งค่าในแอป</td><td>ซิงก์ให้เรียนต่อได้ทุกเครื่อง</td><td>เจ้าของบัญชี · ครูเห็นเฉพาะส่วนที่อยู่ในแดชบอร์ด (ดูข้อ 4)</td></tr>
+      <tr><td>XP รายสัปดาห์และอันดับลีก</td><td>จัดอันดับลีกประจำสัปดาห์</td><td>ผู้เล่นในกลุ่มลีกเดียวกัน</td></tr>
+      <tr><td>รหัสเพื่อน รายชื่อเพื่อน และการเชียร์/สะกิด</td><td>ระบบเพื่อนและภารกิจคู่หู (ข้อความเป็นแบบสำเร็จรูป ไม่มีแชตพิมพ์อิสระ)</td><td>เฉพาะเพื่อนที่ทั้งสองฝ่ายตกลงเป็นเพื่อนกัน</td></tr>
+      <tr><td>ห้องเรียนที่เข้าร่วม และงานที่ครูมอบหมาย</td><td>ส่งงานและให้ครูติดตามความคืบหน้า</td><td>ครูเจ้าของห้อง</td></tr>
+      <tr><td>เวลาที่ซิงก์ล่าสุด และเวลาที่สร้างบัญชี</td><td>รวมความคืบหน้าระหว่างเครื่อง · ครูเห็น "ใช้งานล่าสุด"</td><td>เจ้าของบัญชี · ครูของห้อง</td></tr>
+      <tr><td>การยอมรับนโยบายนี้ (ฉบับและเวลา)</td><td>เป็นหลักฐานการยินยอม</td><td>เจ้าของบัญชี</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">เราไม่เก็บ เลขบัตรประชาชน เบอร์โทร ที่อยู่ ตำแหน่ง รูปภาพ เสียง หรือรายชื่อติดต่อ และไม่มีช่องให้พิมพ์ข้อความคุยกับผู้อื่น</p>
+
+  <h2>4. ครูเห็นอะไรบ้าง</h2>
+  <p>เมื่อนักเรียนเข้าห้องด้วยรหัสห้อง ครูเจ้าของห้องจะเห็น: ชื่อที่แสดง สีอวตาร วันที่เข้าห้อง XP รวมและ XP สัปดาห์นี้ สตรีค ได้เรียนวันนี้หรือยัง เวลาใช้งานล่าสุด ด่านที่ผ่าน จำนวนข้อที่ตอบและตอบถูก และความแม่นยำรายทักษะ <b>ครูไม่เห็นอีเมลหรือรหัสผ่านของนักเรียน</b> นักเรียนออกจากห้องได้เองที่หน้า "ห้องเรียน"</p>
+
+  <h2>5. ผู้ให้บริการภายนอก</h2>
+  <ul>
+    <li><b>Supabase</b> — ฐานข้อมูลและระบบเข้าสู่ระบบ เก็บข้อมูลในข้อ 3 เซิร์ฟเวอร์อาจตั้งอยู่นอกประเทศไทย Supabase ดำเนินการตามคำสั่งของเราเท่านั้น</li>
+    <li><b>GitHub Pages</b> — โฮสต์ไฟล์ของเว็บแอป อาจบันทึกที่อยู่ IP ในบันทึกการเข้าถึงตามปกติของเว็บเซิร์ฟเวอร์</li>
+    <li><b>Google Fonts</b> และ <b>jsDelivr</b> — ให้บริการแบบอักษรและไลบรารีสำหรับเชื่อมต่อ Supabase เบราว์เซอร์จะส่งที่อยู่ IP ไปเมื่อโหลดไฟล์เหล่านี้</li>
+  </ul>
+  <p>ผู้ให้บริการเหล่านี้มีมาตรการคุ้มครองข้อมูลตามนโยบายของแต่ละราย การส่งข้อมูลไปต่างประเทศทำเท่าที่จำเป็นเพื่อให้บริการตามที่คุณขอ</p>
+
+  <h2>6. ฐานในการเก็บข้อมูล และผู้เยาว์</h2>
+  <p>เราเก็บข้อมูลบนบัญชีโดยอาศัย<b>ความยินยอม</b>ของผู้ใช้ ซึ่งให้ไว้ตอนสมัครบัญชีหรือเข้าห้องเรียน ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562</p>
+  <ul>
+    <li>ผู้ใช้ที่อายุ<b>ต่ำกว่า 20 ปี</b> ต้องให้ผู้ปกครองรับทราบและยินยอมก่อนสมัครบัญชี</li>
+    <li>ผู้ใช้ที่อายุ<b>ไม่เกิน 10 ปี</b> ผู้ปกครองต้องเป็นผู้ให้ความยินยอมแทน</li>
+    <li>เมื่อใช้ในโรงเรียน ครูที่สร้างห้องเรียนยืนยันว่าจะแจ้งนักเรียนและผู้ปกครองเรื่องนโยบายนี้ก่อนให้นักเรียนเข้าห้อง</li>
+  </ul>
+  <p>ถ้าไม่ต้องการให้ความยินยอม ยังใช้ BeeMath ได้ครบทุกบทเรียนแบบไม่มีบัญชี (ข้อ 2)</p>
+
+  <h2>7. เก็บนานแค่ไหน</h2>
+  <p>เราเก็บข้อมูลบัญชีไว้จนกว่าคุณจะลบบัญชี เมื่อลบบัญชี ข้อมูลในข้อ 3 ทั้งหมดจะถูกลบจากฐานข้อมูลทันที (รวมการเป็นเพื่อนและการเป็นสมาชิกห้องเรียน) เมื่อครูลบห้องเรียน ข้อมูลห้องและงานที่มอบหมายจะถูกลบ แต่บัญชีของนักเรียนยังอยู่ ถ้าครูลบบัญชีของตัวเอง ห้องเรียนทั้งหมดของครูจะถูกลบด้วย</p>
+
+  <h2>8. สิทธิ์ของคุณ และวิธีใช้สิทธิ์</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>สิทธิ์</th><th>ทำได้ที่</th></tr></thead>
+    <tbody>
+      <tr><td>ขอรับสำเนาข้อมูล</td><td>ตั้งค่า › ข้อมูลของฉัน › สำรองความคืบหน้า (ดาวน์โหลดเป็นไฟล์ JSON)</td></tr>
+      <tr><td>แก้ไขข้อมูล</td><td>ตั้งค่า › โปรไฟล์ (ชื่อที่แสดง สีอวตาร)</td></tr>
+      <tr><td>ลบข้อมูล / ถอนความยินยอม</td><td>ตั้งค่า › บัญชี › ลบบัญชีและข้อมูลทั้งหมด · หรือออกจากห้องเรียนที่หน้า "ห้องเรียน"</td></tr>
+      <tr><td>คัดค้าน ระงับการใช้ หรือสอบถามอื่น ๆ</td><td>ติดต่อผู้ดูแลตามข้อ 1 เราจะตอบภายใน 30 วัน</td></tr>
+      <tr><td>ร้องเรียน</td><td>สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล (สคส.) · <a href="https://www.pdpc.or.th" target="_blank" rel="noopener">pdpc.or.th</a></td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>9. การรักษาความปลอดภัย</h2>
+  <ul>
+    <li>รับส่งข้อมูลผ่าน HTTPS ทุกครั้ง</li>
+    <li>ทุกตารางในฐานข้อมูลเปิด Row Level Security ผู้ใช้เข้าถึงข้อมูลได้ผ่านฟังก์ชันที่ตรวจสิทธิ์แล้วเท่านั้น เช่น ครูเห็นเฉพาะนักเรียนในห้องของตัวเอง</li>
+    <li>เมื่อออกจากระบบ แอปจะล้างความคืบหน้าในเครื่อง เพื่อให้ใช้เครื่องร่วมกันได้อย่างปลอดภัย</li>
+  </ul>
+
+  <h2>10. การเปลี่ยนแปลงนโยบาย</h2>
+  <p>ถ้าเราแก้ไขนโยบายนี้ จะเปลี่ยนวันที่ด้านบน และแอปจะขอให้ผู้ที่มีบัญชียอมรับฉบับใหม่ ถ้าไม่ยอมรับ ออกจากระบบหรือลบบัญชีได้</p>
+
+  <footer>BeeMath · โปรเจกต์การเรียนรู้สมการตัวแปรเดียว · <a href="./">กลับไปที่แอป</a></footer>
+</main>
+<script>
+  // มือถือ: ตารางแสดงเป็นการ์ด ใส่หัวคอลัมน์ให้แต่ละช่อง
+  document.querySelectorAll('table').forEach((t) => {
+    const heads = [...t.querySelectorAll('th')].map((th) => th.textContent);
+    t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => td.setAttribute('data-label', heads[i])));
+  });
+</script>
+</body>
+</html>

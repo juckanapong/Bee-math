@@ -188,6 +188,7 @@ Object.assign(SHEETS, {
   'class-new'() {
     return `<div class="sheet-card"><h3>สร้างห้องเรียน</h3>
       <form class="acct-form" data-form="class-new"><label class="fld">ชื่อห้อง<input id="class-name" maxlength="40" placeholder="เช่น ม.1/3 คณิตศาสตร์" required></label>
+        ${consentBox(`ฉันจะแจ้งนักเรียนและผู้ปกครองเรื่อง${privacyLink()}ก่อนให้นักเรียนเข้าห้อง (ครูจะเห็นชื่อและความคืบหน้าของนักเรียน)`)}
         <button class="btn primary" type="submit">สร้างห้อง</button></form></div>`;
   },
   'assign-new'(s) {
@@ -251,7 +252,7 @@ FORM_HANDLERS['anon-join'] = async () => {
   try {
     const { data, error } = await Cloud.client.auth.signInAnonymously({ options: { data: { display_name: name } } });
     if (error) throw error;
-    Cloud.user = data.user; S.name = name || S.name; save();
+    Cloud.user = data.user; S.name = name || S.name; giveConsent('class');
     await cloudPull();
     await joinClass(code);
     UI.acct = { tab: 'signin' };
