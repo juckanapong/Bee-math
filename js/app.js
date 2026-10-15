@@ -37,7 +37,7 @@ function defaultState() {
     hearts: MAX_HEARTS, heartsTs: Date.now(),
     streak: 0, lastDay: null, days: {}, shields: 0, streakLost: null,
     nectar: 100, boostUntil: 0, outfit: null, owned: {},
-    done: {}, legend: {}, stories: {}, chests: {},
+    done: {}, legend: {}, stories: {}, chests: {}, fqClaimed: {},
     stats: { lessons: 0, solved: 0, bar: 0, perfect: 0, tests: 0, correct: 0, answered: 0, timedBest: 0 },
     records: { bestStreak: 0, bestDayXP: 0, bestCombo: 0 },
     today: { day: today(), xp: 0 },
@@ -54,7 +54,7 @@ function load() {
     if (raw) {
       const d = defaultState();
       const s = { ...d, ...raw };
-      for (const k of ['stats', 'records', 'remind', 'league', 'today', 'month', 'settings', 'leagueSeen']) s[k] = { ...d[k], ...raw[k] };
+      for (const k of ['stats', 'records', 'remind', 'league', 'today', 'month', 'settings', 'leagueSeen', 'fqClaimed']) s[k] = { ...d[k], ...raw[k] };
       if (!AVATAR_COLORS.includes(s.avatar)) s.avatar = AVATAR_COLORS[0]; // ข้อมูลเก่าเก็บอวตารเป็นอีโมจิ
       if (!raw.joined) s.joined = null; // ไม่รู้วันเริ่มเรียนจริงของข้อมูลเก่า
       if (raw.onboarded === undefined) s.onboarded = true; // ผู้เล่นเดิมไม่ต้องผ่านหน้าเริ่มต้น
@@ -232,17 +232,17 @@ const TABS = [
 function bottomNav() {
   const dot = QUESTS.some((q) => (S.quests.p[q.id] || 0) >= q.goal && !S.quests.claimed[q.id]);
   return `<nav class="tabs" aria-label="เมนูหลัก">${TABS.map(([v, i, t]) =>
-    `<button class="tab ${UI.view === v ? 'active' : ''}" data-act="tab" data-v="${v}" ${UI.view === v ? 'aria-current="page"' : ''}>${icon(i)}${t}${v === 'quests' && dot ? '<i class="dot" aria-label="มีรางวัลรอรับ"></i>' : ''}</button>`).join('')}</nav>`;
+    `<button class="tab ${UI.view === v ? 'active' : ''}" data-act="tab" data-v="${v}" ${UI.view === v ? 'aria-current="page"' : ''}>${icon(i)}${t}${(v === 'quests' && dot) || (v === 'profile' && friendDot()) ? '<i class="dot" aria-label="มีเรื่องรอดู"></i>' : ''}</button>`).join('')}</nav>`;
 }
 // เมนูด้านข้าง (แท็บเล็ต: แถบไอคอน · คอม: เมนูเต็ม) — มือถือใช้เมนูด้านล่างแทน
 const SIDE = [['learn', 'home', 'เรียนรู้', 'tab'], ['practice', 'dumbbell', 'ฝึกฝน', 'tab'], ['board', 'trophy', 'อันดับ', 'tab'],
-  ['quests', 'target', 'ภารกิจ', 'tab'], ['shop', 'shop', 'ร้านค้า', 'go'], ['profile', 'user', 'โปรไฟล์', 'tab']];
+  ['quests', 'target', 'ภารกิจ', 'tab'], ['friends', 'users', 'เพื่อน', 'go'], ['shop', 'shop', 'ร้านค้า', 'go'], ['profile', 'user', 'โปรไฟล์', 'tab']];
 function sideNav() {
   const dot = QUESTS.some((q) => (S.quests.p[q.id] || 0) >= q.goal && !S.quests.claimed[q.id]);
   return `<nav class="sidenav" aria-label="เมนูหลัก">
     <div class="side-brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>
     ${SIDE.map(([v, i, t, act]) => `<button class="side-item ${UI.view === v ? 'active' : ''}" data-act="${act}" data-v="${v}" ${UI.view === v ? 'aria-current="page"' : ''}>
-      ${icon(i, 26)}<span>${t}</span>${v === 'quests' && dot ? '<i class="dot" aria-label="มีรางวัลรอรับ"></i>' : ''}</button>`).join('')}
+      ${icon(i, 26)}<span>${t}</span>${(v === 'quests' && dot) || (v === 'friends' && friendDot()) ? '<i class="dot" aria-label="มีเรื่องรอดู"></i>' : ''}</button>`).join('')}
     <button class="side-item side-bottom ${UI.view === 'settings' ? 'active' : ''}" data-act="go" data-v="settings" ${UI.view === 'settings' ? 'aria-current="page"' : ''}>${icon('gear', 26)}<span>ตั้งค่า</span></button>
   </nav>`;
 }
@@ -279,6 +279,7 @@ function rightRail() {
 }
 // โครงหน้า: เมนูข้าง + คอลัมน์กลาง + แผงขวา (CSS ซ่อน/แสดงตามความกว้างจอ)
 // opts.top = แสดงแถบบน · opts.sub = { title, extra } สำหรับหน้าจอย่อยที่มีปุ่มย้อนกลับ
+const friendDot = () => typeof friendsAlert === 'function' && friendsAlert() > 0;
 function shell(body, opts = {}) {
   const { top = true, sub = null } = opts;
   return `<div class="layout">${sideNav()}
@@ -896,6 +897,7 @@ function viewProfile() {
     <div class="quick-links">
       <button data-act="go" data-v="streak">${icon('flame', 22)}สตรีค</button>
       <button data-act="go" data-v="achievements">${icon('medal', 22)}ความสำเร็จ</button>
+      <button data-act="go" data-v="friends" class="ql-friends">${icon('users', 22)}เพื่อน${friendDot() ? '<i class="dot" aria-label="มีเรื่องรอดู"></i>' : ''}</button>
       <button data-act="go" data-v="shop">${icon('shop', 22)}ร้านค้า</button>
     </div>
     <div class="level-card card">${hex(lv.lvl, 'lv')}

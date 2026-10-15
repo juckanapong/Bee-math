@@ -99,6 +99,10 @@ function viewStreak() {
       <div class="milestones">${ms}</div>
       ${nextM ? `<p class="muted small">ครบ ${nextM} วัน รับ ${MILESTONES[nextM]} น้ำหวาน${nextM === 30 ? ' และดอกไม้ประดับให้น้องผึ้ง' : ''}</p>` : ''}
     </section>
+    ${(() => {
+      const best = (typeof Friends !== 'undefined' && Friends.data?.friends || []).filter((f) => f.pair_streak > 0).sort((a, b) => b.pair_streak - a.pair_streak)[0];
+      return best ? `<button class="banner pair" data-act="go" data-v="friends">${icon('flame', 22)}<span>สตรีคคู่กับ${esc(best.name)} <b>${best.pair_streak} วัน</b>${best.today ? '' : ` — ${esc(best.name)}ยังไม่ได้เรียนวันนี้`}</span>${icon('chevron', 20)}</button>` : '';
+    })()}
     <section class="card row-card">
       ${hex(icon('shield', 24), 'ico', '--h:#A9DCFF;color:#1E4FB8')}
       <span class="setting-main"><b>โล่สตรีค ${S.shields} / ${MAX_SHIELDS}</b><small>ใช้อัตโนมัติเมื่อพลาด 1 วัน สตรีคไม่หาย</small></span>

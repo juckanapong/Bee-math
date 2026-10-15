@@ -29,6 +29,7 @@ function cloudError(err) {
   if (/invalid.*email|email.*invalid/i.test(m)) return 'รูปแบบอีเมลไม่ถูกต้อง';
   if (/rate limit|too many/i.test(m)) return 'ลองบ่อยเกินไป รอสักครู่แล้วลองใหม่';
   if (/fetch|network|failed to load/i.test(m)) return 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  if (/could not find the function|function .* does not exist/i.test(m)) return 'ระบบนี้ยังไม่พร้อมใช้งาน (ผู้ดูแลต้องรันไฟล์ SQL ใน Supabase ให้ครบ)';
   return 'เกิดข้อผิดพลาด: ' + m;
 }
 
@@ -65,7 +66,7 @@ const isFresh = (st) => !st || ((st.xp || 0) === 0 && !Object.keys(st.done || {}
 function mergeStates(a, b) {
   const [base, other] = (a.xp || 0) >= (b.xp || 0) ? [a, b] : [b, a];
   const out = JSON.parse(JSON.stringify(base));
-  for (const k of ['done', 'badges', 'chests', 'legend', 'stories', 'monthBadges', 'owned']) out[k] = { ...(other[k] || {}), ...(base[k] || {}) };
+  for (const k of ['done', 'badges', 'chests', 'legend', 'stories', 'monthBadges', 'owned', 'fqClaimed', 'leagueSeen']) out[k] = { ...(other[k] || {}), ...(base[k] || {}) };
   out.records = { ...(other.records || {}), ...(base.records || {}) };
   for (const k of Object.keys(other.records || {})) out.records[k] = Math.max(other.records[k] || 0, base.records?.[k] || 0);
   out.onboarded = !!(base.onboarded || other.onboarded);
@@ -103,6 +104,7 @@ async function cloudPull() {
   setSyncMeta({ userId: uid, lastSync: Date.now(), dirty: !data || merged });
   if (!data || merged) await cloudPush();
   else { Cloud.status = 'synced'; Cloud.lastSync = Date.now(); await leagueSync(true); }
+  if (typeof friendsSync === 'function') friendsSync(true);
   if (merged) showToast('รวมความคืบหน้าในเครื่องนี้เข้ากับบัญชีแล้ว');
   cloudRender();
 }
@@ -123,6 +125,7 @@ async function cloudPush() {
   Cloud.status = 'synced'; Cloud.lastSync = Date.now(); Cloud.error = null;
   if (['account', 'settings'].includes(UI.view)) cloudRender();
   leagueSync();
+  if (typeof friendsSync === 'function') friendsSync(); // ข้อความ/คำขอจากเพื่อน (ทุก 60 วินาที)
 }
 
 // เรียกจาก save(): ทำเครื่องหมายว่ามีการเปลี่ยนแปลง แล้วส่งขึ้นคลาวด์หลังหยุดเปลี่ยน 2.5 วินาที
@@ -177,6 +180,7 @@ async function cloudSignOut() {
   if (syncMeta().dirty) await cloudPush();
   await Cloud.client.auth.signOut();
   Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null; Cloud.league = null;
+  if (typeof Friends !== 'undefined') { Friends.data = null; Friends.at = 0; Friends.sent = {}; }
   setSyncMeta({});
   const fresh = defaultState(); fresh.onboarded = true;
   applyState(fresh);
@@ -292,9 +296,11 @@ Object.assign(ACT, {
     catch (e) { UI.sheet = null; UI.acct = { tab: 'signin', err: cloudError(e) }; render(); }
   },
 });
+// ฟอร์มที่ไม่ใช่ของหน้าบัญชีลงทะเบียนตัวจัดการไว้ที่นี่ (เช่น เพิ่มเพื่อนใน js/friends.js)
+const FORM_HANDLERS = {};
 document.addEventListener('submit', (e) => {
   const kind = e.target.dataset?.form;
   if (!kind) return;
   e.preventDefault();
-  submitAccount(kind);
+  (FORM_HANDLERS[kind] || submitAccount)(kind);
 });
