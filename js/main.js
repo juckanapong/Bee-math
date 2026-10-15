@@ -60,6 +60,13 @@ setInterval(() => {
 // ---------- PWA: ติดตั้งเป็นแอป + ใช้ออฟไลน์ (ทำงานเมื่อเปิดผ่าน http/https เท่านั้น ไม่ใช่ file://) ----------
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  // มีเวอร์ชันใหม่ (service worker ตัวใหม่เข้ามาคุมหน้า): โหลดหน้าใหม่ทันที หรือรอจนจบบทเรียน/เกม
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || UI.updateReady) return;
+    UI.updateReady = true;
+    if (!['lesson', 'timed', 'story', 'cards'].includes(UI.view) && !UI.sheet) location.reload();
+  });
 }
 // เก็บคำขอติดตั้งไว้ แล้วแสดงปุ่ม "ติดตั้งแอป" ในหน้าตั้งค่า (Chrome/Edge/Android)
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); UI.installPrompt = e; if (UI.view === 'settings') render(); });

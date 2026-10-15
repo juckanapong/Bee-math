@@ -1,7 +1,7 @@
 /* BeeMath — Service Worker: ทำให้ติดตั้งเป็นแอปและเปิดได้แม้ไม่มีอินเทอร์เน็ต
    กลยุทธ์ stale-while-revalidate: เปิดจากแคชทันที แล้วโหลดเวอร์ชันใหม่เก็บไว้ใช้ครั้งถัดไป
    เปลี่ยน VERSION เมื่อเพิ่ม/ลบไฟล์ใน APP_FILES เพื่อล้างแคชเก่า */
-const VERSION = 'beemath-v10';
+const VERSION = 'beemath-v11';
 const APP_FILES = [
   './', './index.html', './privacy.html', './manifest.webmanifest', './css/style.css',
   './js/icons.js', './js/data.js', './js/sounds.js', './js/app.js', './js/extras.js', './js/askbee.js', './js/config.js', './js/cloud.js', './js/friends.js', './js/classroom.js', './js/feedback.js', './js/main.js',
@@ -9,7 +9,8 @@ const APP_FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(APP_FILES)).then(() => self.skipWaiting()));
+  // cache: 'reload' = ข้ามแคช HTTP ของเบราว์เซอร์ (GitHub Pages ตั้งไว้ 10 นาที) ไม่งั้นเวอร์ชันใหม่อาจเก็บไฟล์เก่าไว้
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(APP_FILES.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -27,7 +28,8 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin && !isAsset) return;
   e.respondWith(caches.open(VERSION).then(async (cache) => {
     const cached = await cache.match(req, { ignoreSearch: url.origin === self.location.origin });
-    const fresh = fetch(req).then((res) => {
+    // ไฟล์ของแอปเอง: ถามเซิร์ฟเวอร์ทุกครั้ง (no-cache = ตรวจ ETag ได้ 304 ถ้าไม่เปลี่ยน) ไม่ใช้สำเนาเก่าในแคช HTTP
+    const fresh = fetch(req, url.origin === self.location.origin ? { cache: 'no-cache' } : undefined).then((res) => {
       if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
       return res;
     }).catch(() => null);

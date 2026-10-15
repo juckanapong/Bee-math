@@ -980,6 +980,8 @@ function runCounters() {
   requestAnimationFrame(step);
 }
 function render() {
+  // อัปเดตเวอร์ชันที่รอไว้ (js/main.js): โหลดใหม่เมื่อออกจากบทเรียน/เกมแล้ว
+  if (UI.updateReady && !['lesson', 'timed', 'story', 'cards'].includes(UI.view) && !UI.sheet) return location.reload();
   tick();
   beeId = 0;
   if (!S.onboarded && !['onboarding', 'lesson', 'result', 'account'].includes(UI.view)) UI.view = 'onboarding';
