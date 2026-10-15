@@ -625,7 +625,8 @@ function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '
     <div class="fb-head"><span class="fb-ic">${icon(ok ? 'check' : 'x', 22)}</span>
       <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div></div>
     ${ok ? '' : `<div class="explain">${explain}</div>`}
-    <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span></div></footer>`;
+    <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span>
+      ${act === 'next' && typeof askChips === 'function' ? `<button class="ask-btn" data-act="ask-open">${icon('chat', 18)} ถามน้องผึ้ง</button>` : ''}</div></footer>`;
 }
 // แก้ข้อความในช่องตัวเลข
 function editInput(cur, k) {

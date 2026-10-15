@@ -280,7 +280,7 @@ const G = {
     const a = R(2, 5), x = R(2, 12), c = a * x;
     return inputQ({
       prompt: `บาร์ยาว ${c} แบ่งเป็นกล่อง ${M('x')} เท่า ๆ กัน ${a} กล่อง กล่องละเท่าไร?`,
-      visual: barSVG(a, 0, x, c),
+      visual: barSVG(a, 0, x, c), eq: `${a}x = ${c}`,
       answer: x, tags: ['bar', 'solve'],
       explain: steps([[`${a}x = ${c}`], [`x = ${c} ÷ ${a} = ${x}`]]) + barSVG(a, 0, x, c, true),
     });
@@ -300,7 +300,7 @@ const G = {
     const a = R(2, 4), x = R(2, 9), b = R(1, 12), c = a * x + b;
     return inputQ({
       prompt: `ใช้บาร์โมเดลหาค่าของ ${M('x')}`,
-      visual: barSVG(a, b, x, c) + `<div class="eq-small">${M(`${lin(a, b)} = ${c}`)}</div>`,
+      visual: barSVG(a, b, x, c) + `<div class="eq-small">${M(`${lin(a, b)} = ${c}`)}</div>`, eq: `${lin(a, b)} = ${c}`,
       answer: x, tags: ['bar', 'solve'],
       explain: steps([
         [`${c} - ${b} = ${c - b}`, `ตัดส่วนที่ยาว ${b} ออก จะเหลือกล่อง x ${a} กล่อง`],
@@ -323,7 +323,7 @@ const G = {
     const a = R(2, 6), x = RV(3, 15), b = RV(2, 20), c = a * x + b;
     return inputQ({
       prompt: pick(WORD_TEMPLATES)(a, b, c),
-      visual: '',
+      visual: '', eq: `${lin(a, b)} = ${c}`,
       answer: x,
       explain: steps([[`${lin(a, b)} = ${c}`, 'เขียนสมการ'], [`${a}x = ${c - b}`, `ลบ ${b} ทั้งสองข้าง`], [`x = ${x}`, `หารด้วย ${a}`]]),
     });
@@ -490,21 +490,21 @@ const G = {
       `สมัครสมาชิกสระว่ายน้ำ ${f} บาท และจ่ายครั้งละ ${r} บาท จ่ายไปแล้ว ${total} บาท ว่ายไปกี่ครั้ง?`,
     ][kind];
     return inputQ({
-      prompt: text, visual: '', answer: x,
+      prompt: text, visual: '', answer: x, eq: `${lin(r, f)} = ${total}`,
       explain: steps([[`${lin(r, f)} = ${total}`, 'ค่าเริ่มต้น + อัตรา × จำนวน = ทั้งหมด'], [`${r}x = ${total - f}`, `ลบ ${f} ทั้งสองข้าง`], [`x = ${x}`, `หารด้วย ${r}`]]),
     });
   },
   wordConsecutive() {
     const x = RV(5, 40), sum = 3 * x + 3;
     return inputQ({
-      prompt: `ผลบวกของจำนวนนับ 3 จำนวนที่เรียงติดกันเท่ากับ ${sum} จำนวนที่น้อยที่สุดคือเท่าไร?`, visual: '', answer: x,
+      prompt: `ผลบวกของจำนวนนับ 3 จำนวนที่เรียงติดกันเท่ากับ ${sum} จำนวนที่น้อยที่สุดคือเท่าไร?`, visual: '', answer: x, eq: `x + (x + 1) + (x + 2) = ${sum}`,
       explain: steps([[`x + (x + 1) + (x + 2) = ${sum}`, 'ให้จำนวนที่น้อยที่สุดคือ x'], [`3x + 3 = ${sum}`, 'รวมพจน์'], [`3x = ${sum - 3}`, 'ลบ 3 ทั้งสองข้าง'], [`x = ${x}`, `สามจำนวนคือ ${x}, ${x + 1}, ${x + 2}`]]),
     });
   },
   wordAge() {
     const x = RV(5, 20), d = R(20, 35), sum = 2 * x + d;
     return inputQ({
-      prompt: `แม่อายุมากกว่าลูก ${d} ปี และอายุรวมกัน ${sum} ปี ลูกอายุกี่ปี?`, visual: '', answer: x,
+      prompt: `แม่อายุมากกว่าลูก ${d} ปี และอายุรวมกัน ${sum} ปี ลูกอายุกี่ปี?`, visual: '', answer: x, eq: `x + (x + ${d}) = ${sum}`,
       explain: steps([[`x + (x + ${d}) = ${sum}`, `ลูกอายุ x ปี แม่อายุ x + ${d} ปี`], [`2x + ${d} = ${sum}`], [`2x = ${sum - d}`, `ลบ ${d} ทั้งสองข้าง`], [`x = ${x}`, 'หารด้วย 2']]),
     });
   },
@@ -512,7 +512,7 @@ const G = {
     const w = RV(3, 15), d = R(2, 8), P = 4 * w + 2 * d;
     return inputQ({
       prompt: `สี่เหลี่ยมผืนผ้ามีด้านยาวมากกว่าด้านกว้าง ${d} ซม. ความยาวรอบรูป ${P} ซม. ด้านกว้างยาวกี่ซม.?`,
-      visual: rectSVG('x', `x + ${d}`), answer: w,
+      visual: rectSVG('x', `x + ${d}`), answer: w, eq: `2(x + x + ${d}) = ${P}`,
       explain: steps([[`2(x + x + ${d}) = ${P}`, 'ความยาวรอบรูป = 2 × (กว้าง + ยาว)'], [`4x + ${2 * d} = ${P}`, 'กระจายวงเล็บ'], [`4x = ${P - 2 * d}`, `ลบ ${2 * d} ทั้งสองข้าง`], [`x = ${w}`, 'หารด้วย 4']]),
     });
   },

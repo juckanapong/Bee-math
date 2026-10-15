@@ -1021,3 +1021,39 @@ button.chip { min-height: 36px; }
 .fb.ok .lvl-note { color: var(--green-text); }
 .fb.bad .lvl-note { color: var(--ink-2); }
 .earn.hard { background: #FFE3D1; color: #8A3700; }
+
+/* ---------- ถามน้องผึ้ง (ไม่ใช้ AI) ---------- */
+.ask-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 14px; font-weight: 700; font-size: 15px; }
+.fb.bad .ask-btn { color: var(--red-text); background: rgba(255, 255, 255, .6); }
+.fb.ok .ask-btn { color: var(--green-text); background: rgba(255, 255, 255, .6); }
+.ask-sheet { max-height: 86dvh; overflow-y: auto; gap: 12px; }
+.ask-head { display: flex; align-items: center; gap: 10px; }
+.ask-head h3 { margin: 0; }
+.ask-ctx { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border: 2px solid var(--line); border-radius: 16px; font-size: 18px; }
+.ask-ctx-t { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1 1 100%; }
+.ask-tag { padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; }
+.ask-tag.ok { background: var(--green-soft); color: var(--green-text); }
+.ask-tag.bad { background: var(--red-soft); color: var(--red-text); }
+.ask-log { display: grid; gap: 10px; }
+.ask-a { display: flex; align-items: flex-start; gap: 8px; }
+.ask-a .bee { flex: none; }
+.ask-a .bubble { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; font-weight: 500; line-height: 1.55; }
+.ask-log .ask-q { justify-self: end; max-width: 85%; margin: 0; padding: 8px 14px; background: var(--blue); color: #fff; border-radius: 16px 16px 4px 16px; font-weight: 600; font-size: 15px; animation: fadeUp .25s ease-out; }
+.ask-a:last-child { animation: fadeUp .3s ease-out; }
+.ask-sub { margin: 10px 0 4px; font-weight: 700; }
+.ask-ok { margin: 6px 0 0; color: var(--green-text); font-weight: 700; }
+.ask-bad { margin: 6px 0 0; color: var(--red-text); font-weight: 700; }
+.ask-ok svg, .ask-bad svg { display: inline-block; vertical-align: -3px; margin-right: 4px; }
+.ask-bar { margin: 8px 0; }
+.ask-bar svg { max-width: 100%; height: auto; }
+.ask-bar .barsvg { max-width: 300px; }
+.ask-card { margin-top: 8px; padding: 10px 12px; background: var(--honey-soft); border-radius: 12px; }
+.ask-card p { margin: 4px 0; }
+.ask-sim { display: grid; gap: 8px; margin-top: 8px; padding: 10px; background: var(--blue-soft); border-radius: 14px; }
+.ask-sim-q { margin: 0; font-weight: 700; }
+.ask-sim-v .eq-big { font-size: 28px; }
+.ask-sim-opts { display: grid; gap: 8px; }
+.ask-sim-opts .opt { min-height: 48px; font-size: 17px; }
+.ask-chips { position: sticky; bottom: -24px; display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 4px; background: var(--bg); }
+.ask-chip { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 2px solid #C9DAFA; background: var(--blue-soft); color: var(--blue-dark); font-size: 14px; font-weight: 700; }
+@media (hover: hover) { .ask-chip:hover { background: #fff; } }

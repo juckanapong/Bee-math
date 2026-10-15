@@ -1,10 +1,10 @@
 /* BeeMath — Service Worker: ทำให้ติดตั้งเป็นแอปและเปิดได้แม้ไม่มีอินเทอร์เน็ต
    กลยุทธ์ stale-while-revalidate: เปิดจากแคชทันที แล้วโหลดเวอร์ชันใหม่เก็บไว้ใช้ครั้งถัดไป
    เปลี่ยน VERSION เมื่อเพิ่ม/ลบไฟล์ใน APP_FILES เพื่อล้างแคชเก่า */
-const VERSION = 'beemath-v6';
+const VERSION = 'beemath-v7';
 const APP_FILES = [
   './', './index.html', './manifest.webmanifest', './css/style.css',
-  './js/icons.js', './js/data.js', './js/sounds.js', './js/app.js', './js/extras.js', './js/config.js', './js/cloud.js', './js/friends.js', './js/classroom.js', './js/main.js',
+  './js/icons.js', './js/data.js', './js/sounds.js', './js/app.js', './js/extras.js', './js/askbee.js', './js/config.js', './js/cloud.js', './js/friends.js', './js/classroom.js', './js/main.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/icon.svg',
 ];
 
