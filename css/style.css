@@ -551,6 +551,25 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outl
 .jump-btn { display: flex; align-items: center; gap: 6px; margin: 8px auto 0; min-height: 40px; padding: 0 14px; border-radius: 999px; background: #fff; border: 2px solid var(--line); border-bottom-width: 4px; font-size: 13px; font-weight: 700; color: var(--blue-dark); }
 @media (hover: hover) { .jump-btn:hover { background: var(--blue-soft); } .chest.ready:hover { transform: scale(1.05); } }
 
+/* ---------- บัญชีผู้ใช้ ---------- */
+.acct-card { display: grid; gap: 14px; padding: 18px; }
+.acct-intro { display: flex; align-items: center; gap: 12px; }
+.acct-intro p { margin: 0; font-weight: 600; line-height: 1.45; }
+.acct-who { display: flex; align-items: center; gap: 14px; }
+.hex.acct-av { width: 64px; height: 72px; flex: none; }
+.acct-form { display: grid; gap: 12px; }
+.fld { display: grid; gap: 6px; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.fld input { height: 48px; padding: 0 14px; border: 2px solid var(--line); border-radius: 14px; background: #fff; font: inherit; font-size: 16px; color: var(--ink); }
+.fld input:focus { outline: none; border-color: var(--blue); }
+.seg.wide { display: grid; grid-template-columns: 1fr 1fr; }
+.acct-msg { margin: 0; padding: 10px 14px; border-radius: 14px; font-size: 14px; font-weight: 600; }
+.acct-msg.err { background: var(--red-soft); color: var(--red-text); }
+.acct-msg.ok { background: var(--green-soft); color: var(--green-text); }
+.sync-line { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; font-weight: 600; color: var(--green-text); }
+.sync-line.error { color: var(--red-text); }
+.sync-line.offline, .sync-line.syncing { color: var(--ink-2); }
+code { padding: 1px 6px; border-radius: 6px; background: var(--track); font-size: .9em; }
+
 /* ---------- หน้าตั้งค่า ---------- */
 .set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px 16px; }
 .set-row .setting-main { flex: 1 1 200px; }

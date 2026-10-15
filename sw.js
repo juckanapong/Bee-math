@@ -1,10 +1,10 @@
 /* BeeMath — Service Worker: ทำให้ติดตั้งเป็นแอปและเปิดได้แม้ไม่มีอินเทอร์เน็ต
    กลยุทธ์ stale-while-revalidate: เปิดจากแคชทันที แล้วโหลดเวอร์ชันใหม่เก็บไว้ใช้ครั้งถัดไป
    เปลี่ยน VERSION เมื่อเพิ่ม/ลบไฟล์ใน APP_FILES เพื่อล้างแคชเก่า */
-const VERSION = 'beemath-v1';
+const VERSION = 'beemath-v2';
 const APP_FILES = [
   './', './index.html', './manifest.webmanifest', './css/style.css',
-  './js/icons.js', './js/data.js', './js/sounds.js', './js/app.js', './js/extras.js', './js/main.js',
+  './js/icons.js', './js/data.js', './js/sounds.js', './js/app.js', './js/extras.js', './js/config.js', './js/cloud.js', './js/main.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png', './icons/icon.svg',
 ];
 
@@ -22,8 +22,9 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
-  if (url.origin !== self.location.origin && !isFont) return;
+  // ข้ามโดเมน: แคชเฉพาะฟอนต์และไลบรารี Supabase (ห้ามแคชการเรียก API ของ Supabase)
+  const isAsset = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net'].includes(url.hostname);
+  if (url.origin !== self.location.origin && !isAsset) return;
   e.respondWith(caches.open(VERSION).then(async (cache) => {
     const cached = await cache.match(req, { ignoreSearch: url.origin === self.location.origin });
     const fresh = fetch(req).then((res) => {

@@ -70,3 +70,4 @@ window.addEventListener('offline', () => showToast('ออฟไลน์อย�
 render();
 scrollToCurrent();
 remindCheck();
+cloudInit(); // ระบบบัญชี (ทำงานเมื่อตั้งค่า js/config.js แล้วเท่านั้น)

@@ -65,7 +65,10 @@ function load() {
   } catch (e) { /* ไม่มีที่เก็บข้อมูล — เริ่มใหม่ */ }
   return defaultState();
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignore */ } }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignore */ }
+  if (typeof cloudQueue === 'function') cloudQueue(); // ล็อกอินอยู่ → ส่งขึ้นคลาวด์ (js/cloud.js)
+}
 
 let S = load();
 const UI = { view: 'learn', back: 'learn', sheet: null, L: null, cards: null, result: null, toast: null };
@@ -923,7 +926,7 @@ function runCounters() {
 function render() {
   tick();
   beeId = 0;
-  if (!S.onboarded && !['onboarding', 'lesson', 'result'].includes(UI.view)) UI.view = 'onboarding';
+  if (!S.onboarded && !['onboarding', 'lesson', 'result', 'account'].includes(UI.view)) UI.view = 'onboarding';
   if (S.leagueResult && UI.view === 'learn' && !UI.sheet) {
     UI.sheet = { type: 'league' };
     SFX.play(S.leagueResult.to > S.leagueResult.from ? 'levelup' : 'tap');

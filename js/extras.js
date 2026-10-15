@@ -14,7 +14,8 @@ function viewOnboarding() {
         <span class="goal-ic">${icon('bell', 22)}</span>
         <span class="setting-main"><b>เตือนให้มาเรียน</b><small>ทุกวัน เวลา ${S.remind.time} น. (เปลี่ยนได้ในตั้งค่า)</small></span>
         ${switchHTML('ob-remind', o.remind, 'เปิดการเตือน')}
-      </div>`
+      </div>
+      ${typeof Cloud !== 'undefined' && Cloud.enabled() ? '<button class="btn link" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}`
     : `<h1 class="ob-title">เคยเรียนสมการมาก่อนไหม?</h1>
       <p class="muted">เลือกจุดเริ่มต้นที่เหมาะกับตัวเอง</p>
       <button class="big-pick ${o.level === 'basic' ? 'sel' : ''}" data-act="ob-level" data-l="basic">
@@ -447,7 +448,12 @@ const setRow = (title, desc, control) => `<div class="set-row"><span class="sett
 function viewSettings() {
   const st = S.settings;
   const sysReduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const signedIn = typeof Cloud !== 'undefined' && Cloud.user;
   return shell(`<div class="sub-body">
+    <section><h3 class="shop-sec">บัญชี</h3><div class="list-card">
+      ${setRow(signedIn ? esc(Cloud.user.email || 'บัญชีของฉัน') : 'บัญชี BeeMath', typeof syncLabel === 'function' ? esc(syncLabel()) : '',
+        `<button class="price-btn ${signedIn ? 'ghost' : ''}" data-act="go" data-v="account">${signedIn ? 'จัดการ' : 'เข้าสู่ระบบ'}</button>`)}
+    </div></section>
     <section><h3 class="shop-sec">เสียง</h3><div class="list-card">
       ${setRow('เสียงประกอบ', 'ตอบถูก ตอบผิด จบบทเรียน และรับรางวัล', switchHTML('sound', st.sound, 'เปิดเสียงประกอบ'))}
       ${setRow('ระดับเสียง', '', `<span class="vol"><input type="range" id="volume" min="0" max="100" step="10" value="${Math.round(st.volume * 100)}" aria-label="ระดับเสียง" ${st.sound ? '' : 'disabled'}>
