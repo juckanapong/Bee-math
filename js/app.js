@@ -33,7 +33,7 @@ function defaultState() {
   return {
     name: 'ผู้เรียน', avatar: AVATAR_COLORS[0], xp: 0, joined: today(), onboarded: false,
     goal: 20, remind: { on: false, time: '19:00' }, remindedDay: null,
-    week: { key: weekKey(), xp: 0 }, league: { tier: 0 }, leagueResult: null,
+    week: { key: weekKey(), xp: 0 }, league: { tier: 0 }, leagueResult: null, leagueSeen: {},
     hearts: MAX_HEARTS, heartsTs: Date.now(),
     streak: 0, lastDay: null, days: {}, shields: 0, streakLost: null,
     nectar: 100, boostUntil: 0, outfit: null, owned: {},
@@ -54,7 +54,7 @@ function load() {
     if (raw) {
       const d = defaultState();
       const s = { ...d, ...raw };
-      for (const k of ['stats', 'records', 'remind', 'league', 'today', 'month', 'settings']) s[k] = { ...d[k], ...raw[k] };
+      for (const k of ['stats', 'records', 'remind', 'league', 'today', 'month', 'settings', 'leagueSeen']) s[k] = { ...d[k], ...raw[k] };
       if (!AVATAR_COLORS.includes(s.avatar)) s.avatar = AVATAR_COLORS[0]; // ข้อมูลเก่าเก็บอวตารเป็นอีโมจิ
       if (!raw.joined) s.joined = null; // ไม่รู้วันเริ่มเรียนจริงของข้อมูลเก่า
       if (raw.onboarded === undefined) s.onboarded = true; // ผู้เล่นเดิมไม่ต้องผ่านหน้าเริ่มต้น
@@ -84,7 +84,7 @@ function tick() {
   if (S.quests.day !== today()) S.quests = { day: today(), p: {}, claimed: {} };
   if (S.today.day !== today()) S.today = { day: today(), xp: 0 };
   if (S.month.key !== monthKey()) S.month = { key: monthKey(), points: 0 };
-  if (S.week.key !== weekKey()) { settleLeague(); S.week = { key: weekKey(), xp: 0 }; }
+  if (S.week.key !== weekKey()) { if (!realLeague()) settleLeague(); S.week = { key: weekKey(), xp: 0 }; }
   checkStreak();
 }
 
@@ -248,9 +248,9 @@ function sideNav() {
 }
 // แผงสรุปด้านขวา (เฉพาะจอคอม)
 function rightRail() {
-  const rows = leagueRows(), me = rows.find((r) => r.me), t = TIERS[S.league.tier];
+  const rows = leagueRows(), me = rows.find((r) => r.me), t = TIERS[S.league.tier], z = leagueZones(rows.length);
   const top = S.league.tier === TIERS.length - 1;
-  const need = me.rank > PROMOTE_TOP && !top ? rows[PROMOTE_TOP - 1].xp - me.xp + 1 : 0;
+  const need = me.rank > z.up && !top ? rows[z.up - 1].xp - me.xp + 1 : me.xp === 0 && !top ? 1 : 0;
   const goal = S.goal, x = S.today.xp, boost = boostLeft();
   const mp = Math.min(MONTH_GOAL, S.month.points);
   return `<aside class="rail" aria-label="สรุปวันนี้">
@@ -443,7 +443,7 @@ const SHEETS = {
     const r = S.leagueResult, t = TIERS[r.to];
     const msg = r.to > r.from ? `เลื่อนขึ้นสู่ลีก${t.name}!` : r.to < r.from ? `ตกไปอยู่ลีก${t.name}` : `อยู่ลีก${t.name}ต่อ`;
     return `<div class="sheet-card center">${hex(icon(t.icon, 40), 'tier-hex big', tint(t))}<h3>${msg}</h3>
-      <p>สัปดาห์ที่แล้วคุณได้อันดับที่ ${r.rank} จาก 20 คน</p>
+      <p>สัปดาห์ที่แล้วคุณได้อันดับที่ ${r.rank} จาก ${r.n || 20} คน</p>
       <button class="btn primary" data-act="league-ok">ตกลง</button></div>`;
   },
 };
@@ -780,7 +780,18 @@ function botXP(name, wk = S.week.key, elapsed = null) {
   if (elapsed === null) { const now = new Date(); elapsed = (((now.getDay() + 6) % 7) + now.getHours() / 24) / 7; }
   return Math.round((30 + (hash(wk + name) % 420)) * (1 + 0.3 * S.league.tier) * Math.min(1, 0.08 + elapsed));
 }
+// ลีกจริง (ล็อกอินและซิงก์แล้ว) — ดู league_sync ใน supabase/league.sql และ leagueSync() ใน js/cloud.js
+const realLeague = () => (typeof Cloud !== 'undefined' && Cloud.user && Cloud.league) || null;
+// เขตเลื่อน/ตกลีก: ลีกจริงคิดตามขนาดกลุ่ม (25% แรกเลื่อน · 3 อันดับท้ายตกเมื่อกลุ่ม ≥ 10 คน) ลีกจำลองใช้ค่าคงที่
+const leagueZones = (n) => realLeague() ? { up: Math.max(1, Math.round(n * 0.25)), down: n >= 10 ? n - 2 : Infinity } : { up: PROMOTE_TOP, down: DEMOTE_FROM };
 function leagueRows(wk = S.week.key, elapsed = null) {
+  const real = realLeague();
+  if (real && arguments.length === 0) {
+    const members = real.members.some((m) => m.me) ? real.members : [...real.members, { name: S.name, avatar: S.avatar, xp: 0, me: true }];
+    return members.map((m) => ({ n: m.me ? S.name : m.name, c: [m.avatar, '#2A1F14'], xp: m.me ? Math.max(m.xp, S.week.xp) : m.xp, me: m.me, real: true }))
+      .sort((p, q) => q.xp - p.xp || (q.me ? 1 : -1))
+      .map((r, i) => ({ ...r, rank: i + 1 }));
+  }
   return [...BOTS.map((n, i) => ({ n, c: BOT_COLORS[i % BOT_COLORS.length], xp: botXP(n, wk, elapsed) })), { n: S.name, xp: S.week.xp, me: true }]
     .sort((p, q) => q.xp - p.xp || (q.me ? 1 : -1))
     .map((r, i) => ({ ...r, rank: i + 1 }));
@@ -796,7 +807,7 @@ function settleLeague() {
   S.league.tier = to;
   S.leagueResult = { from, to, rank };
 }
-const rowHTML = (r) => `<li class="${r.me ? 'me' : ''} ${r.rank <= PROMOTE_TOP ? 'promo' : r.rank >= DEMOTE_FROM ? 'demo' : ''}">
+const rowHTML = (r, z = leagueZones(20)) => `<li class="${r.me ? 'me' : ''} ${r.rank <= z.up && r.xp > 0 ? 'promo' : r.rank >= z.down ? 'demo' : ''}">
   <span class="rank r${r.rank}">${r.rank}</span>
   <span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}</span>
   <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}</span><span class="pts">${r.xp} XP</span></li>`;
@@ -812,19 +823,23 @@ function weekLeft() {
   return h >= 24 ? `${Math.floor(h / 24)} วัน ${h % 24} ชม.` : `${h} ชม.`;
 }
 function viewBoard() {
-  const rows = leagueRows();
+  if (typeof leagueRefresh === 'function') leagueRefresh(); // ดึงอันดับล่าสุดของเพื่อนในกลุ่ม
+  const rows = leagueRows(), n = rows.length, z = leagueZones(n), real = realLeague();
   const t = S.league.tier, top = t === TIERS.length - 1;
   let list = '';
   rows.forEach((r) => {
-    list += rowHTML(r);
-    if (r.rank === PROMOTE_TOP && !top) list += `<li class="zone up">${icon('up', 14)} เขตเลื่อนลีก</li>`;
-    if (r.rank === DEMOTE_FROM - 1 && t > 0) list += `<li class="zone down">${icon('down', 14)} เขตตกลีก</li>`;
+    list += rowHTML(r, z);
+    if (r.rank === z.up && !top && n > z.up) list += `<li class="zone up">${icon('up', 14)} เขตเลื่อนลีก</li>`;
+    if (r.rank === z.down - 1 && t > 0) list += `<li class="zone down">${icon('down', 14)} เขตตกลีก</li>`;
   });
+  const rules = `${top ? 'ลีกสูงสุดแล้ว' : `${z.up} อันดับแรกเลื่อนขึ้น`}${t > 0 && z.down <= n ? ` · อันดับ ${z.down}–${n} ตกลีก` : ''}`;
   return shell(`${tierRow()}
     <h1 class="page-title center">ลีก${TIERS[t].name}</h1>
-    <p class="muted center">${icon('clock', 15)} เหลือ ${weekLeft()} · กลุ่มละ 20 คน · ${top ? 'ลีกสูงสุดแล้ว' : `${PROMOTE_TOP} อันดับแรกเลื่อนขึ้น`}${t > 0 ? ` · อันดับ ${DEMOTE_FROM}–20 ตกลีก` : ''}</p>
+    <p class="muted center">${icon('clock', 15)} เหลือ ${weekLeft()} · ${real ? `${n} คนในกลุ่มนี้` : 'กลุ่มละ 20 คน'} · ${rules}</p>
     <ol class="board">${list}</ol>
-    <p class="muted small center">ผู้เล่นอื่นในต้นแบบนี้เป็นผู้เล่นจำลอง</p>`);
+    ${real
+      ? `<p class="muted small center">ผู้เล่นจริงในลีกเดียวกัน · อัปเดตทุกครั้งที่ซิงก์${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
+      : `<p class="muted small center">ผู้เล่นอื่นเป็นผู้เล่นจำลอง${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' · <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
 }
 
 // ---------- quests ----------
@@ -854,7 +869,7 @@ function viewQuests() {
       ${icon('chevron', 20)}
     </button>
     <div class="league-head"><h2>ลีก${TIERS[S.league.tier].name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
-    <ol class="board">${preview.map(rowHTML).join('')}</ol>`);
+    <ol class="board">${preview.map((r) => rowHTML(r, leagueZones(rows.length))).join('')}</ol>`);
 }
 
 // ---------- profile ----------
@@ -1032,7 +1047,7 @@ const ACT = {
   },
   settings: () => ACT.go({ v: 'settings' }),
   badge: (d) => { UI.sheet = { type: 'badge', id: d.id }; render(); },
-  'league-ok': () => { S.leagueResult = null; UI.sheet = null; save(); render(); },
+  'league-ok': () => { if (S.leagueResult?.week) S.leagueSeen[S.leagueResult.week] = true; S.leagueResult = null; UI.sheet = null; save(); render(); },
   'pick-avatar': () => { UI.sheet = { type: 'avatar' }; render(); },
   avatar: (d) => { S.avatar = d.a; UI.sheet = null; save(); render(); },
   reset: () => { UI.sheet = { type: 'reset' }; render(); },

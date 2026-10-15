@@ -10,6 +10,7 @@ const Cloud = {
   client: null, user: null,
   status: 'off', // off · loading · ready · syncing · synced · offline · error
   lastSync: null, error: null, applying: false, timer: null,
+  league: null, leagueAt: 0, leagueError: null, // ลีกจริง (ระยะ 2b)
   enabled: () => !!(window.BEEMATH_CONFIG?.supabaseUrl && window.BEEMATH_CONFIG?.supabaseAnonKey),
 };
 const syncMeta = () => { try { return JSON.parse(localStorage.getItem(SYNC_KEY)) || {}; } catch (e) { return {}; } };
@@ -101,7 +102,7 @@ async function cloudPull() {
   }
   setSyncMeta({ userId: uid, lastSync: Date.now(), dirty: !data || merged });
   if (!data || merged) await cloudPush();
-  else { Cloud.status = 'synced'; Cloud.lastSync = Date.now(); }
+  else { Cloud.status = 'synced'; Cloud.lastSync = Date.now(); await leagueSync(true); }
   if (merged) showToast('รวมความคืบหน้าในเครื่องนี้เข้ากับบัญชีแล้ว');
   cloudRender();
 }
@@ -121,6 +122,7 @@ async function cloudPush() {
   setSyncMeta({ userId: uid, lastSync: Date.now(), dirty: false });
   Cloud.status = 'synced'; Cloud.lastSync = Date.now(); Cloud.error = null;
   if (['account', 'settings'].includes(UI.view)) cloudRender();
+  leagueSync();
 }
 
 // เรียกจาก save(): ทำเครื่องหมายว่ามีการเปลี่ยนแปลง แล้วส่งขึ้นคลาวด์หลังหยุดเปลี่ยน 2.5 วินาที
@@ -133,6 +135,28 @@ function cloudQueue() {
 window.addEventListener('online', () => { if (Cloud.user && syncMeta().dirty) cloudPush(); });
 // ปิดแท็บ/สลับแอป: พยายามส่งขึ้นทันที
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && Cloud.user && syncMeta().dirty) cloudPush(); });
+
+// ---------- ลีกจริง (ระยะ 2b) ----------
+// ส่ง XP ของสัปดาห์ให้เซิร์ฟเวอร์ แล้วรับตารางอันดับของกลุ่ม ระดับลีก และผลของสัปดาห์ที่แล้ว
+// ถ้ายังไม่ได้รัน supabase/league.sql ฟังก์ชันจะไม่มี → ใช้ลีกจำลองต่อไปตามเดิม
+async function leagueSync(force = false) {
+  if (!Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (!force && Date.now() - Cloud.leagueAt < 15000) return;
+  Cloud.leagueAt = Date.now();
+  const { data, error } = await Cloud.client.rpc('league_sync', { p_week: S.week.key, p_xp: S.week.xp });
+  if (error || !data) { Cloud.leagueError = cloudError(error); return; }
+  Cloud.league = data; Cloud.leagueError = null;
+  let changed = false;
+  if (S.league.tier !== data.tier) { S.league.tier = data.tier; changed = true; }
+  const r = data.result;
+  if (r && !S.leagueSeen[r.week] && !S.leagueResult) { S.leagueResult = { from: r.from, to: r.to, rank: r.rank, n: r.n, week: r.week }; changed = true; }
+  if (changed) { Cloud.applying = true; save(); Cloud.applying = false; }
+  if (['board', 'quests', 'learn', 'practice', 'profile'].includes(UI.view)) cloudRender();
+}
+// เปิดหน้าอันดับ: ดึงข้อมูลใหม่ถ้าเก่ากว่า 30 วินาที
+function leagueRefresh() {
+  if (Cloud.user && Date.now() - Cloud.leagueAt > 30000) setTimeout(() => leagueSync(true), 0);
+}
 
 // ---------- บัญชี ----------
 const siteUrl = () => location.origin + location.pathname;
@@ -152,7 +176,7 @@ async function cloudSignIn(email, password) {
 async function cloudSignOut() {
   if (syncMeta().dirty) await cloudPush();
   await Cloud.client.auth.signOut();
-  Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null;
+  Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null; Cloud.league = null;
   setSyncMeta({});
   const fresh = defaultState(); fresh.onboarded = true;
   applyState(fresh);
@@ -161,7 +185,7 @@ async function cloudDeleteAccount() {
   const { error } = await Cloud.client.rpc('delete_my_account');
   if (error) throw error;
   await Cloud.client.auth.signOut();
-  Cloud.user = null; Cloud.status = 'ready';
+  Cloud.user = null; Cloud.status = 'ready'; Cloud.league = null;
   setSyncMeta({});
   applyState(defaultState());
 }
