@@ -603,6 +603,60 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--track); font-size
 .banner.pair { background: #FFE3D1; color: #8A3700; }
 .banner.pair .i-flame { color: var(--orange); }
 
+/* ---------- ห้องเรียน · แดชบอร์ดครู ---------- */
+.seg.wide { grid-template-columns: repeat(3, 1fr); }
+.banner.hw { background: var(--blue-soft); color: var(--blue-dark); }
+.banner.hw b, .banner.hw small { display: block; }
+.banner.hw small { font-weight: 600; color: var(--ink-2); }
+.banner.hw.late { background: var(--red-soft); color: var(--red-text); }
+.banner.hw.soon { background: #FFE3D1; color: #8A3700; }
+.class-card { display: grid; gap: 4px; padding: 14px 16px; margin-bottom: 10px; }
+.class-head { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--line-2); }
+.hw-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+.hw-row + .hw-row { border-top: 1px solid var(--line-2); }
+.hw-row small.late { color: var(--red-text); font-weight: 700; }
+.hw-row small.soon { color: var(--orange-text); font-weight: 700; }
+.hw-row small.ok { color: var(--green-text); font-weight: 700; }
+.hw-row.fin b { color: var(--green-text); }
+.hw-count { font-family: var(--head); font-size: 18px; color: var(--honey-text); }
+.hw-row.t { padding: 12px 14px; }
+.list-card.plain { border: 0; border-radius: 0; }
+.stack-bar { display: flex; height: 10px; margin: 4px 0; border-radius: 999px; background: var(--track); overflow: hidden; }
+.stack-bar i { display: block; height: 100%; }
+.page.wide { max-width: 1100px; }
+.sub-body.teacher { gap: 16px; }
+.t-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.t-select { flex: 1 1 220px; }
+.t-select select { height: 48px; padding: 0 12px; border: 2px solid var(--line); border-radius: 14px; background: #fff; font: inherit; font-size: 15px; color: var(--ink); }
+.t-head .code-card { flex: 0 1 260px; }
+.t-actions { display: flex; gap: 8px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.kpi { display: grid; gap: 2px; padding: 14px 16px; background: #fff; border: 2px solid var(--line); border-radius: 18px; }
+.kpi small { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.kpi b { font-family: var(--head); font-size: 28px; font-weight: 500; line-height: 1.2; }
+.kpi span { font-size: 12px; color: var(--ink-2); }
+.kpi.green b { color: var(--green-text); } .kpi.gold b { color: var(--honey-text); } .kpi.red b { color: var(--red-text); }
+.t-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.t-card { display: grid; gap: 10px; align-content: start; padding: 16px 18px; }
+.t-card h2 { margin: 0; font-size: 18px; }
+.sk-row { display: grid; grid-template-columns: minmax(0, 1.2fr) 2fr 44px; align-items: center; gap: 10px; font-size: 14px; }
+.sk-row b { text-align: right; }
+.t-table-wrap { overflow-x: auto; }
+.t-table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 14px; }
+.t-table th { padding: 8px 10px; text-align: left; font-size: 12px; color: var(--ink-2); border-bottom: 2px solid var(--line); }
+.t-table td { padding: 8px 10px; border-top: 1px solid var(--line-2); vertical-align: middle; }
+.t-name { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.t-name .av { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border-radius: 50%; font-family: var(--head); font-size: 13px; }
+.chip-st { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.chip-st.help { background: var(--red-soft); color: var(--red-text); }
+.chip-st.away { background: #FFE3D1; color: #8A3700; }
+.chip-st.ok { background: var(--green-soft); color: var(--green-text); }
+.danger-link { color: var(--red-text); min-height: 0; padding: 0; }
+.node-picks { display: grid; gap: 6px; margin: 0; padding: 10px 12px; border: 2px solid var(--line); border-radius: 14px; }
+.node-picks legend { padding: 0 4px; }
+.pick-node { display: flex; align-items: center; gap: 8px; min-height: 36px; font-weight: 600; color: var(--ink); }
+.pick-node input { width: 20px; height: 20px; accent-color: var(--honey-dark); }
+
 /* ---------- หน้าตั้งค่า ---------- */
 .set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px 16px; }
 .set-row .setting-main { flex: 1 1 200px; }
@@ -957,3 +1011,6 @@ button.chip { min-height: 36px; }
   .chip:hover { border-color: #E8D49E; }
   .linkbtn:hover, .btn.link:hover, .btn.danger-text:hover { text-decoration: underline; }
 }
+
+/* หน้ากว้าง (แดชบอร์ดครู): หัวหน้าจอให้ตรงแนวกับเนื้อหา */
+.layout.wide .subhead { padding-inline: max(16px, calc((100% - 1100px) / 2)); }

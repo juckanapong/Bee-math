@@ -29,6 +29,10 @@ function cloudError(err) {
   if (/invalid.*email|email.*invalid/i.test(m)) return 'รูปแบบอีเมลไม่ถูกต้อง';
   if (/rate limit|too many/i.test(m)) return 'ลองบ่อยเกินไป รอสักครู่แล้วลองใหม่';
   if (/fetch|network|failed to load/i.test(m)) return 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
+  if (/anonymous sign-ins are disabled/i.test(m)) return 'ยังเข้าห้องเรียนแบบไม่ใช้อีเมลไม่ได้ (ผู้ดูแลต้องเปิด Anonymous sign-ins ใน Supabase)';
+  if (/not class owner/i.test(m)) return 'คุณไม่ใช่ครูของห้องนี้';
+  if (/anonymous users cannot create/i.test(m)) return 'บัญชีห้องเรียนแบบไม่ใช้อีเมลสร้างห้องไม่ได้ ใช้บัญชีอีเมลแทน';
+  if (/class limit|assignment limit/i.test(m)) return 'ถึงจำนวนสูงสุดแล้ว';
   if (/could not find the function|function .* does not exist/i.test(m)) return 'ระบบนี้ยังไม่พร้อมใช้งาน (ผู้ดูแลต้องรันไฟล์ SQL ใน Supabase ให้ครบ)';
   return 'เกิดข้อผิดพลาด: ' + m;
 }
@@ -105,6 +109,7 @@ async function cloudPull() {
   if (!data || merged) await cloudPush();
   else { Cloud.status = 'synced'; Cloud.lastSync = Date.now(); await leagueSync(true); }
   if (typeof friendsSync === 'function') friendsSync(true);
+  if (typeof classroomSync === 'function') classroomSync(true);
   if (merged) showToast('รวมความคืบหน้าในเครื่องนี้เข้ากับบัญชีแล้ว');
   cloudRender();
 }
@@ -126,6 +131,7 @@ async function cloudPush() {
   if (['account', 'settings'].includes(UI.view)) cloudRender();
   leagueSync();
   if (typeof friendsSync === 'function') friendsSync(); // ข้อความ/คำขอจากเพื่อน (ทุก 60 วินาที)
+  if (typeof classroomSync === 'function') classroomSync(); // งานจากครู
 }
 
 // เรียกจาก save(): ทำเครื่องหมายว่ามีการเปลี่ยนแปลง แล้วส่งขึ้นคลาวด์หลังหยุดเปลี่ยน 2.5 วินาที
@@ -181,6 +187,7 @@ async function cloudSignOut() {
   await Cloud.client.auth.signOut();
   Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null; Cloud.league = null;
   if (typeof Friends !== 'undefined') { Friends.data = null; Friends.at = 0; Friends.sent = {}; }
+  if (typeof Classroom !== 'undefined') Object.assign(Classroom, { mine: null, at: 0, teach: null, dash: {}, sel: null });
   setSyncMeta({});
   const fresh = defaultState(); fresh.onboarded = true;
   applyState(fresh);
@@ -213,16 +220,22 @@ function viewAccount() {
       <p class="muted">ผู้ดูแลต้องสร้างโปรเจกต์ Supabase แล้วใส่ค่าใน <code>js/config.js</code> (ดูขั้นตอนใน README) ระหว่างนี้ใช้ "สำรองความคืบหน้า" ในหน้าตั้งค่าเพื่อย้ายเครื่องได้</p></div>`;
   } else if (Cloud.user) {
     body = `<div class="card acct-card">
-      <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${esc(Cloud.user.email || '')}</small></span></div>
+      <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน (ไม่ใช้อีเมล) · ใช้ได้บนเครื่องนี้' : esc(Cloud.user.email || '')}</small></span></div>
       <p class="sync-line ${Cloud.status}">${icon(Cloud.status === 'error' ? 'x' : Cloud.status === 'offline' ? 'clock' : 'check', 16)} ${esc(syncLabel())}</p>
       <button class="btn primary" data-act="cloud-sync" ${Cloud.status === 'syncing' ? 'disabled' : ''}>${icon('refresh', 18)} ซิงก์ตอนนี้</button>
-      <button class="btn" data-act="cloud-signout">ออกจากระบบ</button>
+      <button class="btn" data-act="${Cloud.user.is_anonymous ? 'cloud-signout-anon' : 'cloud-signout'}">ออกจากระบบ</button>
     </div>
     <p class="muted small">ออกจากระบบแล้วความคืบหน้าในเครื่องนี้จะถูกล้าง (เก็บไว้ในบัญชีแล้ว) เพื่อให้คนอื่นใช้เครื่องนี้ต่อได้อย่างปลอดภัย</p>
     <button class="btn danger-text" data-act="cloud-delete-ask">ลบบัญชีและข้อมูลทั้งหมด</button>`;
   } else {
-    const tabs = [['signin', 'เข้าสู่ระบบ'], ['signup', 'สมัครบัญชี']];
-    const form = a.tab === 'forgot'
+    const tabs = [['signin', 'เข้าสู่ระบบ'], ['signup', 'สมัครบัญชี'], ['class', 'รหัสห้องเรียน']];
+    const form = a.tab === 'class'
+      ? `<form class="acct-form" data-form="anon-join">
+          <p class="muted">สำหรับนักเรียนที่ไม่มีอีเมล: กรอกชื่อและรหัสห้องจากครู ความคืบหน้าจะซิงก์ให้ครูเห็น (บัญชีนี้ใช้ได้บนเครื่องนี้ ย้ายเครื่องด้วยไฟล์สำรองในหน้าตั้งค่า)</p>
+          <label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" value="${esc(S.name)}" required></label>
+          <label class="fld">รหัสห้องเรียน<input id="class-code" placeholder="HIVE-XXXX" maxlength="9" autocapitalize="characters" autocomplete="off" required></label>
+          <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>${a.busy ? 'กำลังเข้าห้อง…' : 'เข้าห้องเรียน'}</button></form>`
+      : a.tab === 'forgot'
       ? `<form class="acct-form" data-form="forgot">
           <p class="muted">กรอกอีเมลที่ใช้สมัคร เราจะส่งลิงก์ตั้งรหัสผ่านใหม่ไปให้</p>
           <label class="fld">อีเมล<input type="email" id="acct-email" autocomplete="email" required></label>
@@ -245,6 +258,11 @@ function viewAccount() {
   return shell(`<div class="sub-body">${body}</div>`, { sub: { title: 'บัญชี' } });
 }
 Object.assign(SHEETS, {
+  'cloud-signout-anon'() {
+    return `<div class="sheet-card center"><h3>ออกจากบัญชีห้องเรียน?</h3>
+      <p>บัญชีนี้ไม่มีอีเมลและรหัสผ่าน ถ้าออกจากระบบแล้วจะ<b>กลับเข้าบัญชีเดิมไม่ได้อีก</b> แนะนำให้ดาวน์โหลดไฟล์สำรองในหน้าตั้งค่าก่อน</p>
+      <button class="btn danger" data-act="cloud-signout">ออกจากระบบ</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
+  },
   'cloud-delete'() {
     return `<div class="sheet-card center"><h3>ลบบัญชีถาวร?</h3>
       <p>ความคืบหน้าทั้งหมดบนคลาวด์และในเครื่องนี้จะถูกลบ และกู้คืนไม่ได้</p>
@@ -289,7 +307,8 @@ async function submitAccount(kind) {
 Object.assign(ACT, {
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
   'cloud-sync': async () => { await cloudPull(); if (Cloud.status === 'synced') showToast('ซิงก์แล้ว'); },
-  'cloud-signout': async () => { await cloudSignOut(); UI.acct = { tab: 'signin' }; showToast('ออกจากระบบแล้ว'); },
+  'cloud-signout': async () => { UI.sheet = null; await cloudSignOut(); UI.acct = { tab: 'signin' }; showToast('ออกจากระบบแล้ว'); },
+  'cloud-signout-anon': () => { UI.sheet = { type: 'cloud-signout-anon' }; render(); },
   'cloud-delete-ask': () => { UI.sheet = { type: 'cloud-delete' }; render(); },
   'cloud-delete': async () => {
     try { await cloudDeleteAccount(); UI.sheet = null; UI.ob = null; UI.view = 'onboarding'; showToast('ลบบัญชีแล้ว'); }

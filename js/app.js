@@ -236,7 +236,7 @@ function bottomNav() {
 }
 // เมนูด้านข้าง (แท็บเล็ต: แถบไอคอน · คอม: เมนูเต็ม) — มือถือใช้เมนูด้านล่างแทน
 const SIDE = [['learn', 'home', 'เรียนรู้', 'tab'], ['practice', 'dumbbell', 'ฝึกฝน', 'tab'], ['board', 'trophy', 'อันดับ', 'tab'],
-  ['quests', 'target', 'ภารกิจ', 'tab'], ['friends', 'users', 'เพื่อน', 'go'], ['shop', 'shop', 'ร้านค้า', 'go'], ['profile', 'user', 'โปรไฟล์', 'tab']];
+  ['quests', 'target', 'ภารกิจ', 'tab'], ['friends', 'users', 'เพื่อน', 'go'], ['classes', 'cap', 'ห้องเรียน', 'go'], ['shop', 'shop', 'ร้านค้า', 'go'], ['profile', 'user', 'โปรไฟล์', 'tab']];
 function sideNav() {
   const dot = QUESTS.some((q) => (S.quests.p[q.id] || 0) >= q.goal && !S.quests.claimed[q.id]);
   return `<nav class="sidenav" aria-label="เมนูหลัก">
@@ -280,11 +280,12 @@ function rightRail() {
 // โครงหน้า: เมนูข้าง + คอลัมน์กลาง + แผงขวา (CSS ซ่อน/แสดงตามความกว้างจอ)
 // opts.top = แสดงแถบบน · opts.sub = { title, extra } สำหรับหน้าจอย่อยที่มีปุ่มย้อนกลับ
 const friendDot = () => typeof friendsAlert === 'function' && friendsAlert() > 0;
+// opts.wide = หน้ากว้าง (แดชบอร์ดครู) ไม่มีแผงขวา
 function shell(body, opts = {}) {
-  const { top = true, sub = null } = opts;
-  return `<div class="layout">${sideNav()}
-    <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}">${body}</main></div>
-    ${rightRail()}</div>${sub ? '' : bottomNav()}${sheetHTML()}`;
+  const { top = true, sub = null, wide = false } = opts;
+  return `<div class="layout${wide ? ' wide' : ''}">${sideNav()}
+    <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}${wide ? ' wide' : ''}">${body}</main></div>
+    ${wide ? '' : rightRail()}</div>${sub ? '' : bottomNav()}${sheetHTML()}`;
 }
 // หัวหน้าจอย่อยที่มีปุ่มย้อนกลับ
 const subHead = (title, extra = '') => `<header class="subhead"><button class="x" data-act="back" aria-label="ย้อนกลับ">${icon('back', 22)}</button><h1>${title}</h1>${extra}</header>`;
@@ -315,6 +316,7 @@ function viewLearn() {
   if (S.streakLost) {
     html += `<button class="banner warn" data-act="go" data-v="streak">${icon('flame', 22)}<span>สตรีค ${S.streakLost.streak} วันขาดแล้ว แตะเพื่อซ่อมภายใน 48 ชม.</span>${icon('chevron', 20)}</button>`;
   }
+  if (typeof assignmentBanner === 'function') html += assignmentBanner(); // งานจากครู (js/classroom.js)
   let k = 0;
   UNITS.forEach((u, ui) => {
     const items = NODES.map((n, i) => ({ n, i })).filter(({ n }) => n.ui === ui);

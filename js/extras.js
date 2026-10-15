@@ -458,6 +458,9 @@ function viewSettings() {
       ${setRow(signedIn ? esc(Cloud.user.email || 'บัญชีของฉัน') : 'บัญชี BeeMath', typeof syncLabel === 'function' ? esc(syncLabel()) : '',
         `<button class="price-btn ${signedIn ? 'ghost' : ''}" data-act="go" data-v="account">${signedIn ? 'จัดการ' : 'เข้าสู่ระบบ'}</button>`)}
     </div></section>
+    <section><h3 class="shop-sec">ห้องเรียน</h3><div class="list-card">
+      ${setRow('ห้องเรียนและงานจากครู', 'เข้าห้องด้วยรหัสจากครู · ครูสร้างห้องและดูแดชบอร์ดได้', '<button class="price-btn ghost" data-act="go" data-v="classes">เปิด</button>')}
+    </div></section>
     <section><h3 class="shop-sec">เสียง</h3><div class="list-card">
       ${setRow('เสียงประกอบ', 'ตอบถูก ตอบผิด จบบทเรียน และรับรางวัล', switchHTML('sound', st.sound, 'เปิดเสียงประกอบ'))}
       ${setRow('ระดับเสียง', '', `<span class="vol"><input type="range" id="volume" min="0" max="100" step="10" value="${Math.round(st.volume * 100)}" aria-label="ระดับเสียง" ${st.sound ? '' : 'disabled'}>
