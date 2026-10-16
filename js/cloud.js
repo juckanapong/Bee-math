@@ -184,9 +184,15 @@ function giveConsent(via) { S.consent = { v: PRIVACY.v, at: Date.now(), via }; s
 function consentBox(text) {
   return `<label class="consent"><input type="checkbox" id="acct-consent" required><span>${text}</span></label>`;
 }
-// หลังซิงก์: บัญชีที่ยังไม่ยอมรับนโยบายฉบับปัจจุบัน → ถาม (ไม่ขัดจังหวะระหว่างทำโจทย์)
+// ชื่อที่แสดงต้องตั้งเอง: ลีก เพื่อน และครูจะได้แยกออกว่าใครเป็นใคร
+const DEFAULT_NAME = 'ผู้เรียน';
+const isDefaultName = (n) => !n || !n.trim() || n.trim() === DEFAULT_NAME;
+const nameError = (n) => isDefaultName(n) ? 'ตั้งชื่อที่แสดงก่อนนะ (ใช้ชื่อ "ผู้เรียน" ไม่ได้)' : n.trim().length < 2 ? 'ชื่อที่แสดงต้องมีอย่างน้อย 2 ตัวอักษร' : '';
+// หลังซิงก์: บัญชีที่ยังไม่ยอมรับนโยบายฉบับปัจจุบัน หรือยังใช้ชื่อเริ่มต้น → ถาม (ไม่ขัดจังหวะระหว่างทำโจทย์)
 function consentCheck() {
-  if (Cloud.user && !consentOk() && !UI.sheet && !['lesson', 'timed', 'story', 'onboarding'].includes(UI.view)) { UI.sheet = { type: 'consent' }; render(); }
+  if (!Cloud.user || UI.sheet || ['lesson', 'timed', 'story', 'onboarding'].includes(UI.view)) return;
+  if (!consentOk()) { UI.sheet = { type: 'consent' }; render(); }
+  else if (isDefaultName(S.name)) { UI.sheet = { type: 'set-name' }; render(); }
 }
 
 // ---------- บัญชี ----------
@@ -203,7 +209,8 @@ async function cloudGoogle() {
   if (a.tab === 'signup') {
     if (!document.getElementById('acct-consent')?.checked) { a.err = 'ติ๊กยอมรับนโยบายความเป็นส่วนตัวก่อนนะ'; return render(); }
     const name = document.getElementById('acct-name')?.value.trim();
-    if (name) S.name = name.slice(0, 20);
+    if (nameError(name)) { a.err = nameError(name); return render(); }
+    S.name = name.slice(0, 20);
     giveConsent('google');
   }
   try { sessionStorage.setItem('bm-oauth', '1'); } catch (e) { /* ignore */ }
@@ -280,7 +287,7 @@ function viewAccount() {
     const form = a.tab === 'class'
       ? `<form class="acct-form" data-form="anon-join">
           <p class="muted">สำหรับนักเรียนที่ไม่มีอีเมล: กรอกชื่อและรหัสห้องจากครู ความคืบหน้าจะซิงก์ให้ครูเห็น (บัญชีนี้ใช้ได้บนเครื่องนี้ ย้ายเครื่องด้วยไฟล์สำรองในหน้าตั้งค่า)</p>
-          <label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" value="${esc(S.name)}" required></label>
+          <label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" minlength="2" value="${isDefaultName(S.name) ? '' : esc(S.name)}" placeholder="ชื่อที่ครูจะเห็น" required></label>
           <label class="fld">รหัสห้องเรียน<input id="class-code" placeholder="HIVE-XXXX" maxlength="9" autocapitalize="characters" autocomplete="off" required></label>
           ${consentBox(`ฉันอ่าน${privacyLink()}แล้ว และครูหรือผู้ปกครองแจ้งเรื่องการใช้ข้อมูลให้ทราบแล้ว`)}
           <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>${a.busy ? 'กำลังเข้าห้อง…' : 'เข้าห้องเรียน'}</button></form>`
@@ -291,7 +298,7 @@ function viewAccount() {
           <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>ส่งลิงก์ตั้งรหัสผ่านใหม่</button>
           <button class="btn link" type="button" data-act="acct-tab" data-t="signin">กลับไปเข้าสู่ระบบ</button></form>`
       : `<form class="acct-form" data-form="${a.tab}">
-          ${a.tab === 'signup' ? `<label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" value="${esc(S.name)}" autocomplete="nickname" required></label>` : ''}
+          ${a.tab === 'signup' ? `<label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" minlength="2" value="${isDefaultName(S.name) ? '' : esc(S.name)}" placeholder="ชื่อที่เพื่อนและครูจะเห็น" autocomplete="nickname" required></label>` : ''}
           <label class="fld">อีเมล<input type="email" id="acct-email" autocomplete="email" required></label>
           <label class="fld">รหัสผ่าน<input type="password" id="acct-pw" minlength="6" autocomplete="${a.tab === 'signup' ? 'new-password' : 'current-password'}" required></label>
           ${a.tab === 'signup' ? consentBox(`ฉันอ่าน${privacyLink()}แล้ว · ถ้าอายุต่ำกว่า 20 ปี ผู้ปกครองรับทราบและยินยอมแล้ว`) : ''}
@@ -312,6 +319,14 @@ function viewAccount() {
   return shell(`<div class="sub-body">${body}</div>`, { sub: { title: 'บัญชี' } });
 }
 Object.assign(SHEETS, {
+  'set-name'() {
+    return `<div class="sheet-card"><h3>ตั้งชื่อที่แสดง</h3>
+      <p>ชื่อนี้จะแสดงในลีก รายชื่อเพื่อน และห้องเรียน เพื่อนและครูจะได้รู้ว่าเป็นคุณ</p>
+      <form class="acct-form" data-form="set-name">
+        <label class="fld">ชื่อที่แสดง<input id="set-name" maxlength="20" minlength="2" placeholder="เช่น ชื่อเล่นของคุณ" autocomplete="nickname" required></label>
+        ${UI.nameErr ? `<p class="acct-msg err" role="alert">${esc(UI.nameErr)}</p>` : ''}
+        <button class="btn primary" type="submit">บันทึกชื่อ</button></form></div>`;
+  },
   consent() {
     return `<div class="sheet-card"><h3>นโยบายความเป็นส่วนตัว</h3>
       <p>บัญชีนี้เก็บชื่อที่แสดงและความคืบหน้าการเรียนบนเซิร์ฟเวอร์ เพื่อซิงก์ข้ามเครื่อง ลีก เพื่อน และห้องเรียน ไม่มีโฆษณาและไม่ขายข้อมูล</p>
@@ -344,11 +359,13 @@ async function submitAccount(kind) {
   const a = UI.acct || (UI.acct = { tab: 'signin' });
   const val = (id) => document.getElementById(id)?.value.trim() || '';
   const email = val('acct-email'), pw = document.getElementById('acct-pw')?.value || '', name = val('acct-name');
-  a.err = null; a.msg = null; a.busy = true; render();
+  a.err = null; a.msg = null;
+  if (kind === 'signup' && nameError(name)) { a.err = nameError(name); return render(); }
+  a.busy = true; render();
   try {
     if (kind === 'signin') { await cloudSignIn(email, pw); showToast('เข้าสู่ระบบแล้ว'); }
     else if (kind === 'signup') {
-      if (name) S.name = name.slice(0, 20);
+      S.name = name.slice(0, 20);
       giveConsent('signup');
       const r = await cloudSignUp(email, pw, S.name);
       if (r.confirmed) showToast('สร้างบัญชีแล้ว!');
@@ -368,7 +385,7 @@ async function submitAccount(kind) {
 }
 Object.assign(ACT, {
   'acct-google': () => cloudGoogle(),
-  'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); },
+  'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); consentCheck(); },
   'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
   'league-retry': async () => { Cloud.leagueError = null; render(); await leagueSync(true); render(); },
@@ -383,6 +400,15 @@ Object.assign(ACT, {
 });
 // ฟอร์มที่ไม่ใช่ของหน้าบัญชีลงทะเบียนตัวจัดการไว้ที่นี่ (เช่น เพิ่มเพื่อนใน js/friends.js)
 const FORM_HANDLERS = {};
+FORM_HANDLERS['set-name'] = async () => {
+  const name = document.getElementById('set-name')?.value.trim() || '';
+  UI.nameErr = nameError(name);
+  if (UI.nameErr) return render();
+  S.name = name.slice(0, 20); save();
+  UI.sheet = null; UI.nameErr = null; render();
+  showToast('บันทึกชื่อแล้ว');
+  await cloudPush();
+};
 document.addEventListener('submit', (e) => {
   const kind = e.target.dataset?.form;
   if (!kind) return;

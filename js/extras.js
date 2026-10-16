@@ -576,7 +576,9 @@ Object.assign(ACT, {
     if (outcome !== 'accepted') render();
   },
   'import-yes': () => {
-    try { localStorage.setItem(KEY, JSON.stringify(UI.pendingImport.state)); } catch (e) { /* ignore */ }
+    // XP ลีกของสัปดาห์นี้ไม่ได้มาจากไฟล์สำรอง (กันการแก้ไฟล์เพื่อเพิ่มอันดับ)
+    const st = { ...UI.pendingImport.state, week: { ...S.week } };
+    try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* ignore */ }
     S = load(); save();
     UI.pendingImport = null; UI.sheet = null;
     showToast('กู้คืนความคืบหน้าแล้ว');

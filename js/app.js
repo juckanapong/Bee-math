@@ -1046,7 +1046,7 @@ const ACT = {
   back: () => { UI.view = UI.back || 'learn'; render(); window.scrollTo(0, 0); },
   node: (d) => { UI.sheet = { type: 'node', i: +d.i }; render(); },
   close: () => { UI.sheet = null; render(); },
-  'close-bg': (d, el, e) => { if (e.target === el && UI.sheet?.type !== 'consent') (UI.sheet?.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
+  'close-bg': (d, el, e) => { if (e.target === el && !['consent', 'set-name'].includes(UI.sheet?.type)) (UI.sheet?.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
   start: (d) => openNode(+d.i),
   cards: (d) => { UI.cards = { i: +d.i, k: 0 }; UI.view = 'cards'; UI.sheet = null; render(); },
   'cards-next': () => { UI.cards.k++; render(); },

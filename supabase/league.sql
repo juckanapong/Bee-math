@@ -4,12 +4,12 @@
 --
 -- หลักการ
 -- - สัปดาห์เริ่มวันจันทร์ 00:00 เวลาประเทศไทย (Asia/Bangkok)
--- - ผู้เล่นถูกจัดเข้ากลุ่มละไม่เกิน 20 คน ในลีกระดับเดียวกัน (0 ผึ้งน้อย … 4 นางพญา)
+-- - ผู้เล่นถูกจัดเข้ากลุ่มละไม่เกิน 100 คน ในลีกระดับเดียวกัน (0 ผึ้งน้อย … 4 นางพญา)
 -- - เซิร์ฟเวอร์เป็นผู้ตัดสินเลื่อน/ตกลีก: 25% แรกของกลุ่มเลื่อนขึ้น (ต้องมี XP > 0)
 --   3 อันดับท้ายตกลีก (เฉพาะกลุ่มที่มีอย่างน้อย 10 คน)
 -- - ตัดสินแบบ "ขี้เกียจ": กลุ่มของสัปดาห์ที่จบแล้วจะถูกตัดสินเมื่อมีคนเรียก league_sync ครั้งแรกของสัปดาห์ใหม่
 --   (ไม่ต้องตั้ง pg_cron)
--- - กัน XP ปลอมเบื้องต้น: รับ XP สัปดาห์ได้ไม่เกิน 600 ต่อวันที่ผ่านไปในสัปดาห์ และ XP ไม่ลดลง
+-- - กัน XP ปลอม: ไม่เกิน 300 ต่อวันที่ผ่านไปในสัปดาห์ · เพิ่มได้ไม่เกิน 30 XP ต่อนาทีจากซิงก์ครั้งก่อน · XP ไม่ลดลง
 -- - ตารางทั้งหมดเปิด RLS โดยไม่มี policy = เข้าถึงได้ผ่านฟังก์ชัน league_sync เท่านั้น
 -- =====================================================================
 
@@ -117,7 +117,7 @@ begin
     select g.id into gid
       from public.league_groups g
       where g.week_key = cur and g.tier = my_tier and not g.settled
-        and (select count(*) from public.league_members m where m.group_id = g.id) < 20
+        and (select count(*) from public.league_members m where m.group_id = g.id) < 100
       order by g.id
       limit 1;
     if gid is null then
@@ -128,11 +128,14 @@ begin
     select group_id into gid from public.league_members where user_id = uid and week_key = cur;
   end if;
 
-  -- บันทึก XP (เฉพาะสัปดาห์ปัจจุบัน) พร้อมเพดานกันโกงและไม่ให้ลดลง
+  -- บันทึก XP (เฉพาะสัปดาห์ปัจจุบัน) พร้อมกันโกง 3 ชั้น:
+  -- 1) ไม่เกิน 300 XP ต่อวันที่ผ่านไปในสัปดาห์  2) เพิ่มได้ไม่เกิน 30 XP ต่อนาทีนับจากซิงก์ครั้งก่อน (ขั้นต่ำ 60)  3) ไม่ลดลง
   if p_week = cur and p_xp is not null and p_xp > 0 then
-    cap := 600 * (((now() at time zone 'Asia/Bangkok')::date - cur) + 1);
+    cap := 300 * (((now() at time zone 'Asia/Bangkok')::date - cur) + 1);
     update public.league_members
-      set xp = greatest(xp, least(p_xp, cap)), updated_at = now()
+      set xp = greatest(xp, least(p_xp, cap,
+                 xp + greatest(60, floor(30 * extract(epoch from (now() - updated_at)) / 60)::integer))),
+          updated_at = case when least(p_xp, cap) > xp then now() else updated_at end
       where user_id = uid and week_key = cur;
   end if;
 

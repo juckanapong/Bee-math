@@ -248,6 +248,7 @@ FORM_HANDLERS['assign-new'] = async () => {
 FORM_HANDLERS['anon-join'] = async () => {
   const a = UI.acct || (UI.acct = { tab: 'class' });
   const name = document.getElementById('acct-name')?.value.trim().slice(0, 20), code = document.getElementById('class-code')?.value;
+  if (nameError(name)) { a.err = nameError(name); return render(); }
   a.err = null; a.busy = true; render();
   try {
     const { data, error } = await Cloud.client.auth.signInAnonymously({ options: { data: { display_name: name } } });
