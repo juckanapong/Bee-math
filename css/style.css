@@ -1103,3 +1103,7 @@ a.price-btn { display: inline-flex; align-items: center; text-decoration: none; 
 .pips { display: inline-flex; gap: 4px; }
 .pips i { width: 14px; height: 16px; clip-path: var(--hex); background: var(--locked-dark); }
 .pips i.on { background: var(--honey-dark); }
+
+/* หน้าอันดับระหว่างรอ/โหลดลีกจริงไม่สำเร็จ */
+.league-wait { display: grid; justify-items: center; gap: 8px; padding: 24px 20px; }
+.league-wait p { margin: 0; }

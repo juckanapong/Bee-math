@@ -877,6 +877,7 @@ function weekLeft() {
 }
 function viewBoard() {
   if (typeof leagueRefresh === 'function') leagueRefresh(); // ดึงอันดับล่าสุดของเพื่อนในกลุ่ม
+  if (typeof Cloud !== 'undefined' && Cloud.user && !realLeague()) return boardPending();
   const rows = leagueRows(), n = rows.length, z = leagueZones(n), real = realLeague();
   const t = S.league.tier, top = t === TIERS.length - 1;
   let list = '';
@@ -893,6 +894,16 @@ function viewBoard() {
     ${real
       ? `<p class="muted small center">ผู้เล่นจริงในลีกเดียวกัน · อัปเดตทุกครั้งที่ซิงก์${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
       : `<p class="muted small center">ผู้เล่นอื่นเป็นผู้เล่นจำลอง${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' · <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
+}
+// เข้าสู่ระบบแล้วแต่ยังไม่มีข้อมูลลีกจริง: บอกสาเหตุ (กำลังโหลด / ผิดพลาด) แทนการโชว์ผู้เล่นจำลองที่ทำให้เข้าใจผิด
+function boardPending() {
+  const err = Cloud.leagueError || (Cloud.status === 'offline' || !navigator.onLine ? 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตแล้วลองใหม่' : '');
+  return shell(`${tierRow()}
+    <h1 class="page-title center">ลีก${TIERS[S.league.tier].name}</h1>
+    <div class="card center league-wait">${bee(72, err ? 'sad' : 'happy')}
+      <p><b>${err ? 'โหลดอันดับลีกไม่สำเร็จ' : 'กำลังโหลดอันดับของผู้เล่นจริง…'}</b></p>
+      ${err ? `<p class="muted small">${esc(err)}</p>` : ''}
+      <button class="btn primary" data-act="league-retry">${icon('refresh', 18)} ลองอีกครั้ง</button></div>`);
 }
 
 // ---------- quests ----------

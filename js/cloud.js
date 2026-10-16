@@ -158,7 +158,7 @@ async function leagueSync(force = false) {
   if (!force && Date.now() - Cloud.leagueAt < 15000) return;
   Cloud.leagueAt = Date.now();
   const { data, error } = await Cloud.client.rpc('league_sync', { p_week: S.week.key, p_xp: S.week.xp });
-  if (error || !data) { Cloud.leagueError = cloudError(error); return; }
+  if (error || !data) { Cloud.leagueError = cloudError(error || 'ไม่ได้รับข้อมูลลีก'); if (UI.view === 'board') cloudRender(); return; }
   Cloud.league = data; Cloud.leagueError = null;
   let changed = false;
   if (S.league.tier !== data.tier) { S.league.tier = data.tier; changed = true; }
@@ -371,6 +371,7 @@ Object.assign(ACT, {
   'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); },
   'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
+  'league-retry': async () => { Cloud.leagueError = null; render(); await leagueSync(true); render(); },
   'cloud-sync': async () => { await cloudPull(); if (Cloud.status === 'synced') showToast('ซิงก์แล้ว'); },
   'cloud-signout': async () => { UI.sheet = null; await cloudSignOut(); UI.acct = { tab: 'signin' }; showToast('ออกจากระบบแล้ว'); },
   'cloud-signout-anon': () => { UI.sheet = { type: 'cloud-signout-anon' }; render(); },
