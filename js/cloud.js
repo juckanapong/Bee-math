@@ -388,6 +388,7 @@ Object.assign(ACT, {
   'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); consentCheck(); },
   'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
+  'league-join': (d) => { UI.acct = { tab: d.t || 'signup' }; ACT.go({ v: 'account' }); },
   'league-retry': async () => { Cloud.leagueError = null; render(); await leagueSync(true); render(); },
   'cloud-sync': async () => { await cloudPull(); if (Cloud.status === 'synced') showToast('ซิงก์แล้ว'); },
   'cloud-signout': async () => { UI.sheet = null; await cloudSignOut(); UI.acct = { tab: 'signin' }; showToast('ออกจากระบบแล้ว'); },

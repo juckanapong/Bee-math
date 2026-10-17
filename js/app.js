@@ -84,7 +84,7 @@ function tick() {
   if (S.quests.day !== today()) S.quests = { day: today(), p: {}, claimed: {} };
   if (S.today.day !== today()) S.today = { day: today(), xp: 0 };
   if (S.month.key !== monthKey()) S.month = { key: monthKey(), points: 0 };
-  if (S.week.key !== weekKey()) { if (!realLeague()) settleLeague(); S.week = { key: weekKey(), xp: 0 }; }
+  if (S.week.key !== weekKey()) { if (!cloudOn()) settleLeague(); S.week = { key: weekKey(), xp: 0 }; }
   checkStreak();
 }
 
@@ -274,19 +274,25 @@ function sideNav() {
   </nav>`;
 }
 // แผงสรุปด้านขวา (เฉพาะจอคอม)
+// การ์ดลีกแบบย่อสำหรับคนที่ยังไม่ได้เข้าสู่ระบบ (แถบขวาบนจอกว้าง · หน้าภารกิจ)
+const leagueGuestCard = () => `<section class="rail-card league-mini">
+  <div class="rail-row">${hex(icon('trophy', 22), 'ico', '--h:#FFC21A;color:#2A1F14')}
+    <span class="setting-main"><b>ลีกรายสัปดาห์</b><small>เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</small></span></div>
+  <button class="btn primary wide" data-act="league-join" data-t="signup">สมัคร / เข้าสู่ระบบ</button>
+</section>`;
 function rightRail() {
   const rows = leagueRows(), me = rows.find((r) => r.me), t = TIERS[S.league.tier], z = leagueZones(rows.length);
   const top = S.league.tier === TIERS.length - 1;
-  const need = me.rank > z.up && !top ? rows[z.up - 1].xp - me.xp + 1 : me.xp === 0 && !top ? 1 : 0;
+  const need = me.rank > z.up && !top ? (rows[z.up - 1]?.xp ?? 0) - me.xp + 1 : me.xp === 0 && !top ? 1 : 0;
   const goal = S.goal, x = S.today.xp, boost = boostLeft();
   const mp = Math.min(MONTH_GOAL, S.month.points);
   return `<aside class="rail" aria-label="สรุปวันนี้">
     ${chipsHTML()}
-    <section class="rail-card">
+    ${guestLeague() ? leagueGuestCard() : `<section class="rail-card">
       <div class="rail-head"><h2>ลีก${t.name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูลีก</button></div>
       <div class="rail-row">${hex(icon(t.icon, 22), 'ico', tint(t))}
         <span class="setting-main"><b>อันดับที่ ${me.rank} · ${me.xp} XP</b><small>${top ? 'ลีกสูงสุดแล้ว' : need ? `อีก ${need} XP จะเข้าเขตเลื่อนลีก` : 'อยู่ในเขตเลื่อนลีก!'} · เหลือ ${weekLeft()}</small></span></div>
-    </section>
+    </section>`}
     <section class="rail-card">
       <div class="goal-row"><span>${x >= goal ? 'ถึงเป้าหมายวันนี้แล้ว!' : 'เป้าหมายวันนี้'}</span><span>${Math.min(x, goal)} / ${goal} XP</span></div>
       <div class="meter"><div style="width:${Math.min(100, (x / goal) * 100)}%"></div></div>
@@ -835,6 +841,9 @@ function botXP(name, wk = S.week.key, elapsed = null) {
 }
 // ลีกจริง (ล็อกอินและซิงก์แล้ว) — ดู league_sync ใน supabase/league.sql และ leagueSync() ใน js/cloud.js
 const realLeague = () => (typeof Cloud !== 'undefined' && Cloud.user && Cloud.league) || null;
+// มีระบบบัญชีแต่ยังไม่ได้เข้าสู่ระบบ: ไม่มีลีกจำลอง ชวนเข้าสู่ระบบแทน (ลีกจำลองใช้เฉพาะตอนไม่มีระบบบัญชีเลย)
+const guestLeague = () => typeof Cloud !== 'undefined' && Cloud.enabled() && !Cloud.user;
+const cloudOn = () => typeof Cloud !== 'undefined' && Cloud.enabled();
 // เขตเลื่อน/ตกลีก: ลีกจริงคิดตามขนาดกลุ่ม (25% แรกเลื่อน · 3 อันดับท้ายตกเมื่อกลุ่ม ≥ 10 คน) ลีกจำลองใช้ค่าคงที่
 const leagueZones = (n) => realLeague() ? { up: Math.max(1, Math.round(n * 0.25)), down: n >= 10 ? n - 2 : Infinity } : { up: PROMOTE_TOP, down: DEMOTE_FROM };
 function leagueRows(wk = S.week.key, elapsed = null) {
@@ -877,6 +886,7 @@ function weekLeft() {
 }
 function viewBoard() {
   if (typeof leagueRefresh === 'function') leagueRefresh(); // ดึงอันดับล่าสุดของเพื่อนในกลุ่ม
+  if (guestLeague()) return boardGuest();
   if (typeof Cloud !== 'undefined' && Cloud.user && !realLeague()) return boardPending();
   const rows = leagueRows(), n = rows.length, z = leagueZones(n), real = realLeague();
   const t = S.league.tier, top = t === TIERS.length - 1;
@@ -894,6 +904,26 @@ function viewBoard() {
     ${real
       ? `<p class="muted small center">ผู้เล่นจริงในลีกเดียวกัน · อัปเดตทุกครั้งที่ซิงก์${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
       : `<p class="muted small center">ผู้เล่นอื่นเป็นผู้เล่นจำลอง${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' · <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
+}
+// ยังไม่ได้เข้าสู่ระบบ: อธิบายลีก แล้วชวนสมัคร / เข้าสู่ระบบ / เข้าห้องเรียน
+function boardGuest() {
+  return shell(`${tierRow()}
+    <section class="card league-guest">
+      ${bee(96, 'happy')}
+      <h1 class="page-title center">แข่งในลีกกับเพื่อนจริง</h1>
+      <p class="muted center">เข้าสู่ระบบเพื่อดูอันดับ แล้วแข่งสะสม XP กับผู้เล่นคนอื่นในลีกเดียวกันทุกสัปดาห์</p>
+      <ul class="league-perks">
+        <li>${hex(icon('trophy', 18), 'ico small', '--h:#FFC21A;color:#2A1F14')}<span class="setting-main"><b>ลีกรายสัปดาห์ 5 ระดับ</b><small>เริ่มที่ผึ้งน้อย ไต่ขึ้นไปจนถึงนางพญา</small></span></li>
+        <li>${hex(icon('up', 18), 'ico small', '--h:#58C23A;color:#0F2E09')}<span class="setting-main"><b>เลื่อนลีกทุกวันจันทร์</b><small>25% แรกของกลุ่มได้เลื่อนขึ้นลีกถัดไป</small></span></li>
+        <li>${hex(icon('users', 18), 'ico small', '--h:#2F6FED;color:#FFFFFF')}<span class="setting-main"><b>เห็นอันดับเพื่อนและห้องเรียน</b><small>ทุกคนในลีกเดียวกันเห็นตารางเดียวกัน</small></span></li>
+      </ul>
+      <div class="league-guest-actions">
+        <button class="btn primary wide" data-act="league-join" data-t="signup">สมัครบัญชี</button>
+        <button class="btn wide" data-act="league-join" data-t="signin">เข้าสู่ระบบ</button>
+        <button class="btn link wide" data-act="acct-class">มีรหัสห้องเรียนจากครู? เข้าห้องเรียน</button>
+      </div>
+      <p class="muted small center">ความคืบหน้าที่ทำไว้ในเครื่องนี้จะถูกย้ายเข้าบัญชีให้อัตโนมัติ</p>
+    </section>`);
 }
 // เข้าสู่ระบบแล้วแต่ยังไม่มีข้อมูลลีกจริง: บอกสาเหตุ (กำลังโหลด / ผิดพลาด) แทนการโชว์ผู้เล่นจำลองที่ทำให้เข้าใจผิด
 function boardPending() {
@@ -932,8 +962,8 @@ function viewQuests() {
         <span class="meter labeled"><span class="fill" style="width:${(mp / MONTH_GOAL) * 100}%"></span><span>${mp} / ${MONTH_GOAL}</span></span></span>
       ${icon('chevron', 20)}
     </button>
-    <div class="league-head"><h2>ลีก${TIERS[S.league.tier].name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
-    <ol class="board">${preview.map((r) => rowHTML(r, leagueZones(rows.length))).join('')}</ol>`);
+    ${guestLeague() ? leagueGuestCard() : `<div class="league-head"><h2>ลีก${TIERS[S.league.tier].name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
+    <ol class="board">${preview.map((r) => rowHTML(r, leagueZones(rows.length))).join('')}</ol>`}`);
 }
 
 // ---------- profile ----------

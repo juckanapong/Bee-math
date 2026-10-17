@@ -1107,3 +1107,13 @@ a.price-btn { display: inline-flex; align-items: center; text-decoration: none; 
 /* หน้าอันดับระหว่างรอ/โหลดลีกจริงไม่สำเร็จ */
 .league-wait { display: grid; justify-items: center; gap: 8px; padding: 24px 20px; }
 .league-wait p { margin: 0; }
+
+/* ---------- อันดับ: ยังไม่ได้เข้าสู่ระบบ ---------- */
+.league-guest { display: grid; justify-items: center; gap: 12px; padding: 24px 20px; }
+.league-guest .page-title { margin: 0; }
+.league-guest > p { margin: 0; max-width: 420px; }
+.league-perks { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 12px; width: 100%; max-width: 420px; }
+.league-perks li { display: flex; align-items: center; gap: 12px; }
+.league-perks .setting-main small { color: var(--ink-2); }
+.league-guest-actions { display: grid; gap: 10px; width: 100%; max-width: 420px; }
+.league-mini { display: grid; gap: 12px; }
