@@ -301,8 +301,8 @@ const leagueGuestCard = () => `<section class="rail-card league-mini">
   <button class="btn primary wide" data-act="league-join" data-t="signup">สมัคร / เข้าสู่ระบบ</button>
 </section>`;
 function rightRail() {
-  const rows = leagueRows(), me = rows.find((r) => r.me), t = TIERS[S.league.tier], z = leagueZones(rows.length);
-  const top = S.league.tier === TIERS.length - 1;
+  const rows = leagueRows(), me = rows.find((r) => r.me), t = tierOf(S.league.tier), z = leagueZones(rows.length);
+  const top = S.league.tier >= topTier();
   const need = me.rank > z.up && !top ? (rows[z.up - 1]?.xp ?? 0) - me.xp + 1 : me.xp === 0 && !top ? 1 : 0;
   const goal = S.goal, x = S.today.xp, boost = boostLeft();
   const mp = Math.min(MONTH_GOAL, S.month.points);
@@ -496,11 +496,20 @@ const SHEETS = {
       <button class="btn ghost" data-act="close">ไว้ก่อน</button></div>`;
   },
   league() {
-    const r = S.leagueResult, t = TIERS[r.to];
+    const r = S.leagueResult, t = tierOf(r.to);
     const msg = r.to > r.from ? `เลื่อนขึ้นสู่ลีก${t.name}!` : r.to < r.from ? `ตกไปอยู่ลีก${t.name}` : `อยู่ลีก${t.name}ต่อ`;
     return `<div class="sheet-card center">${hex(icon(t.icon, 40), 'tier-hex big', tint(t))}<h3>${msg}</h3>
       <p>สัปดาห์ที่แล้วคุณได้อันดับที่ ${r.rank} จาก ${r.n || 20} คน</p>
-      <button class="btn primary" data-act="league-ok">ตกลง</button></div>`;
+      ${r.reward ? `<p class="earn">${icon('drop', 16)} รางวัลอันดับ ${r.rank} +${r.reward} น้ำหวาน</p>` : ''}
+      <button class="btn primary" data-act="league-ok">${r.reward ? 'รับรางวัล' : 'ตกลง'}</button></div>`;
+  },
+  react() {
+    const cur = leagueRows().find((x) => x.me)?.reaction;
+    return `<div class="sheet-card center"><h3>ไอคอนข้างชื่อในลีก</h3><p>ทุกคนในกลุ่มจะเห็นไอคอนนี้ข้างชื่อของคุณ</p>
+      <div class="react-pick">${REACTIONS.map((x) => `<button class="react-opt ${cur === x.id ? 'sel' : ''}" data-act="react" data-r="${x.id}" aria-pressed="${cur === x.id}">
+        ${icon(x.id, 26)}<span>${x.name}</span></button>`).join('')}</div>
+      ${cur ? '<button class="btn ghost" data-act="react" data-r="">ไม่ใช้ไอคอน</button>' : ''}
+      <button class="btn link" data-act="close">ปิด</button></div>`;
   },
 };
 function sheetHTML() {
@@ -868,13 +877,35 @@ const realLeague = () => (typeof Cloud !== 'undefined' && Cloud.user && Cloud.le
 // มีระบบบัญชีแต่ยังไม่ได้เข้าสู่ระบบ: ไม่มีลีกจำลอง ชวนเข้าสู่ระบบแทน (ลีกจำลองใช้เฉพาะตอนไม่มีระบบบัญชีเลย)
 const guestLeague = () => typeof Cloud !== 'undefined' && Cloud.enabled() && !Cloud.user;
 const cloudOn = () => typeof Cloud !== 'undefined' && Cloud.enabled();
-// เขตเลื่อน/ตกลีก: ลีกจริงคิดตามขนาดกลุ่ม (25% แรกเลื่อน · 3 อันดับท้ายตกเมื่อกลุ่ม ≥ 10 คน) ลีกจำลองใช้ค่าคงที่
-const leagueZones = (n) => realLeague() ? { up: Math.max(1, Math.round(n * 0.25)), down: n >= 10 ? n - 2 : Infinity } : { up: PROMOTE_TOP, down: DEMOTE_FROM };
+// ระดับลีก: ลีกจริงใช้ชื่อ/ไอคอน/สีจากเซิร์ฟเวอร์ (ตาราง league_tiers เพิ่มระดับได้) ลีกจำลองใช้ TIERS ใน js/data.js
+const leagueTiers = () => {
+  const ts = realLeague()?.tiers;
+  return ts?.length ? ts.map((t, i) => ({ ...(TIERS[i] || TIERS[TIERS.length - 1]), ...t })) : TIERS;
+};
+const tierOf = (i) => { const ts = leagueTiers(); return ts[Math.max(0, Math.min(i, ts.length - 1))]; };
+const topTier = () => leagueTiers().length - 1;
+// เขตเลื่อน/ตกลีก: ลีกจริงใช้กติกาของกลุ่มจากเซิร์ฟเวอร์ (league_rules) ลีกจำลองใช้ค่าคงที่
+// up = จำนวนอันดับแรกที่เลื่อนขึ้น · down = อันดับแรกของเขตตกลีก
+function leagueZones(n) {
+  const r = realLeague()?.rules;
+  if (!realLeague()) return { up: PROMOTE_TOP, down: DEMOTE_FROM };
+  if (!r) return { up: Math.max(1, Math.round(n * 0.25)), down: n >= 10 ? n - 2 : Infinity }; // SQL รุ่นก่อน league_v3
+  return { up: r.up, down: r.down ? n - r.down + 1 : Infinity };
+}
+// รางวัลน้ำหวานตามอันดับ (ลีกจริงเท่านั้น): [{ rank, nectar }]
+const leagueRewards = () => (realLeague()?.rules?.rewards || []).filter((x) => x.nectar > 0).sort((a, b) => a.rank - b.rank);
+// รีแอ็กชันที่เลือกแสดงข้างชื่อในลีกได้ (ต้องตรงกับ league_status_reaction_check ใน supabase/league_v3.sql)
+const REACTIONS = [
+  { id: 'flame', name: 'ไฟลุก' }, { id: 'star', name: 'ดาว' }, { id: 'bolt', name: 'สายฟ้า' },
+  { id: 'heart', name: 'หัวใจ' }, { id: 'flower', name: 'ดอกไม้' }, { id: 'trophy', name: 'ถ้วยรางวัล' },
+];
 function leagueRows(wk = S.week.key, elapsed = null) {
   const real = realLeague();
   if (real && arguments.length === 0) {
     const members = real.members.some((m) => m.me) ? real.members : [...real.members, { name: S.name, avatar: S.avatar, xp: 0, me: true }];
-    return members.map((m) => ({ n: m.me ? S.name : m.name, c: [m.avatar, '#2A1F14'], xp: m.me ? Math.max(m.xp, S.week.xp) : m.xp, me: m.me, real: true }))
+    // XP ลีกมาจากเซิร์ฟเวอร์เท่านั้น (รอบเรียนที่ตรวจแล้ว) ไม่ใช้ XP ในเครื่อง
+    return members.map((m) => ({ n: m.me ? S.name : m.name, c: [m.avatar, '#2A1F14'], xp: m.xp, me: m.me, real: true,
+      reaction: REACTIONS.some((x) => x.id === m.reaction) ? m.reaction : null, active: !!m.active }))
       .sort((p, q) => q.xp - p.xp || (q.me ? 1 : -1))
       .map((r, i) => ({ ...r, rank: i + 1 }));
   }
@@ -893,12 +924,16 @@ function settleLeague() {
   S.league.tier = to;
   S.leagueResult = { from, to, rank };
 }
+// แถวในตารางลีก · ลีกจริง: จุด "เพิ่งเรียน" (ได้ XP ลีกใน 15 นาที) และรีแอ็กชัน (แถวของตัวเองแตะเพื่อเลือก)
+const reactionIcon = (r) => (r.reaction ? `<span class="react" role="img" aria-label="${REACTIONS.find((x) => x.id === r.reaction).name}">${icon(r.reaction, 16)}</span>` : '');
 const rowHTML = (r, z = leagueZones(20)) => `<li class="${r.me ? 'me' : ''} ${r.rank <= z.up && r.xp > 0 ? 'promo' : r.rank >= z.down ? 'demo' : ''}">
   <span class="rank r${r.rank}">${r.rank}</span>
-  <span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}</span>
-  <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}</span><span class="pts">${r.xp} XP</span></li>`;
+  <span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}${r.active ? '<i class="live" title="เพิ่งเรียน"></i>' : ''}</span>
+  <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}${r.active ? '<span class="sr-only"> · เพิ่งเรียน</span>' : ''}</span>
+  ${r.me && r.real ? `<button class="react-btn ${r.reaction ? 'set' : ''}" data-act="react-sheet" aria-label="เลือกไอคอนข้างชื่อ"><span>${r.reaction ? icon(r.reaction, 16) : icon('plus', 14)}</span></button>` : reactionIcon(r)}
+  <span class="pts">${r.xp} XP</span></li>`;
 function tierRow() {
-  return `<div class="tiers" role="list" aria-label="ระดับลีก">${TIERS.map((t, i) => {
+  return `<div class="tiers" role="list" aria-label="ระดับลีก">${leagueTiers().map((t, i) => {
     const st = i === S.league.tier ? 'cur' : i < S.league.tier ? 'past' : 'next';
     return `<div class="tier ${st}" role="listitem">${hex(icon(st === 'next' ? 'lock' : t.icon, 22), 'tier-hex', st === 'next' ? '' : tint(t))}<span>${t.name}</span></div>`;
   }).join('')}</div>`;
@@ -913,7 +948,7 @@ function viewBoard() {
   if (guestLeague()) return boardGuest();
   if (typeof Cloud !== 'undefined' && Cloud.user && !realLeague()) return boardPending();
   const rows = leagueRows(), n = rows.length, z = leagueZones(n), real = realLeague();
-  const t = S.league.tier, top = t === TIERS.length - 1;
+  const t = S.league.tier, top = t >= topTier();
   let list = '';
   rows.forEach((r) => {
     list += rowHTML(r, z);
@@ -921,12 +956,16 @@ function viewBoard() {
     if (r.rank === z.down - 1 && t > 0) list += `<li class="zone down">${icon('down', 14)} เขตตกลีก</li>`;
   });
   const rules = `${top ? 'ลีกสูงสุดแล้ว' : `${z.up} อันดับแรกเลื่อนขึ้น`}${t > 0 && z.down <= n ? ` · อันดับ ${z.down}–${n} ตกลีก` : ''}`;
+  const rewards = leagueRewards();
+  const pending = real && typeof outboxCount === 'function' ? outboxCount() : 0;
   return shell(`${tierRow()}
-    <h1 class="page-title center">ลีก${TIERS[t].name}</h1>
+    <h1 class="page-title center">ลีก${tierOf(t).name}</h1>
     <p class="muted center">${icon('clock', 15)} เหลือ ${weekLeft()} · ${real ? `${n} คนในกลุ่มนี้` : 'กลุ่มละ 20 คน'} · ${rules}</p>
+    ${rewards.length ? `<p class="league-prize">${icon('drop', 15)}<span>รางวัลจบสัปดาห์ · อันดับ ${rewards.map((x) => x.rank).join('/')}: ${rewards.map((x) => x.nectar).join(' / ')} <span class="nowrap">น้ำหวาน</span></span></p>` : ''}
+    ${pending ? `<p class="muted small center">${icon('refresh', 14)} กำลังส่งผล ${pending} รายการ XP จะขึ้นในลีกเมื่อเซิร์ฟเวอร์ตรวจเสร็จ</p>` : ''}
     <ol class="board">${list}</ol>
     ${real
-      ? `<p class="muted small center">ผู้เล่นจริงในลีกเดียวกัน · อัปเดตทุกครั้งที่ซิงก์${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
+      ? `<p class="muted small center">ผู้เล่นจริงในลีกเดียวกัน · XP ลีกนับจากคำตอบที่เซิร์ฟเวอร์ตรวจแล้ว${rows.some((r) => r.active) ? ' · <i class="live inline"></i> เพิ่งเรียน' : ''}${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
       : `<p class="muted small center">ผู้เล่นอื่นเป็นผู้เล่นจำลอง${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' · <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
 }
 // ยังไม่ได้เข้าสู่ระบบ: อธิบายลีก แล้วชวนสมัคร / เข้าสู่ระบบ / เข้าห้องเรียน
@@ -953,7 +992,7 @@ function boardGuest() {
 function boardPending() {
   const err = Cloud.leagueError || (Cloud.status === 'offline' || !navigator.onLine ? 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตแล้วลองใหม่' : '');
   return shell(`${tierRow()}
-    <h1 class="page-title center">ลีก${TIERS[S.league.tier].name}</h1>
+    <h1 class="page-title center">ลีก${tierOf(S.league.tier).name}</h1>
     <div class="card center league-wait">${bee(72, err ? 'sad' : 'happy')}
       <p><b>${err ? 'โหลดอันดับลีกไม่สำเร็จ' : 'กำลังโหลดอันดับของผู้เล่นจริง…'}</b></p>
       ${err ? `<p class="muted small">${esc(err)}</p>` : ''}
@@ -986,7 +1025,7 @@ function viewQuests() {
         <span class="meter labeled"><span class="fill" style="width:${(mp / MONTH_GOAL) * 100}%"></span><span>${mp} / ${MONTH_GOAL}</span></span></span>
       ${icon('chevron', 20)}
     </button>
-    ${guestLeague() ? leagueGuestCard() : `<div class="league-head"><h2>ลีก${TIERS[S.league.tier].name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
+    ${guestLeague() ? leagueGuestCard() : `<div class="league-head"><h2>ลีก${tierOf(S.league.tier).name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
     <ol class="board">${preview.map((r) => rowHTML(r, leagueZones(rows.length))).join('')}</ol>`}`);
 }
 
@@ -1171,7 +1210,20 @@ const ACT = {
   },
   settings: () => ACT.go({ v: 'settings' }),
   badge: (d) => { UI.sheet = { type: 'badge', id: d.id }; render(); },
-  'league-ok': () => { if (S.leagueResult?.week) S.leagueSeen[S.leagueResult.week] = true; S.leagueResult = null; UI.sheet = null; save(); render(); },
+  'league-ok': () => {
+    const r = S.leagueResult;
+    // รางวัลอันดับจากเซิร์ฟเวอร์ (league_v3): ให้ครั้งเดียวต่อสัปดาห์ (leagueSeen ซิงก์ไปกับบัญชี)
+    if (r?.reward > 0 && r.week && !S.leagueSeen[r.week]) { S.nectar += r.reward; SFX.play('reward'); }
+    if (r?.week) S.leagueSeen[r.week] = true;
+    S.leagueResult = null; UI.sheet = null; save(); render();
+  },
+  'react-sheet': () => { UI.sheet = { type: 'react' }; render(); },
+  react: async (d) => {
+    UI.sheet = null;
+    const ok = typeof cloudReact === 'function' && await cloudReact(d.r || null);
+    if (!ok) showToast('ตั้งไอคอนไม่สำเร็จ ลองใหม่อีกครั้ง');
+    render();
+  },
   'pick-avatar': () => { UI.sheet = { type: 'avatar' }; render(); },
   avatar: (d) => { S.avatar = d.a; UI.sheet = null; save(); render(); },
   reset: () => { UI.sheet = { type: 'reset' }; render(); },

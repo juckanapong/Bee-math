@@ -164,9 +164,17 @@ async function leagueSync(force = false) {
   let changed = false;
   if (S.league.tier !== data.tier) { S.league.tier = data.tier; changed = true; }
   const r = data.result;
-  if (r && !S.leagueSeen[r.week] && !S.leagueResult) { S.leagueResult = { from: r.from, to: r.to, rank: r.rank, n: r.n, week: r.week }; changed = true; }
+  if (r && !S.leagueSeen[r.week] && !S.leagueResult) { S.leagueResult = { from: r.from, to: r.to, rank: r.rank, n: r.n, week: r.week, reward: r.reward || 0 }; changed = true; }
   if (changed) { Cloud.applying = true; save(); Cloud.applying = false; }
   if (['board', 'quests', 'learn', 'practice', 'profile'].includes(UI.view)) cloudRender();
+}
+// ตั้งไอคอนข้างชื่อในลีก (league_react ใน supabase/league_v3.sql) แล้วดึงตารางใหม่ · คืนค่า true เมื่อสำเร็จ
+async function cloudReact(reaction) {
+  if (!Cloud.client || !Cloud.user || !navigator.onLine) return false;
+  const { error } = await Cloud.client.rpc('league_react', { p_reaction: reaction });
+  if (error) return false;
+  await leagueSync(true);
+  return true;
 }
 // เปิดหน้าอันดับ: ดึงข้อมูลใหม่ถ้าเก่ากว่า 30 วินาที
 function leagueRefresh() {

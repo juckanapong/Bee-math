@@ -48,7 +48,7 @@ function questCard(d) {
       <b class="fq-title">ชวนเพื่อนสะสม XP รวมกันให้ได้ 300 XP</b>
       <button class="btn primary" data-act="fq-pick">${icon('users', 20)} เลือกเพื่อนคู่หู</button></section>`;
   }
-  const mine = Math.max(q.mine, S.week.xp), total = mine + q.theirs, done = total >= q.target;
+  const mine = q.mine, total = mine + q.theirs, done = total >= q.target; // XP ลีกจากเซิร์ฟเวอร์ (ไม่ใช้ XP ในเครื่อง)
   const claimed = !!S.fqClaimed[q.week];
   const pm = Math.min(100, (mine / q.target) * 100), pt = Math.min(100 - pm, (q.theirs / q.target) * 100);
   return `<section class="card fq-card">
