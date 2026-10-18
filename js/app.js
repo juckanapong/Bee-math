@@ -340,7 +340,7 @@ function sideNav() {
 // แผงสรุปด้านขวา (เฉพาะจอคอม)
 // การ์ดลีกแบบย่อสำหรับคนที่ยังไม่ได้เข้าสู่ระบบ (แถบขวาบนจอกว้าง · หน้าภารกิจ)
 const leagueGuestCard = () => `<section class="rail-card league-mini">
-  <div class="rail-row">${hex(icon('trophy', 22), 'ico', '--h:#FFC21A;color:#2A1F14')}
+  <div class="rail-row">${hex(icon('trophy', 22), 'ico', '--h:var(--honey);color:var(--ink)')}
     <span class="setting-main"><b>ลีกรายสัปดาห์</b><small>เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</small></span></div>
   <button class="btn primary wide" data-act="league-join" data-t="signup">สมัคร / เข้าสู่ระบบ</button>
 </section>`;
@@ -369,7 +369,7 @@ function rightRail() {
           <span class="meter labeled" style="--m:${q.color}"><span class="fill" style="width:${(v / q.goal) * 100}%"></span><span>${S.quests.claimed[q.id] ? 'รับแล้ว' : `${v} / ${q.goal}`}</span></span></span></div>`; }).join('')}
     </section>
     <button class="month-card" data-act="go" data-v="achievements">
-      ${hex(icon('sun', 20), 'ico', S.monthBadges[S.month.key] ? '--h:#FFC21A;color:#2A1F14' : '--h:#4A3D2E;color:#FFD84D')}
+      ${hex(icon('sun', 20), 'ico', S.monthBadges[S.month.key] ? '--h:var(--honey);color:var(--ink)' : '--h:var(--ink-soft);color:var(--tile-x)')}
       <span class="q-main"><b>เหรียญประจำเดือน</b><span class="meter labeled"><span class="fill" style="width:${(mp / MONTH_GOAL) * 100}%"></span><span>${mp} / ${MONTH_GOAL}</span></span></span>
     </button>
   </aside>`;
@@ -928,8 +928,8 @@ function rewardsHTML(r) {
   const delay = () => `style="--d:${0.7 + 0.25 * d++}s"`;
   return `${r.nectar ? `<span class="earn" ${delay()}>${icon('drop', 16)} +${r.nectar} น้ำหวาน</span>` : ''}
     ${r.hardBonus ? `<span class="earn hard" ${delay()}>${icon('mountain', 16)} รวมโบนัสโจทย์ท้าทาย +${r.hardBonus} XP</span>` : ''}
-    ${r.milestone ? `<div class="new-badge" ${delay()}>${hex(icon('flame', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ก้าวสำคัญ! สตรีค ${r.milestone.days} วัน</small><b>รับ ${r.milestone.nectar} น้ำหวาน${r.milestone.days === 30 ? ' + ดอกไม้ประดับ' : ''}</b></div></div>` : ''}
-    ${r.goal ? `<div class="new-badge" ${delay()}>${hex(icon('target', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ครบเป้าหมายสตรีค ${r.goal.n} วัน!</small><b>ได้ ${r.goal.nectar} น้ำหวาน ไปตั้งเป้าถัดไปที่หน้าสตรีคได้เลย</b></div></div>` : ''}
+    ${r.milestone ? `<div class="new-badge" ${delay()}>${hex(icon('flame', 26), 'badge-hex', '--h:var(--orange);color:var(--ink)')}<div><small>ก้าวสำคัญ! สตรีค ${r.milestone.days} วัน</small><b>รับ ${r.milestone.nectar} น้ำหวาน${r.milestone.days === 30 ? ' + ดอกไม้ประดับ' : ''}</b></div></div>` : ''}
+    ${r.goal ? `<div class="new-badge" ${delay()}>${hex(icon('target', 26), 'badge-hex', '--h:var(--orange);color:var(--ink)')}<div><small>ครบเป้าหมายสตรีค ${r.goal.n} วัน!</small><b>ได้ ${r.goal.nectar} น้ำหวาน ไปตั้งเป้าถัดไปที่หน้าสตรีคได้เลย</b></div></div>` : ''}
     ${(r.badges || []).map((b) => `<div class="new-badge" ${delay()}>${badgeHex(b, true)}<div><small>${b.lvl > 1 ? `เหรียญตราขึ้นเป็นระดับ ${b.lvl}` : 'ได้เหรียญตราใหม่'}</small><b>${b.name}</b></div></div>`).join('')}`;
 }
 const RESULT_VIEWS = {};
@@ -1057,7 +1057,7 @@ function settleLeague() {
 const reactionIcon = (r) => (r.reaction && flag('reactions') ? `<span class="react" role="img" aria-label="${REACTIONS.find((x) => x.id === r.reaction).name}">${icon(r.reaction, 16)}</span>` : '');
 const rowHTML = (r, z = leagueZones(20)) => `<li class="${r.me ? 'me' : ''} ${r.rank <= z.up && r.xp > 0 ? 'promo' : r.rank >= z.down ? 'demo' : ''}">
   <span class="rank r${r.rank}">${r.rank}</span>
-  <span class="av-wrap"><span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}</span>${r.active ? '<i class="live" title="เพิ่งเรียน"></i>' : ''}</span>
+  <span class="av-wrap"><span class="av" style="${r.me ? 'background:var(--honey)' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}</span>${r.active ? '<i class="live" title="เพิ่งเรียน"></i>' : ''}</span>
   <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}${r.active ? '<span class="sr-only"> · เพิ่งเรียน</span>' : ''}</span>
   ${r.me && r.real && flag('reactions') ? `<button class="react-btn ${r.reaction ? 'set' : ''}" data-act="react-sheet" aria-label="เลือกไอคอนข้างชื่อ"><span>${r.reaction ? icon(r.reaction, 16) : icon('plus', 14)}</span></button>` : reactionIcon(r)}
   <span class="pts">${r.xp} XP</span></li>`;
@@ -1105,9 +1105,9 @@ function boardGuest() {
       <h1 class="page-title center">แข่งในลีกกับเพื่อนจริง</h1>
       <p class="muted center">เข้าสู่ระบบเพื่อดูอันดับ แล้วแข่งสะสม XP กับผู้เล่นคนอื่นในลีกเดียวกันทุกสัปดาห์</p>
       <ul class="league-perks">
-        <li>${hex(icon('trophy', 18), 'ico small', '--h:#FFC21A;color:#2A1F14')}<span class="setting-main"><b>ลีกรายสัปดาห์ 5 ระดับ</b><small>เริ่มที่ผึ้งน้อย ไต่ขึ้นไปจนถึงนางพญา</small></span></li>
-        <li>${hex(icon('up', 18), 'ico small', '--h:#58C23A;color:#0F2E09')}<span class="setting-main"><b>เลื่อนลีกทุกวันจันทร์</b><small>25% แรกของกลุ่มได้เลื่อนขึ้นลีกถัดไป</small></span></li>
-        <li>${hex(icon('users', 18), 'ico small', '--h:#2F6FED;color:#FFFFFF')}<span class="setting-main"><b>เห็นอันดับเพื่อนและห้องเรียน</b><small>ทุกคนในลีกเดียวกันเห็นตารางเดียวกัน</small></span></li>
+        <li>${hex(icon('trophy', 18), 'ico small', '--h:var(--honey);color:var(--ink)')}<span class="setting-main"><b>ลีกรายสัปดาห์ 5 ระดับ</b><small>เริ่มที่ผึ้งน้อย ไต่ขึ้นไปจนถึงนางพญา</small></span></li>
+        <li>${hex(icon('up', 18), 'ico small', '--h:var(--green);color:var(--green-ink)')}<span class="setting-main"><b>เลื่อนลีกทุกวันจันทร์</b><small>25% แรกของกลุ่มได้เลื่อนขึ้นลีกถัดไป</small></span></li>
+        <li>${hex(icon('users', 18), 'ico small', '--h:var(--blue);color:var(--card)')}<span class="setting-main"><b>เห็นอันดับเพื่อนและห้องเรียน</b><small>ทุกคนในลีกเดียวกันเห็นตารางเดียวกัน</small></span></li>
       </ul>
       <div class="league-guest-actions">
         <button class="btn primary wide" data-act="league-join" data-t="signup">สมัครบัญชี</button>
@@ -1149,7 +1149,7 @@ function viewQuests() {
       </div>`;
     }).join('')}</div>
     <button class="month-card" data-act="go" data-v="achievements">
-      ${hex(icon('sun', 22), 'ico', S.monthBadges[S.month.key] ? '--h:#FFC21A;color:#2A1F14' : '--h:#4A3D2E;color:#FFD84D')}
+      ${hex(icon('sun', 22), 'ico', S.monthBadges[S.month.key] ? '--h:var(--honey);color:var(--ink)' : '--h:var(--ink-soft);color:var(--tile-x)')}
       <span class="q-main"><b>ภารกิจประจำเดือน: สะสม ${MONTH_GOAL} แต้ม</b>
         <span class="meter labeled"><span class="fill" style="width:${(mp / MONTH_GOAL) * 100}%"></span><span>${mp} / ${MONTH_GOAL}</span></span></span>
       ${icon('chevron', 20)}
@@ -1231,6 +1231,8 @@ function render() {
   if (UI.updateReady && !['lesson', 'timed', 'story', 'cards'].includes(UI.view) && !UI.sheet) return location.reload();
   tick();
   beeId = 0;
+  // ผู้เล่นไม่มีบัญชีเปิดหน้าที่ต้องใช้บัญชีก่อนระบบโหลดเสร็จ (js/main.js รอให้เครื่องว่างก่อน) → เริ่มโหลดเลย
+  if (typeof Cloud !== 'undefined' && Cloud.status === 'off' && ['account', 'board', 'friends', 'classes', 'teacher'].includes(UI.view)) cloudInit();
   if (!S.onboarded && !['onboarding', 'lesson', 'result', 'account'].includes(UI.view)) UI.view = 'onboarding';
   if (S.leagueResult && UI.view === 'learn' && !UI.sheet) {
     UI.sheet = { type: 'league' };

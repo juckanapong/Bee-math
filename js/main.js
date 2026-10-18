@@ -93,4 +93,9 @@ window.addEventListener('offline', () => showToast('ไม่มีอินเ�
 render();
 scrollToCurrent();
 remindCheck();
-cloudInit(); // ระบบบัญชี (ทำงานเมื่อตั้งค่า js/config.js แล้วเท่านั้น)
+// ระบบบัญชี (ทำงานเมื่อตั้งค่า js/config.js แล้วเท่านั้น)
+// เคยเข้าสู่ระบบ หรือเพิ่งกลับจากหน้า Google/ลิงก์ในอีเมล → โหลดทันที · ผู้เล่นที่ไม่มีบัญชี → รอให้เครื่องว่างก่อน หน้าแรกจะได้เร็วขึ้น
+const hadSession = (() => { try { return Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k)); } catch (e) { return true; } })();
+if (hadSession || /[?#&](code|access_token|error)=/.test(location.href)) cloudInit();
+else if ('requestIdleCallback' in window) requestIdleCallback(() => cloudInit(), { timeout: 3000 });
+else setTimeout(cloudInit, 1500);

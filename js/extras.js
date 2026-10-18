@@ -20,10 +20,10 @@ function viewOnboarding() {
     : `<h1 class="ob-title">เคยเรียนสมการมาก่อนไหม?</h1>
       <p class="muted">เลือกจุดเริ่มต้นที่เหมาะกับตัวเอง</p>
       <button class="big-pick ${o.level === 'basic' ? 'sel' : ''}" data-act="ob-level" data-l="basic">
-        ${hex(icon('flag', 26), 'ico big', '--h:#58C23A;color:#0F2E09')}
+        ${hex(icon('flag', 26), 'ico big', '--h:var(--green);color:var(--green-ink)')}
         <span><b>เริ่มจากพื้นฐาน</b><small>เริ่มที่บทที่ 1 รู้จักสมการตัวแปรเดียว</small></span></button>
       <button class="big-pick ${o.level === 'test' ? 'sel' : ''}" data-act="ob-level" data-l="test">
-        ${hex(icon('mountain', 26), 'ico big', '--h:#2F6FED;color:#FFFFFF')}
+        ${hex(icon('mountain', 26), 'ico big', '--h:var(--blue);color:var(--card)')}
         <span><b>ทดสอบวัดระดับ</b><small>ตอบ 10 ข้อ ราว 5 นาที ข้ามไปได้ถึงบทที่ 3</small></span></button>
       <div class="note">${icon('sun', 20)}<p>ทดสอบวัดระดับไม่ใช้หัวใจ ถ้าตอบผิดหลายข้อจะเริ่มที่บทที่ 1 ตามปกติ</p></div>`;
   const cta = isGoal ? 'ต่อไป' : o.level === 'test' ? 'เริ่มทดสอบวัดระดับ' : 'เริ่มบทที่ 1';
@@ -81,14 +81,14 @@ function streakGoalHTML() {
   const broken = g && !g.done && S.streak < g.start;
   if (!g || broken) {
     return `<section class="card sgoal">
-      <div class="sgoal-head">${hex(icon('target', 22), 'ico', '--h:#FF7A1A;color:#2A1F14')}<span class="setting-main"><b>ตั้งเป้าหมายสตรีค</b>
+      <div class="sgoal-head">${hex(icon('target', 22), 'ico', '--h:var(--orange);color:var(--ink)')}<span class="setting-main"><b>ตั้งเป้าหมายสตรีค</b>
         <small>${broken ? `สตรีคขาดก่อนครบเป้า ${g.n} วัน ลองตั้งใหม่อีกครั้งนะ` : 'เลือกว่าจะเรียนต่อเนื่องอีกกี่วัน ครบแล้วรับน้ำหวาน'}</small></span></div>
       <div class="sgoal-pick">${STREAK_GOALS.map((x) => `<button class="sgoal-opt" data-act="sgoal-set" data-n="${x.n}"><b>${x.n} วัน</b><small>${icon('drop', 13)} ${x.nectar}</small></button>`).join('')}</div>
     </section>`;
   }
   const def = STREAK_GOALS.find((x) => x.n === g.n), got = Math.min(g.n, Math.max(0, S.streak - g.start));
   return `<section class="card sgoal">
-    <div class="sgoal-head">${hex(icon(g.done ? 'check' : 'target', 22), 'ico', '--h:#FF7A1A;color:#2A1F14')}<span class="setting-main">
+    <div class="sgoal-head">${hex(icon(g.done ? 'check' : 'target', 22), 'ico', '--h:var(--orange);color:var(--ink)')}<span class="setting-main">
       <b>${g.done ? `ครบเป้าหมาย ${g.n} วันแล้ว!` : `เป้าหมาย: เรียนต่อเนื่องอีก ${g.n} วัน`}</b>
       <small>${g.done ? `ได้รับ ${def.nectar} น้ำหวานแล้ว` : `${got} จาก ${g.n} วัน ครบแล้วได้ ${def.nectar} น้ำหวาน`}</small></span></div>
     <div class="meter" role="progressbar" aria-label="ความคืบหน้าเป้าหมายสตรีค" aria-valuenow="${got}" aria-valuemin="0" aria-valuemax="${g.n}"><div style="width:${(got / g.n) * 100}%"></div></div>
@@ -141,7 +141,7 @@ function viewStreak() {
       return best ? `<button class="banner pair" data-act="go" data-v="friends">${icon('flame', 22)}<span>สตรีคคู่กับ${esc(best.name)} <b>${best.pair_streak} วัน</b>${best.today ? '' : ` — ${esc(best.name)}ยังไม่ได้เรียนวันนี้`}</span>${icon('chevron', 20)}</button>` : '';
     })()}
     <section class="card row-card">
-      ${hex(icon('shield', 24), 'ico', '--h:#A9DCFF;color:#1E4FB8')}
+      ${hex(icon('shield', 24), 'ico', '--h:var(--tile-n);color:var(--blue-dark)')}
       <span class="setting-main"><b>โล่สตรีค ${S.shields} / ${MAX_SHIELDS}</b><small>ใช้อัตโนมัติเมื่อพลาด 1 วัน สตรีคไม่หาย</small></span>
       ${S.shields < MAX_SHIELDS ? priceBtn('shield', 200) : '<span class="claimed">มีครบแล้ว</span>'}
     </section>
@@ -270,7 +270,7 @@ Object.assign(SHEETS, {
     return `<div class="sheet-card"><h2>ระดับตำนาน</h2><p>ทำโจทย์ 10 ข้อจากทั้งบท ผิดได้ไม่เกิน 2 ข้อ ไม่ใช้หัวใจ ผ่านแล้วด่านในบทจะเปลี่ยนเป็นมงกุฎ</p>
       <div class="list-card">${UNITS.map((u, ui) => {
         const ready = unitDone(ui), done = !!S.legend[u.id];
-        return `<div class="shop-row">${hex(icon(done ? 'crown' : ready ? 'star' : 'lock', 20), 'ico', ready ? '--h:#2A1F14;color:#FFC21A' : '')}
+        return `<div class="shop-row">${hex(icon(done ? 'crown' : ready ? 'star' : 'lock', 20), 'ico', ready ? '--h:var(--ink);color:var(--honey)' : '')}
           <span class="setting-main"><b>บทที่ ${ui + 1} · ${u.title}</b><small>${done ? 'ถึงระดับตำนานแล้ว' : ready ? 'พร้อมท้าทาย +30 XP' : 'ผ่านทุกด่านในบทนี้ก่อน'}</small></span>
           ${ready ? `<button class="price-btn ${done ? 'ghost' : ''}" data-act="legend-start" data-u="${u.id}">${done ? 'เล่นอีก' : 'เริ่ม'}</button>` : ''}</div>`;
       }).join('')}</div></div>`;
@@ -279,7 +279,7 @@ Object.assign(SHEETS, {
     return `<div class="sheet-card"><h2>เรื่องเล่าโจทย์</h2><p>อ่านสถานการณ์ แล้วตั้งสมการแก้ปัญหาไปกับตัวละคร ไม่ใช้หัวใจ จบเรื่องได้ 15 XP</p>
       <div class="list-card">${STORIES.map((st) => {
         const open = unitReached(st.unit), done = !!S.stories[st.id];
-        return `<div class="shop-row">${hex(icon(open ? 'story' : 'lock', 20), 'ico', open ? '--h:#58C23A;color:#0F2E09' : '')}
+        return `<div class="shop-row">${hex(icon(open ? 'story' : 'lock', 20), 'ico', open ? '--h:var(--green);color:var(--green-ink)' : '')}
           <span class="setting-main"><b>${st.title}</b><small>${!open ? `ปลดล็อกเมื่อถึงบทที่ ${st.unit + 1}` : done ? 'อ่านแล้ว' : 'เรื่องใหม่'}</small></span>
           ${open ? `<button class="price-btn ${done ? 'ghost' : ''}" data-act="story-start" data-id="${st.id}">${done ? 'อ่านอีก' : 'อ่าน'}</button>` : ''}</div>`;
       }).join('')}</div></div>`;
@@ -553,7 +553,7 @@ const isStandalone = () => window.matchMedia?.('(display-mode: standalone)').mat
 function installHint() {
   if (isStandalone()) return 'เปิดแบบแอปอยู่ ใช้ได้แม้ไม่มีอินเทอร์เน็ต';
   if (!location.protocol.startsWith('http')) return 'ต้องเปิดผ่านเว็บ (เช่น GitHub Pages) ก่อน จึงจะติดตั้งได้';
-  if (UI.installPrompt) return 'มีไอคอนบนหน้าจอ เปิดเต็มจอ และใช้ออฟไลน์ได้';
+  if (UI.installPrompt) return 'มีไอคอนบนหน้าจอ เปิดเต็มจอ และเรียนได้แม้ไม่มีเน็ต';
   if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return 'บน iPhone/iPad: แตะปุ่มแชร์ › "เพิ่มไปยังหน้าจอโฮม"';
   return 'ใช้เมนูของเบราว์เซอร์ › "ติดตั้งแอป" หรือ "เพิ่มลงในหน้าจอหลัก"';
 }

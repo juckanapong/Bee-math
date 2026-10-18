@@ -41,7 +41,7 @@ function cloudError(err) {
 
 // ---------- เริ่มต้น ----------
 async function cloudInit() {
-  if (!Cloud.enabled()) return;
+  if (!Cloud.enabled() || Cloud.status !== 'off') return; // เริ่มครั้งเดียว (อาจถูกเรียกก่อนเวลาเมื่อเปิดหน้าที่ต้องใช้บัญชี)
   Cloud.status = 'loading';
   try {
     if (!window.supabase) await loadScript(SUPABASE_CDN);

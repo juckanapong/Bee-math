@@ -52,7 +52,7 @@ function feedHTML() {
   const list = (flag('feed') && typeof Feed !== 'undefined' && Feed.data) || [];
   if (!list.length) return '';
   return `<section><h2 class="shop-sec">ความเคลื่อนไหว</h2><div class="list-card">${list.slice(0, 12).map((e) => `<div class="friend-row feed-row">
-    ${e.me ? `<span class="av" style="background:#FFC21A">คุณ</span>` : friendAv(e.name, e.avatar)}
+    ${e.me ? `<span class="av" style="background:var(--honey)">คุณ</span>` : friendAv(e.name, e.avatar)}
     <span class="setting-main"><b>${feedText(e)}</b><small>${icon(FEED_ICON[e.kind] || 'star', 13)} ${timeAgo(new Date(e.at).getTime())}</small></span>
     ${e.me ? (e.kudos ? `<span class="kudos-count" aria-label="ได้กำลังใจ ${e.kudos} คน">${icon('heart', 16)}${e.kudos}</span>` : '')
       : `<button class="kudos-btn ${e.gave ? 'on' : ''}" data-act="feed-kudos" data-id="${e.id}" aria-pressed="${e.gave}" aria-label="${e.gave ? 'ให้กำลังใจแล้ว' : 'ให้กำลังใจ'}" ${e.gave ? 'disabled' : ''}>${icon('heart', 18)}<span>${e.kudos || ''}</span></button>`}
@@ -75,7 +75,7 @@ function questCard(d) {
   const pm = Math.min(100, (mine / q.target) * 100), pt = Math.min(100 - pm, (q.theirs / q.target) * 100);
   return `<section class="card fq-card">
     <div class="fq-top"><span class="fq-label">ภารกิจคู่หู · เหลือ ${weekLeft()}</span><span class="fq-reward">${icon('drop', 15)}คนละ ${FQ_REWARD}</span></div>
-    <div class="fq-pair">${friendAv('คุณ', '#FFC21A', 'av me-av')}${friendAv(q.partner_name, q.partner_avatar)}<b class="fq-title">สะสม XP รวมกันให้ได้ ${q.target} XP</b></div>
+    <div class="fq-pair">${friendAv('คุณ', 'var(--honey)', 'av me-av')}${friendAv(q.partner_name, q.partner_avatar)}<b class="fq-title">สะสม XP รวมกันให้ได้ ${q.target} XP</b></div>
     <div class="fq-bar" role="img" aria-label="คุณ ${mine} XP ${esc(q.partner_name)} ${q.theirs} XP รวม ${total} จาก ${q.target}">
       <i style="width:${pm}%;background:var(--honey)"></i><i style="width:${pt}%;background:var(--blue)"></i><span>${Math.min(total, q.target)} / ${q.target}</span></div>
     <div class="fq-legend"><span><i style="background:var(--honey)"></i>คุณ ${mine}</span><span><i style="background:var(--blue)"></i>${esc(q.partner_name)} ${q.theirs}</span></div>

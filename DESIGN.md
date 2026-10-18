@@ -49,6 +49,8 @@ Units are told apart by honey that deepens as the course goes on, not by a rainb
 | Variable *x* | `--var` (large: the main equation, the `x =` answer label) / `--var-text` (every other size) | `#B87A00` / `#8F5E00` |
 | Bar model | `--tile-x` / `--tile-n` | `#FFD84D` / `#A9DCFF` |
 
+Secondary shades used in more than one place (dashed answer slots, hover, row tints, soft warnings and so on) also live as tokens in `:root`, for example `--dash`, `--hover`, `--peach-soft`/`--peach-text` and `--green-zone`. CSS outside `:root` should contain no hex values except `#fff`, `#000` and the Google button's brand colours. In JS, inline styles use `var(--token)`; only content data such as units, badges, shop items, avatars and illustrations keeps its own hex values.
+
 Text on a coloured background uses that colour's `-text` / `-ink` token, never neutral grey.
 `--var` passes only the large-text threshold (3.6:1 on white). A small *x* must use `--var-text`, which is at least 4.5:1 on white, the red/green feedback sheets and honey-soft.
 
@@ -56,22 +58,25 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 - **Headings:** `--head` (Mitr 500/600). Digits 0–9 in this stack come from `BeeDigits`, an Anuphan digits-only subset in `fonts/` (Mitr's zero has a slash and reads as Ø in equations). Never set equations or numbers in Mitr directly.
 - **Body:** `--body` (Anuphan 400–700), base 16px, line-height 1.5. Thai needs more line height than Latin script.
 - **Main sizes in use:**
-  - 13 / 14 / 15 / 16 / 18 / 22 / 26 / 32px
+  - 13 / 14 / 15 / 16 / 18 / 20 / 22 / 24 / 28 / 32px (13px is the floor), plus 40 and 46px for display
   - equation (`.eq-big`) up to 40px, scaled down with the viewport (`min(40px, 10.5vw)`, smaller under `.text-l`/`.text-xl` because those zoom the block)
 - Settings let users enlarge text (`.text-l`, `.text-xl`). New UI must still work at those sizes.
 
 ## Shape and depth
 - **Hexagons:** path nodes, icons, badges, and every avatar (leaderboard, friends, teacher table, profile). No circular avatars.
-- **Main radius scale:**
-  - 14px: buttons, inputs, small cards
-  - 18–22px: cards
-  - 28px: top of sheets and the answer bar
-  - 999px: pills and chips
+- **Radius scale** (tokens in `:root`, do not write px):
+  - `--r-xs` 6px and `--r-sm` 10px: small parts such as slots, calendar cells and tags
+  - `--r-md` 14px: buttons, inputs, small cards
+  - `--r-lg` 18px and `--r-xl` 22px: cards
+  - `--r-sheet` 28px: top of sheets and the answer bar
+  - `--r-pill`: pills and chips
+  - Only 2–4px for tiny details (confetti, speech-bubble tails, kbd)
 - **Buttons:** a thicker bottom border (`border-bottom: 4px`) gives a pressable feel, as in a game.
 - **Shadows:** keep them few and soft.
 
 ## Motion
 - **Entrance animations** run only when the scene changes (`#app[data-enter]`, `sceneKey()`), never on every render.
+- **No endless decoration:** loops are only allowed on things that show live state, such as the glow around the current node, the low-time timer or a chest that can be opened. Decorative effects run a few times and stop (the progress-bar shine runs twice, the streak flame three times).
 - **Respect reduced motion:** both `prefers-reduced-motion` and the in-app setting (`.reduce-motion`).
 
 ## Layout
@@ -97,6 +102,6 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 - No engineer words in student-facing copy: say "บันทึก" or "ไม่มีอินเทอร์เน็ต", not "ซิงก์", "คลาวด์", "เซิร์ฟเวอร์" or "ออฟไลน์".
 - Keep a number with its unit (`.nowrap`), e.g. "8 ชม." or "50 น้ำหวาน".
 
-## Known debt (from documenting, not yet fixed)
-- **Corner radii:** 10 different values (3–28px); should be reduced to the scale above.
-- **Font sizes:** still many values, but the minimum is now 13px everywhere (fixed in the P2 pass).
+## Loading
+- Fraunces is requested only for a–z (`&text=`), because it is used only for italic variables.
+- Supabase loads immediately only for people who have signed in before or are returning from sign-in. Guests load it when the browser is idle, or as soon as they open a page that needs an account.
