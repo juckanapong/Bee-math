@@ -4,3 +4,6 @@
 # impeccable (ติดตั้งในเครื่อง มีไฟล์โปรแกรม 18MB ไม่ขึ้น GitHub)
 .claude/
 .impeccable/
+
+# Supabase CLI (ข้อมูลชั่วคราวของเครื่อง)
+supabase/.temp/
