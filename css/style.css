@@ -287,6 +287,49 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outl
 .tile.tn { background: var(--tile-n); }
 .palette .tile:disabled { opacity: .35; }
 
+/* โจทย์แบบใหม่ (ระยะ 5): ประกอบสมการ · เส้นจำนวน · เลือกหลายข้อ · ตารางค่า */
+.eqb { display: grid; gap: 12px; }
+.eqb-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; min-height: 74px; padding: 8px; border: 3px dashed #D9C79A; border-radius: 16px; }
+.eqb-row.right { border-style: solid; border-color: var(--green); }
+.eqb-row.wrong { border-style: solid; border-color: var(--red); }
+.eqb-palette { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.eq-tile { min-width: 52px; height: 56px; padding: 0 10px; display: grid; place-items: center; border: 3px solid var(--ink); border-bottom-width: 6px; border-radius: 14px; background: var(--card); font-family: var(--head); font-size: 24px; color: var(--ink); cursor: pointer; }
+.eq-tile.placed { min-width: 44px; height: 52px; border-bottom-width: 3px; }
+.eq-tile:active:not(:disabled) { transform: translateY(3px); border-bottom-width: 3px; }
+.eq-tile.tx { background: var(--tile-x); }
+.eq-tile.tx .math i.v { color: var(--honey-text); font-size: 26px; }
+.eq-tile.tn { background: var(--tile-n); }
+.eq-tile.op { background: var(--honey-soft); }
+.eqb-palette .eq-tile:disabled { opacity: .35; }
+.nl { display: grid; gap: 10px; padding: 12px 12px 14px; background: var(--card); border: 2px solid var(--line); border-radius: 18px; }
+.nl.right { border-color: var(--green); }
+.nl.wrong { border-color: var(--red); }
+.nlsvg { display: block; width: 100%; height: auto; }
+.nl-axis { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.nl-tick { stroke: var(--ink-2); stroke-width: 2; }
+.nl-num { font-family: var(--body); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; fill: var(--ink-2); text-anchor: middle; }
+.nl-dot { fill: var(--var); stroke: var(--card); stroke-width: 3; }
+.nl.right .nl-dot, .nl.wrong .nl-dot { fill: var(--green-dark); }
+.nl-miss { fill: var(--card); stroke: var(--red); stroke-width: 3; }
+.nl-key { display: inline-block; width: 12px; height: 12px; margin: 0 4px -1px 0; border-radius: 50%; background: var(--green-dark); }
+.nl-key.miss { background: var(--card); border: 2px solid var(--red); }
+.nl-range { width: calc(100% - 10%); margin: 0 5%; height: 44px; accent-color: var(--var); cursor: pointer; }
+.nl-step { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.nl-step .btn { min-width: 52px; min-height: 48px; font-size: 24px; }
+.nl-read { min-width: 96px; text-align: center; font-family: var(--head); font-size: 24px; }
+.nl-hint, .nl-yours { margin: 0; text-align: center; font-size: 14px; color: var(--ink-2); }
+.nl-yours { color: var(--red-text); font-weight: 600; }
+.opts.multi .tick { flex: none; width: 24px; height: 24px; display: grid; place-items: center; border: 2px solid var(--line); border-radius: 6px; background: var(--card); color: var(--blue-dark); }
+.opts.multi .opt.sel .tick { border-color: var(--blue); }
+.opts.multi .opt.right .tick { border-color: var(--green); color: var(--green-text); }
+.opts.multi .opt.wrong .tick { border-color: var(--red); color: var(--red-text); }
+.opt.right.missed { border-style: dashed; background: var(--card); }
+.vtable { margin: 0 auto; border-collapse: separate; border-spacing: 0; min-width: 240px; background: var(--card); border: 2px solid var(--line); border-radius: 14px; overflow: hidden; font-size: 17px; }
+.vtable th, .vtable td { padding: 8px 16px; text-align: center; border-top: 1px solid var(--line-2); }
+.vtable th { border-top: 0; background: var(--honey-soft); color: var(--honey-text); font-size: 14px; }
+.vtable td { font-weight: 600; font-variant-numeric: tabular-nums; }
+.vtable tr.ask td { background: var(--blue-soft); color: var(--blue-dark); font-weight: 600; }
+
 /* balance */
 .balance { position: relative; height: 120px; max-width: 320px; margin: 0 auto; }
 .pans { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; }

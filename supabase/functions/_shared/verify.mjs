@@ -62,7 +62,7 @@ function plan(C, kind, meta, n) {
 }
 
 // ตรวจคำตอบ 1 ข้อเทียบกับโจทย์ที่สร้างใหม่จาก seed (กติกาเดียวกับ check() ใน js/app.js)
-function grade(q, a) {
+function grade(C, q, a) {
   switch (q.type) {
     case 'choice':
       if (!isInt(a, 0, q.choices.length - 1)) fail('bad choice');
@@ -91,6 +91,12 @@ function grade(q, a) {
       }
       if (done.size !== n) fail('match unfinished');
       return miss < 2;
+    }
+    case 'build': case 'numline': case 'multi': {
+      // โจทย์แบบใหม่ (ระยะ 5): ใช้ตัวตรวจเดียวกับแอป (gradeAnswer ใน js/data.js)
+      const ok = C.gradeAnswer(q, a);
+      if (ok === null) fail('bad ' + q.type);
+      return ok;
     }
     default:
       fail('unknown question type');
@@ -127,7 +133,7 @@ function verifyQueue(C, s) {
       if (b.g !== x.g || b.l !== x.l) fail('retry changed');
     }
     const q = C.makeQuestion(x.g, x.l, C.subSeed(seed, x.u));
-    const ok = grade(q, x.a);
+    const ok = grade(C, q, x.a);
     if (q.tags.includes('bar')) bar++;
     if (ok) {
       if (q.tags.includes('solve')) solved++;

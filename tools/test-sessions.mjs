@@ -17,6 +17,9 @@ function rightAnswer(q) {
     case 'barbuild': return [...Array(q.a).fill('x'), String(q.b)];
     case 'order': return q.steps.map((s) => q.palette.indexOf(s));
     case 'match': return q.pairs.map((p) => [p.id, p.id]);
+    case 'build': return q.key;
+    case 'numline': return q.est ? Math.round((q.answer + 0.2) * 10) / 10 : q.answer;
+    case 'multi': return q.answers;
   }
   throw new Error('type ' + q.type);
 }
@@ -27,6 +30,9 @@ function wrongAnswer(q) {
     case 'barbuild': return [...Array(q.a + 1).fill('x'), String(q.b)];
     case 'order': return rightAnswer(q).reverse();
     case 'match': return [[0, 1], [1, 0], ...q.pairs.map((p) => [p.id, p.id])]; // พลาด 2 ครั้ง
+    case 'build': return q.key.map((k) => (q.tiles[k] === '+' ? q.tiles.indexOf('-') : k)); // ax − b = c
+    case 'numline': return q.est ? Math.round((q.answer + 0.5) * 10) / 10 : q.answer + 1;
+    case 'multi': return q.answers.slice(1); // ขาดไป 1 ข้อ
   }
   throw new Error('type ' + q.type);
 }
@@ -159,6 +165,40 @@ test('ปฏิเสธ: บทเรียนที่ไม่มีอยู
   const s = play({ kind: 'lesson', gens: C.NODES[lessonNode].gens, n: 6 });
   rejects(() => verifySession(C, { ...s, meta: { i: 999 } }), 'bad node');
   rejects(() => verifySession(C, { ...s, meta: { i: testNode } }), 'bad node');
+});
+
+// ---------- โจทย์แบบใหม่ (ระยะ 5) ----------
+test('ประกอบสมการ: เรียงแบบอื่นที่ถูกก็ผ่าน · ใช้ตัวเลขหลอก/ไม่ครบ/คำตอบผิดไม่ผ่าน', () => {
+  for (let s = 0; s < 200; s++) {
+    const q = C.makeQuestion('buildEq', s % 3, s * 977), [a, b, c] = q.nums.map(String);
+    const T = (arr) => arr.map((t) => q.tiles.indexOf(t));
+    const d = q.tiles.find((t) => /^\d+$/.test(t) && !q.nums.map(String).includes(t));
+    for (const ok of [[a, 'x', '+', b, '=', c], [b, '+', a, 'x', '=', c], [c, '-', b, '=', a, 'x'], [c, '=', b, '+', a, 'x']]) assert.equal(C.gradeAnswer(q, T(ok)), true, ok.join(' '));
+    for (const bad of [[a, 'x', '-', b, '=', c], [a, 'x', '=', c], [d, 'x', '+', b, '=', c], ['x', '+', b, '=', c]]) assert.equal(C.gradeAnswer(q, T(bad)), false, bad.join(' '));
+    assert.equal(C.gradeAnswer(q, [0, 0]), null, 'tile used twice');
+  }
+});
+test('เส้นจำนวน: แบบตรง ต้องตรงเป๊ะ · แบบประมาณ คลาดได้ 0.3', () => {
+  const q = C.makeQuestion('numlineSolve', 1, 3);
+  assert.equal(C.gradeAnswer(q, q.answer), true);
+  assert.equal(C.gradeAnswer(q, q.answer + 1), false);
+  assert.equal(C.gradeAnswer(q, q.max + 5), null);
+  const e = C.makeQuestion('estimateFrac', 1, 3);
+  assert.equal(C.gradeAnswer(e, e.answer + 0.29), true);
+  assert.equal(C.gradeAnswer(e, e.answer - 0.31), false);
+});
+test('เลือกหลายข้อ: ต้องเลือกครบและไม่เกิน', () => {
+  const q = C.makeQuestion('multiEquiv', 1, 8), extra = [0, 1, 2, 3, 4].find((k) => !q.answers.includes(k));
+  assert.equal(C.gradeAnswer(q, q.answers), true);
+  assert.equal(C.gradeAnswer(q, [...q.answers, extra].sort()), false);
+  assert.equal(C.gradeAnswer(q, [2, 1]), null, 'must be sorted');
+});
+test('บทเรียนที่มีโจทย์แบบใหม่: XP ตรงกับกติกา', () => {
+  for (const id of ['u2l3', 'u4l1', 'u4l3', 'u5l2', 'u6l1']) {
+    const i = C.NODES.findIndex((x) => x.id === id);
+    assert.equal(verifySession(C, { ...play({ kind: 'lesson', gens: C.NODES[i].gens, n: 6 }), meta: { i } }).xp, 15, id);
+    assert.equal(verifySession(C, { ...play({ kind: 'lesson', gens: C.NODES[i].gens, n: 6, wrong: new Set([2]) }), meta: { i } }).xp, 10, id);
+  }
 });
 
 // ---------- เกมผึ้งเร่งรีบ ----------

@@ -1,5 +1,5 @@
 // สร้างอัตโนมัติจาก js/data.js ด้วย tools/build-shared.mjs ห้ามแก้ไฟล์นี้โดยตรง
-// source sha256: db32e56ff8999d48
+// source sha256: a05d36f8ca49d47f
 /* BeeMath — เนื้อหาบทเรียนและตัวสร้างโจทย์ (สุ่มตัวเลขใหม่ทุกครั้ง) */
 
 // ---------- utilities ----------
@@ -133,6 +133,66 @@ const matchQ = ({ prompt, pairs, tags = [], explain }) => {
   const ids = pairs.map((_, i) => i);
   return { type: 'match', prompt, pairs: pairs.map((p, i) => ({ ...p, id: i })), left: shuffle(ids), right: shuffle(ids), tags, explain };
 };
+
+// ---------- โจทย์แบบใหม่ (ระยะ 5): ประกอบสมการ · เส้นจำนวน · เลือกหลายข้อ ----------
+// ตัวตรวจคำตอบของโจทย์แบบใหม่ใช้ร่วมกันทั้งแอป (check() ใน js/app.js) และเซิร์ฟเวอร์ (verify.mjs)
+
+// อ่านด้านหนึ่งของสมการจากชิ้นส่วน เช่น ['3','x','+','5'] → { a: 3, b: 5, nums: [3, 5] } (ไม่ใช่รูป ax ± b → null)
+function parseSide(ts) {
+  let a = 0, b = 0, sign = 1, i = 0;
+  const nums = [];
+  for (;;) {
+    let coef = null, t = ts[i];
+    if (/^\d+$/.test(t ?? '')) { coef = +t; nums.push(coef); t = ts[++i]; }
+    if (t === 'x') { a += sign * (coef ?? 1); i++; } else if (coef === null) return null; else b += sign * coef;
+    if (i === ts.length) return { a, b, nums };
+    if (ts[i] === '+') sign = 1; else if (ts[i] === '-') sign = -1; else return null;
+    i++;
+  }
+}
+// สมการจากชิ้นส่วน → { a, b, nums } หมายถึง a·x = b (ย้ายข้างแล้ว) · ไม่ใช่สมการเชิงเส้นที่มี x → null
+function parseTiles(tokens) {
+  const at = tokens.indexOf('=');
+  if (at < 1 || at !== tokens.lastIndexOf('=') || at === tokens.length - 1) return null;
+  const L = parseSide(tokens.slice(0, at)), Rs = parseSide(tokens.slice(at + 1));
+  if (!L || !Rs || L.a === Rs.a) return null;
+  return { a: L.a - Rs.a, b: Rs.b - L.b, nums: [...L.nums, ...Rs.nums] };
+}
+const sameNums = (p, q) => p.length === q.length && [...p].sort((m, n) => m - n).every((v, i) => v === [...q].sort((m, n) => m - n)[i]);
+
+// ตรวจคำตอบโจทย์แบบใหม่: true ถูก · false ผิด · null รูปแบบคำตอบไม่ถูกต้อง
+// build: a = ลำดับตำแหน่งชิ้นส่วน (ใช้ได้ชิ้นละครั้ง) · ต้องใช้ตัวเลขของโจทย์ครบ และได้คำตอบเท่ากับ q.answer (เรียงแบบไหนก็ได้)
+// numline: a = ตำแหน่งบนเส้นจำนวน · แบบประมาณ (q.est) คลาดได้ไม่เกิน q.tol
+// multi: a = ตำแหน่งตัวเลือกที่เลือก (เรียงจากน้อยไปมาก)
+function gradeAnswer(q, a) {
+  if (q.type === 'build') {
+    if (!Array.isArray(a) || a.length > q.tiles.length || new Set(a).size !== a.length
+      || !a.every((k) => Number.isInteger(k) && k >= 0 && k < q.tiles.length)) return null;
+    const e = parseTiles(a.map((k) => q.tiles[k]));
+    return !!e && sameNums(e.nums, q.nums) && e.b === e.a * q.answer;
+  }
+  if (q.type === 'numline') {
+    if (typeof a !== 'number' || !Number.isFinite(a) || a < q.min - 1 || a > q.max + 1) return null;
+    return q.est ? Math.abs(a - q.answer) <= q.tol : a === q.answer;
+  }
+  if (q.type === 'multi') {
+    if (!Array.isArray(a) || a.length > q.choices.length || !a.every((k, i) => Number.isInteger(k) && k >= 0 && k < q.choices.length && (i === 0 || k > a[i - 1]))) return null;
+    return a.length === q.answers.length && a.every((k, i) => k === q.answers[i]);
+  }
+  return null;
+}
+
+// เส้นจำนวน min..max ทุก 1 หน่วย (ใช้ทั้งโจทย์และเฉลย) · miss = ตำแหน่งที่ผู้เรียนวางผิด (วงกลมแดงกลวง)
+function numlineSVG(min, max, mark = null, miss = null) {
+  const W = 320, X0 = 16, X1 = W - 16, Y = 30, step = (X1 - X0) / (max - min);
+  const xAt = (v) => X0 + (v - min) * step;
+  let ticks = '';
+  for (let v = min; v <= max; v++) ticks += `<line x1="${xAt(v)}" y1="${Y - 8}" x2="${xAt(v)}" y2="${Y + 8}" class="nl-tick"/><text x="${xAt(v)}" y="${Y + 28}" class="nl-num">${v < 0 ? '−' + -v : v}</text>`;
+  return `<svg class="nlsvg" viewBox="0 0 ${W} 66" role="img" aria-label="เส้นจำนวนตั้งแต่ ${min} ถึง ${max}">
+    <line x1="${X0 - 8}" y1="${Y}" x2="${X1 + 8}" y2="${Y}" class="nl-axis"/>${ticks}
+    ${miss === null ? '' : `<circle cx="${xAt(miss)}" cy="${Y}" r="9" class="nl-miss"/>`}
+    ${mark === null ? '' : `<circle cx="${xAt(mark)}" cy="${Y}" r="9" class="nl-dot"/>`}</svg>`;
+}
 
 // โจทย์ปัญหาที่แปลงเป็น ax + b = c ได้
 const WORD_TEMPLATES = [
@@ -497,6 +557,79 @@ const G = {
     });
   },
 
+  // ----- โจทย์แบบใหม่ (ระยะ 5) -----
+  // ประกอบสมการจากชิ้นส่วน: ตัวเลขของโจทย์ + ตัวเลขหลอก 1 ตัว + x + − =
+  buildEq() {
+    const a = R(2, 6), x = RV(3, 15);
+    let b = RV(2, 20), d = R(2, 20);
+    if (b === a) b++;
+    const c = a * x + b;
+    while ([a, b, c].includes(d)) d++;
+    const tiles = shuffle([String(a), String(b), String(c), String(d), 'x', '+', '-', '=']);
+    const key = [String(a), 'x', '+', String(b), '=', String(c)].map((t) => tiles.indexOf(t)); // ชิ้นส่วนไม่ซ้ำกันเสมอ
+    return {
+      type: 'build', tags: ['word'],
+      prompt: `${pick(WORD_TEMPLATES)(a, b, c)}<br><span class="sub">ให้ ${M('x')} แทนสิ่งที่โจทย์ถาม แตะชิ้นส่วนเพื่อสร้างสมการ</span>`,
+      tiles, nums: [a, b, c], answer: x, key, eq: `${lin(a, b)} = ${c}`,
+      explain: `"${a} ส่วนเท่า ๆ กัน" คือ ${M(a + 'x')} รวมกับ ${b} ได้ ${c} → ${M(`${lin(a, b)} = ${c}`)} <small>(เขียน ${M(`${c} - ${b} = ${a}x`)} ก็ถูกเหมือนกัน · ตัวเลข ${d} ไม่ได้ใช้)</small>`,
+    };
+  },
+  // แก้สมการแล้วปักคำตอบ (อาจติดลบ) บนเส้นจำนวน
+  numlineSolve() {
+    const x = R(-9, 6) || -1, a = RV(2, 12), mul = rand() < 0.4;
+    const k = R(2, 4), eq = mul ? `${k}x = ${k * x}` : `x + ${a} = ${x + a}`;
+    const min = x - R(2, 8);
+    return {
+      type: 'numline', tags: ['solve'], min, max: min + 10, answer: x, eq,
+      prompt: `แก้สมการ แล้ววางจุดที่คำตอบบนเส้นจำนวน`,
+      visual: `<div class="eq-big">${M(eq)}</div>`,
+      explain: steps(mul ? [[`x = ${k * x} ÷ ${k}`, `หารด้วย ${k} ทั้งสองข้าง`], [`x = ${x}`, x < 0 ? 'ลบหารบวกได้ลบ' : '']]
+        : [[`x = ${x + a} - ${a}`, `ลบ ${a} ทั้งสองข้าง`], [`x = ${x}`, x < 0 ? 'ตัวลบมากกว่าตัวตั้ง คำตอบจึงติดลบ' : '']]),
+    };
+  },
+  // คำตอบเป็นเศษส่วน: กะตำแหน่งบนเส้นจำนวน 0–10
+  estimateFrac() {
+    const a = R(2, 5);
+    let b = Math.min(RV(a + 1, 9 * a - 1), 9 * a - 1); // คำตอบอยู่ในช่วง 1–9 เสมอ
+    if (b % a === 0) b--;
+    const x = b / a, whole = Math.floor(x);
+    return {
+      type: 'numline', est: true, tol: 0.3, tags: ['solve'], min: 0, max: 10, answer: x, eq: `${a}x = ${b}`,
+      prompt: `คำตอบของสมการนี้ไม่ใช่จำนวนเต็ม <b>กะตำแหน่ง</b>ของ ${M('x')} บนเส้นจำนวน`,
+      visual: `<div class="eq-big">${M(`${a}x = ${b}`)}</div>`,
+      explain: steps([[`x = frac(${b},${a})`, `หารด้วย ${a} ทั้งสองข้าง`],
+        [`x = ${whole} frac(${b - whole * a},${a})`, `อยู่ระหว่าง ${whole} กับ ${whole + 1} (ประมาณ ${x.toFixed(1)})`]]),
+    };
+  },
+  // เลือกทุกสมการที่มีคำตอบเดียวกับสมการที่ให้ (สมการที่ได้จากการทำเหมือนกันทั้งสองข้าง)
+  multiEquiv() {
+    const a = R(2, 6), x = RV(1, 9), b = RV(1, 12), c = a * x + b;
+    const show = ([p, q, r]) => `${lin(p, q)} = ${r}`;
+    const right = shuffle([[a, 0, c - b], [1, 0, x], [2 * a, 2 * b, 2 * c], [a, b + 1, c + 1]]).slice(0, R(2, 3));
+    const seen = new Set(right.map(show));
+    const wrong = shuffle([[a, 0, c + b], [1, 0, c - b], [a, b, c + a], [1, 0, x + 1], [a, 0, c], [2 * a, b, 2 * c], [a, 0, c - b + a]])
+      .filter((t) => (t[2] - t[1]) / t[0] !== x && !seen.has(show(t)) && seen.add(show(t)));
+    const opts = shuffle([...right.map((t) => ({ t, ok: true })), ...wrong.slice(0, 5 - right.length).map((t) => ({ t, ok: false }))]);
+    return {
+      type: 'multi', tags: ['solve'], eq: `${lin(a, b)} = ${c}`,
+      prompt: `เลือก<b>ทุกสมการ</b>ที่มีคำตอบเดียวกับ ${M(`${lin(a, b)} = ${c}`)} <span class="sub">(เลือกได้มากกว่า 1 ข้อ)</span>`,
+      choices: opts.map((o) => M(show(o.t))), answers: opts.map((o, i) => (o.ok ? i : -1)).filter((i) => i >= 0),
+      explain: `คำตอบคือ ${M('x = ' + x)} สมการที่ได้จากการ<b>ทำเหมือนกันทั้งสองข้าง</b> (บวก ลบ คูณ หาร) มีคำตอบเดิมเสมอ · ลองแทน ${M('x = ' + x)} ในแต่ละข้อเพื่อตรวจ`,
+    };
+  },
+  // อ่านตารางค่าบริการ (ค่าเริ่มต้น + อัตรา × จำนวน) แล้วหาจำนวนจากยอดรวม
+  tableRate() {
+    const [f, r] = [R(2, 6) * 10, R(2, 9) * 5], x = RV(5, 20), total = f + r * x;
+    const rows = [1, 2, 3].map((n) => `<tr><td>${n}</td><td>${f + r * n}</td></tr>`).join('');
+    return inputQ({
+      prompt: `สวนสนุกคิดค่าเข้า ${f} บาท บวกค่าเล่นเครื่องเล่นครั้งละเท่ากัน ดูตาราง แล้วหาว่าถ้าจ่าย <b>${total} บาท</b> ได้เล่นกี่ครั้ง`,
+      visual: `<table class="vtable"><thead><tr><th>เล่น (ครั้ง)</th><th>จ่ายทั้งหมด (บาท)</th></tr></thead><tbody>${rows}<tr class="ask"><td>${M('x')}</td><td>${total}</td></tr></tbody></table>`,
+      eq: `${lin(r, f)} = ${total}`, answer: x, tags: ['solve'],
+      explain: steps([[`${f + r * 2} - ${f + r} = ${r}`, `เล่นเพิ่ม 1 ครั้ง จ่ายเพิ่ม ${r} บาท`], [`${lin(r, f)} = ${total}`, `ค่าเข้า ${f} + ${r} × จำนวนครั้ง`],
+        [`${r}x = ${total - f}`, `ลบ ${f} ทั้งสองข้าง`], [`x = ${x}`, `หารด้วย ${r}`]]),
+    });
+  },
+
   // ----- บทที่ 6: สมการกับชีวิตจริง -----
   wordRate() {
     const kind = R(0, 2);
@@ -634,7 +767,7 @@ const UNITS = [
         ],
       },
       {
-        id: 'u2l3', title: 'สมการสองขั้นตอน', gens: ['nextStep', 'twoStep', 'twoStep', 'matchSolve'],
+        id: 'u2l3', title: 'สมการสองขั้นตอน', gens: ['nextStep', 'twoStep', 'twoStep', 'matchSolve', 'multiEquiv'],
         cards: [
           { title: 'สองขั้นตอน', body: 'กำจัดตัวเลขที่ <b>บวก/ลบ</b> ก่อน แล้วค่อย <b>หาร/คูณ</b>', demo: [['3x + 4 = 19'], ['3x = 15', 'ขั้นที่ 1: ลบ 4 ทั้งสองข้าง'], ['x = 5', 'ขั้นที่ 2: หารด้วย 3 ทั้งสองข้าง']] },
         ],
@@ -670,7 +803,7 @@ const UNITS = [
     color: '#FF7A1A', dark: '#C85A00', ink: '#2A1F14',
     lessons: [
       {
-        id: 'u4l1', title: 'แปลงโจทย์เป็นสมการ', gens: ['wordToEq', 'wordToEq', 'matchWords'],
+        id: 'u4l1', title: 'แปลงโจทย์เป็นสมการ', gens: ['wordToEq', 'buildEq', 'matchWords'],
         cards: [
           { title: 'อ่านโจทย์ให้เป็นสมการ', body: 'ให้ <b>x</b> แทนสิ่งที่โจทย์ถาม แล้วสังเกตคำสำคัญ:<br>• "ละ / แต่ละ / เท่า ๆ กัน" → คูณ<br>• "รวม / เพิ่ม" → บวก<br>• "เหลือ / ลดลง" → ลบ', demo: [['3x + 5 = 20', 'ซื้อของ 3 ชิ้น ชิ้นละ x บาท + ค่าส่ง 5 บาท = 20 บาท']] },
         ],
@@ -682,7 +815,7 @@ const UNITS = [
         ],
       },
       {
-        id: 'u4l3', title: 'ตัวแปรสองข้าง & วงเล็บ', gens: ['bothSides', 'brackets', 'negative', 'orderSteps'],
+        id: 'u4l3', title: 'ตัวแปรสองข้าง & วงเล็บ', gens: ['bothSides', 'brackets', 'numlineSolve', 'orderSteps'],
         cards: [
           { title: 'ตัวแปรอยู่สองข้าง', body: 'ย้าย x ไปไว้ข้างเดียวกันก่อน โดยลบ x ออกจากทั้งสองข้าง', demo: [['5x + 2 = 3x + 10'], ['2x + 2 = 10', 'ลบ 3x ทั้งสองข้าง'], ['2x = 8', 'ลบ 2 ทั้งสองข้าง'], ['x = 4']] },
           { title: 'สมการที่มีวงเล็บ', body: 'หารตัวเลขหน้าวงเล็บออกก่อน แล้วแก้ต่อตามปกติ', demo: [['3(x + 2) = 21'], ['x + 2 = 7', 'หารด้วย 3 ทั้งสองข้าง'], ['x = 5', 'ลบ 2 ทั้งสองข้าง']] },
@@ -702,7 +835,7 @@ const UNITS = [
         ],
       },
       {
-        id: 'u5l2', title: 'สมการที่มีเศษส่วน', gens: ['fracTwoStep', 'fracGroup', 'matchSolve'],
+        id: 'u5l2', title: 'สมการที่มีเศษส่วน', gens: ['fracTwoStep', 'fracGroup', 'matchSolve', 'estimateFrac'],
         cards: [
           { title: 'กำจัดตัวส่วน', body: 'ถ้า x ถูกหารอยู่ ให้ <b>คูณ</b> ด้วยตัวส่วนทั้งสองข้าง', demo: [['frac(x,4) + 3 = 8'], ['frac(x,4) = 5', 'ลบ 3 ทั้งสองข้าง'], ['x = 20', 'คูณด้วย 4 ทั้งสองข้าง']] },
           { title: 'ทั้งก้อนถูกหาร', body: 'ถ้าตัวเศษเป็นก้อน ให้คูณตัวส่วนออกก่อน แล้วค่อยแก้ต่อ', demo: [['frac(x + 2,3) = 5'], ['x + 2 = 15', 'คูณด้วย 3 ทั้งสองข้าง'], ['x = 13', 'ลบ 2 ทั้งสองข้าง']] },
@@ -721,7 +854,7 @@ const UNITS = [
     color: '#2EC4A6', dark: '#1E9A82', ink: '#0B2E27',
     lessons: [
       {
-        id: 'u6l1', title: 'ค่าบริการและอัตรา', gens: ['wordRate', 'wordToEq2', 'matchWords'],
+        id: 'u6l1', title: 'ค่าบริการและอัตรา', gens: ['wordRate', 'tableRate', 'wordToEq2', 'matchWords'],
         cards: [
           { title: 'ค่าเริ่มต้น + อัตรา', body: 'โจทย์ค่าบริการมักเป็น <b>ค่าเริ่มต้น + อัตรา × จำนวน = ทั้งหมด</b>', demo: [['35 + 6x = 95', 'แท็กซี่เริ่ม 35 บาท กิโลเมตรละ 6 บาท'], ['6x = 60', 'ลบ 35 ทั้งสองข้าง'], ['x = 10', 'นั่งไป 10 กิโลเมตร']] },
         ],
@@ -746,11 +879,11 @@ const UNITS = [
 // โหมดฝึกฝน (ไม่เสียหัวใจ)
 const PRACTICE = [
   { id: 'mix', icon: 'shuffle', color: '#FFC21A', ink: '#2A1F14', title: 'ทบทวนแบบผสม', desc: 'สุ่มโจทย์จากทุกบทที่ปลดล็อกแล้ว', unit: 0 },
-  { id: 'solve', icon: 'equals', color: '#58C23A', ink: '#0F2E09', title: 'ฝึกแก้สมการ', desc: 'บวก ลบ คูณ หาร และสองขั้นตอน', unit: 1, gens: ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep'] },
+  { id: 'solve', icon: 'equals', color: '#58C23A', ink: '#0F2E09', title: 'ฝึกแก้สมการ', desc: 'บวก ลบ คูณ หาร และสองขั้นตอน', unit: 1, gens: ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep', 'multiEquiv'] },
   { id: 'bar', icon: 'bar', color: '#2F6FED', ink: '#FFFFFF', title: 'ฝึกบาร์โมเดล', desc: 'อ่าน สร้าง และแก้สมการด้วยบาร์', unit: 2, gens: ['barRead', 'barBuild', 'barSolve', 'barEqual'] },
-  { id: 'challenge', icon: 'mountain', color: '#FF7A1A', ink: '#2A1F14', title: 'โจทย์ท้าทาย', desc: 'โจทย์ปัญหา ตัวแปรสองข้าง วงเล็บ', unit: 3, gens: ['word', 'bothSides', 'brackets', 'negative'] },
-  { id: 'steps', icon: 'target', color: '#7C4DDB', ink: '#FFFFFF', title: 'วงเล็บ เศษส่วน และจุดผิด', desc: 'กระจายวงเล็บ เศษส่วน เรียงขั้นตอน หาขั้นที่ผิด', unit: 4, gens: ['bracketsBoth', 'fracTwoStep', 'fracGroup', 'orderSteps', 'findError'] },
-  { id: 'reallife', icon: 'flag', color: '#2EC4A6', ink: '#0B2E27', title: 'โจทย์ชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ ความยาวรอบรูป', unit: 5, gens: ['wordRate', 'wordConsecutive', 'wordAge', 'wordPerimeter', 'matchWords'] },
+  { id: 'challenge', icon: 'mountain', color: '#FF7A1A', ink: '#2A1F14', title: 'โจทย์ท้าทาย', desc: 'โจทย์ปัญหา ตัวแปรสองข้าง วงเล็บ', unit: 3, gens: ['word', 'buildEq', 'bothSides', 'brackets', 'negative', 'numlineSolve'] },
+  { id: 'steps', icon: 'target', color: '#7C4DDB', ink: '#FFFFFF', title: 'วงเล็บ เศษส่วน และจุดผิด', desc: 'กระจายวงเล็บ เศษส่วน เรียงขั้นตอน หาขั้นที่ผิด', unit: 4, gens: ['bracketsBoth', 'fracTwoStep', 'fracGroup', 'estimateFrac', 'orderSteps', 'findError'] },
+  { id: 'reallife', icon: 'flag', color: '#2EC4A6', ink: '#0B2E27', title: 'โจทย์ชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ ความยาวรอบรูป', unit: 5, gens: ['wordRate', 'tableRate', 'wordConsecutive', 'wordAge', 'wordPerimeter', 'matchWords'] },
 ];
 
 const QUESTS = [
@@ -849,5 +982,5 @@ const STORIES = [
   },
 ];
 
-export const CONTENT_HASH = 'db32e56ff8999d48';
-export { G, UNITS, NODES, PRACTICE, QUESTS, STORIES, TIMED_GENS, makeQuestion, makeTimedQuestion, subSeed, uniq };
+export const CONTENT_HASH = 'a05d36f8ca49d47f';
+export { G, UNITS, NODES, PRACTICE, QUESTS, STORIES, TIMED_GENS, makeQuestion, makeTimedQuestion, subSeed, uniq, gradeAnswer };

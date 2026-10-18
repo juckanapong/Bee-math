@@ -6,6 +6,7 @@
 // รหัสตอบกลับ: 200 สำเร็จ · 401 ยังไม่ล็อกอิน · 422 ไม่ผ่านการตรวจ (แอปไม่ส่งซ้ำ) · 500 ผิดพลาดชั่วคราว (แอปส่งซ้ำ)
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import * as C from '../_shared/content.mjs';
+import * as P from '../_shared/content_prev.mjs'; // เนื้อหารุ่นก่อนหน้า (tools/build-shared.mjs)
 import { QUEST_METRIC, Rejected, verifySession } from '../_shared/verify.mjs';
 
 const CORS = {
@@ -48,17 +49,25 @@ async function submitSession(uid: string, body: Record<string, unknown>) {
   if (s.submitted) return json({ xp: s.xp, league_xp: s.league_xp, boosted: s.boosted, duplicate: true });
   if (body.kind !== s.kind) return reject(uid, id, 'kind mismatch');
 
-  let r;
+  // ตรวจกับเนื้อหารุ่นปัจจุบันก่อน ถ้าไม่ผ่านลองรุ่นก่อนหน้า (แอปที่ยังไม่ได้อัปเดตระหว่างปล่อยรุ่นใหม่)
+  const input = { kind: s.kind, seed: Number(s.seed), meta: body.meta, completed: body.completed, answers: body.answers };
+  let r, content = 'current';
   try {
-    r = verifySession(C, { kind: s.kind, seed: Number(s.seed), meta: body.meta, completed: body.completed, answers: body.answers });
+    r = verifySession(C, input);
   } catch (e) {
-    if (e instanceof Rejected) return reject(uid, id, e.message);
-    throw e;
+    if (!(e instanceof Rejected)) throw e;
+    try {
+      r = verifySession(P, input);
+      content = 'previous';
+    } catch (e2) {
+      if (e2 instanceof Rejected) return reject(uid, id, e.message);
+      throw e2;
+    }
   }
   if (Number(s.elapsed_ms) < r.minMs) return reject(uid, id, 'too fast', r.summary);
 
   const { data, error: err2 } = await admin.rpc('session_complete', {
-    p_user: uid, p_id: id, p_xp: r.xp, p_stats: r.stats, p_result: r.summary,
+    p_user: uid, p_id: id, p_xp: r.xp, p_stats: r.stats, p_result: { ...r.summary, content },
   });
   if (err2) throw err2;
   return json(data);

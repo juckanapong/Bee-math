@@ -16,7 +16,10 @@ document.addEventListener('change', (e) => {
   save();
 });
 // ปรับระดับเสียงแบบทันทีระหว่างลากแถบ
-document.addEventListener('input', (e) => { if (e.target.id === 'volume') S.settings.volume = +e.target.value / 100; });
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'volume') S.settings.volume = +e.target.value / 100;
+  else if (e.target.id === 'nl-range') nlInput(+e.target.value); // เส้นจำนวนในบทเรียน
+});
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || UI.sheet) return;
   const clickFirst = (sel) => document.querySelector(sel)?.click();
@@ -41,6 +44,11 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') return clickFirst('[data-act="check"]:not([disabled]), [data-act="next"]');
   if (L.checked) return;
   if (q.type === 'choice' && /^[1-4]$/.test(e.key) && +e.key <= q.choices.length) ACT.opt({ k: +e.key - 1 });
+  if (q.type === 'multi' && /^[1-9]$/.test(e.key) && +e.key <= q.choices.length) ACT['m-toggle']({ k: +e.key - 1 });
+  if (q.type === 'numline' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    if (q.est) { const r = document.getElementById('nl-range'); r?.focus(); return; } // แบบประมาณ: ให้แถบเลื่อนรับปุ่มลูกศรเอง
+    e.preventDefault(); ACT['nl-step']({ d: e.key === 'ArrowLeft' ? -1 : 1 });
+  }
   if (q.type === 'input') {
     if (/^[0-9]$/.test(e.key)) ACT.key({ k: e.key });
     else if (e.key === '-') ACT.key({ k: '−' });

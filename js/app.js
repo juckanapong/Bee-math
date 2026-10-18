@@ -545,7 +545,7 @@ function startSession(kind, gens, meta = {}, n = kind === 'lesson' ? 6 : kind ==
   const base = [];
   for (let i = 0; i < n; i++) base.push(gens[i % gens.length]);
   const queue = (ordered ? base : shuffle(base)).map((g, uid) => ({ uid, gen: g, pu: meta.units?.[uid] })); // สร้างโจทย์จริงทีละข้อด้วย materialize()
-  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, hard: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', note: '', wrong: [], unitOk: {}, ...freshMatch(), ...newRun(kind) };
+  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, hard: 0, sel: null, input: '', built: [], nl: null, picks: [], checked: false, ok: false, msg: '', note: '', wrong: [], unitOk: {}, ...freshMatch(), ...newRun(kind) };
   materialize(UI.L, 0);
   UI.view = 'lesson'; UI.sheet = null;
   render();
@@ -590,6 +590,35 @@ function viewLesson() {
       <div class="palette-label">ขั้นตอน</div>
       <div class="order-palette">${q.palette.map((st, k) => `<button class="step-tile" data-act="o-add" data-k="${k}" ${L.checked || L.built.includes(k) ? 'disabled' : ''}>${M(st)}</button>`).join('')}</div>
     </div>`;
+  } else if (q.type === 'build') {
+    // ประกอบสมการ: แตะชิ้นส่วนเพื่อวางต่อท้าย แตะชิ้นที่วางแล้วเพื่อเอาออก
+    const tile = (t) => (t === 'x' ? M('x') : t === '-' ? '−' : t);
+    const placed = L.built.map((k, i) => `<button class="eq-tile placed ${q.tiles[k] === 'x' ? 'tx' : /\d/.test(q.tiles[k]) ? 'tn' : 'op'}" data-act="o-remove" data-k="${i}" aria-label="เอา ${q.tiles[k] === '-' ? 'ลบ' : q.tiles[k]} ออก" ${L.checked ? 'disabled' : ''}>${tile(q.tiles[k])}</button>`).join('');
+    area = `<div class="eqb">
+      <div class="eqb-row ${L.checked ? (L.ok ? 'right' : 'wrong') : ''}" aria-label="สมการที่สร้าง">${placed || '<span class="slot wide">แตะชิ้นส่วนด้านล่างเพื่อสร้างสมการ</span>'}</div>
+      <div class="palette-label">ชิ้นส่วน</div>
+      <div class="eqb-palette">${q.tiles.map((t, k) => `<button class="eq-tile ${t === 'x' ? 'tx' : /\d/.test(t) ? 'tn' : 'op'}" data-act="o-add" data-k="${k}" ${L.checked || L.built.includes(k) ? 'disabled' : ''}>${tile(t)}</button>`).join('')}</div>
+    </div>`;
+  } else if (q.type === 'numline') {
+    // เส้นจำนวน: ลากแถบ (หรือปุ่ม − +) เพื่อวางจุด · แบบประมาณไม่บอกตัวเลข
+    const shown = L.checked ? (L.ok ? L.nl : q.answer) : L.nl;
+    area = `<div class="nl ${L.checked ? (L.ok ? 'right' : 'wrong') : ''}">
+      <div class="nl-svg">${numlineSVG(q.min, q.max, shown, L.checked && !L.ok ? L.nl : null)}</div>
+      ${L.checked && !L.ok && L.nl !== null ? `<p class="nl-yours"><span class="nl-key miss"></span>คุณวางไว้ที่ ${q.est ? 'ประมาณ ' + L.nl.toFixed(1) : L.nl < 0 ? '−' + -L.nl : L.nl} · <span class="nl-key"></span>คำตอบที่ถูก</p>` : ''}
+      <input type="range" id="nl-range" class="nl-range" min="${q.min}" max="${q.max}" step="${q.est ? 0.1 : 1}" value="${L.nl ?? (q.min + q.max) / 2}"
+        aria-label="ตำแหน่งของ x บนเส้นจำนวน" ${L.checked ? 'disabled' : ''}>
+      ${q.est ? `<p class="nl-hint">${L.nl === null ? 'ลากแถบเพื่อวางจุด' : 'วางจุดแล้ว กดตรวจคำตอบได้เลย'}</p>`
+        : `<div class="nl-step"><button class="btn small" data-act="nl-step" data-d="-1" aria-label="ลดลง 1" ${L.checked ? 'disabled' : ''}>−</button>
+          <span class="nl-read" aria-live="polite">${M('x')} = ${L.nl === null ? '?' : L.nl < 0 ? '−' + -L.nl : L.nl}</span>
+          <button class="btn small" data-act="nl-step" data-d="1" aria-label="เพิ่มขึ้น 1" ${L.checked ? 'disabled' : ''}>+</button></div>`}
+    </div>`;
+  } else if (q.type === 'multi') {
+    // เลือกได้หลายข้อ: แตะเพื่อเลือก/ยกเลิก · หลังตรวจ แสดงข้อที่ถูกทั้งหมด
+    area = `<div class="opts multi">${q.choices.map((c, k) => {
+      const on = L.picks.includes(k), right = q.answers.includes(k);
+      const cls = L.checked ? (right ? (on ? 'right' : 'right missed') : on ? 'wrong' : '') : on ? 'sel' : '';
+      return `<button class="opt ${cls}" data-act="m-toggle" data-k="${k}" aria-pressed="${on}" ${L.checked ? 'disabled' : ''}><span class="kbd">${k + 1}</span><span class="tick" aria-hidden="true">${on ? icon('check', 16) : ''}</span>${c}</button>`;
+    }).join('')}</div>`;
   } else if (q.type === 'barbuild') {
     const used = (v) => L.built.filter((t) => t === String(v)).length;
     const tiles = L.built.map((t, i) =>
@@ -606,8 +635,11 @@ function viewLesson() {
         ${q.palette.map((v) => `<button class="tile tn" data-act="build" data-t="${v}" ${L.checked || used(v) ? 'disabled' : ''}>${v}</button>`).join('')}
       </div></div>`;
   }
-  const ready = q.type === 'choice' ? L.sel !== null : q.type === 'input' ? L.input !== '' && L.input !== '−' : q.type === 'match' ? false : L.built.length > 0;
-  const answerHTML = q.type === 'choice' ? q.choices[q.answer] : q.type === 'input' ? M('x = ' + q.answer) : '';
+  const ready = q.type === 'choice' ? L.sel !== null : q.type === 'input' ? L.input !== '' && L.input !== '−' : q.type === 'match' ? false
+    : q.type === 'numline' ? L.nl !== null : q.type === 'multi' ? L.picks.length > 0 : L.built.length > 0;
+  const answerHTML = q.type === 'choice' ? q.choices[q.answer] : q.type === 'input' ? M('x = ' + q.answer)
+    : q.type === 'build' ? M(q.eq) : q.type === 'multi' ? q.answers.map((k) => q.choices[k]).join(' · ')
+    : q.type === 'numline' ? (q.est ? `${M('x ≈ ' + q.answer.toFixed(1))}` : M('x = ' + q.answer)) : '';
   const foot = L.checked
     ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement', L.note, heartLine(L))
     : q.type === 'match'
@@ -644,6 +676,19 @@ function viewLesson() {
   </div>`;
 }
 
+// ลากแถบเส้นจำนวน: อัปเดตจุด ตัวเลข และปุ่มตรวจคำตอบโดยไม่วาดหน้าใหม่ (ไม่งั้นการลากจะหลุด)
+function nlInput(v) {
+  const L = UI.L, q = L?.queue[L.idx];
+  if (!q || q.type !== 'numline' || L.checked) return;
+  L.nl = q.est ? Math.round(v * 10) / 10 : Math.round(v);
+  const svg = document.querySelector('.nl-svg');
+  if (svg) svg.innerHTML = numlineSVG(q.min, q.max, L.nl);
+  const read = document.querySelector('.nl-read');
+  if (read) read.innerHTML = `${M('x')} = ${L.nl < 0 ? '−' + -L.nl : L.nl}`;
+  const hint = document.querySelector('.nl-hint');
+  if (hint) hint.textContent = 'วางจุดแล้ว กดตรวจคำตอบได้เลย';
+  document.querySelector('[data-act="check"]')?.removeAttribute('disabled');
+}
 // สถานะของโจทย์จับคู่ (ล้างใหม่ทุกข้อ)
 const freshMatch = () => ({ mL: null, mR: null, mDone: [], mMiss: 0, mFlash: null, mTries: [] });
 
@@ -655,7 +700,7 @@ function answerPad(input, checked, ok, act, label = 'x =') {
       .map((k) => `<button class="key" data-act="${act}" data-k="${k}" ${k === '⌫' ? 'aria-label="ลบ"' : k === '−' ? 'aria-label="สลับเครื่องหมายลบ"' : ''} ${checked ? 'disabled' : ''}>${k === '⌫' ? icon('backspace', 26) : k}</button>`).join('')}</div>`;
 }
 // คำใบ้ปุ่มลัดคีย์บอร์ด (แสดงเฉพาะจอใหญ่ที่ใช้เมาส์)
-const kbdHint = (type) => `<span class="kbd-hint">${type === 'choice' ? 'กด <kbd>1</kbd>–<kbd>4</kbd> เลือกคำตอบ · ' : type === 'input' ? 'พิมพ์ตัวเลขจากคีย์บอร์ด · ' : ''}<kbd>Enter</kbd> ${type === 'line' ? 'ไปต่อ' : 'ตรวจคำตอบ'}</span>`;
+const kbdHint = (type) => `<span class="kbd-hint">${type === 'choice' ? 'กด <kbd>1</kbd>–<kbd>4</kbd> เลือกคำตอบ · ' : type === 'input' ? 'พิมพ์ตัวเลขจากคีย์บอร์ด · ' : type === 'multi' ? 'กด <kbd>1</kbd>–<kbd>5</kbd> เลือก/ยกเลิก · ' : type === 'numline' ? 'ปุ่มลูกศร <kbd>←</kbd> <kbd>→</kbd> เลื่อนจุด · ' : ''}<kbd>Enter</kbd> ${type === 'line' ? 'ไปต่อ' : 'ตรวจคำตอบ'}</span>`;
 // แผ่นผลตรวจคำตอบ (quiet = ไม่บอกถูกผิด ใช้กับทดสอบวัดระดับ)
 // บรรทัดบอกหัวใจบนแผ่นเฉลย: เสียไปกี่ดวง เหลือเท่าไหร่ และหมดแล้วจะเกิดอะไรขึ้น
 function heartLine(L) {
@@ -697,9 +742,11 @@ function check() {
   }
   else if (q.type === 'match') ok = L.mMiss < 2; // จับคู่ผิดได้ 1 ครั้ง
   else if (q.type === 'order') ok = L.built.length === q.steps.length && L.built.every((k, i) => q.palette[k] === q.steps[i]);
-  L.checked = true; L.ok = ok;
   // คำตอบดิบสำหรับเซิร์ฟเวอร์ (u = ข้อ · g = ตัวสร้าง · l = ระดับ · r = ทวนข้อที่ผิด · a = คำตอบ)
-  const a = q.type === 'choice' ? L.sel : q.type === 'input' ? Number(L.input.replace('−', '-')) : q.type === 'match' ? L.mTries : [...L.built];
+  const a = q.type === 'choice' ? L.sel : q.type === 'input' ? Number(L.input.replace('−', '-')) : q.type === 'match' ? L.mTries
+    : q.type === 'numline' ? L.nl : q.type === 'multi' ? [...L.picks].sort((m, n) => m - n) : [...L.built];
+  if (['build', 'numline', 'multi'].includes(q.type)) ok = gradeAnswer(q, a) === true; // ตัวตรวจเดียวกับเซิร์ฟเวอร์ (js/data.js)
+  L.checked = true; L.ok = ok;
   L.log.push({ u: q.uid, g: q.gen, l: q.lvl, r: q.retry ? 1 : 0, a });
   SFX.play(ok ? 'correct' : 'wrong');
   S.stats.answered++;
@@ -733,7 +780,7 @@ function next() {
   const L = UI.L;
   if (usesHearts(L.kind) && S.hearts <= 0) return finish(false);
   if (twoStrikes(L.kind) && L.mistakes > 2) return finish(false);
-  L.idx++; L.sel = null; L.input = ''; L.built = []; L.checked = false; L.note = ''; L.lostHeart = false;
+  L.idx++; L.sel = null; L.input = ''; L.built = []; L.nl = null; L.picks = []; L.checked = false; L.note = ''; L.lostHeart = false;
   Object.assign(L, freshMatch());
   if (L.idx >= L.queue.length) return finish(true);
   materialize(L, L.idx);
@@ -1164,6 +1211,17 @@ const ACT = {
     render();
   },
   'o-add': (d) => { SFX.play('tap'); UI.L.built.push(+d.k); render(); },
+  'm-toggle': (d) => {
+    const L = UI.L, k = +d.k;
+    L.picks = L.picks.includes(k) ? L.picks.filter((x) => x !== k) : [...L.picks, k];
+    SFX.play('tap'); render();
+  },
+  'nl-step': (d) => {
+    const L = UI.L, q = L.queue[L.idx];
+    const v = L.nl === null ? Math.round((q.min + q.max) / 2) : L.nl + +d.d;
+    L.nl = Math.max(q.min, Math.min(q.max, v));
+    SFX.play('tap'); render();
+  },
   'o-remove': (d) => { SFX.play('tap'); UI.L.built.splice(+d.k, 1); render(); },
   chest: (d) => {
     if (S.chests[d.id]) return;
