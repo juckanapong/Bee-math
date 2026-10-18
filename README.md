@@ -255,6 +255,7 @@ git push                         # แล้วค่อยปล่อยแอ
 | `js/config.js` · `js/cloud.js` · `js/friends.js` · `js/classroom.js` · `supabase/*.sql` | ค่าเชื่อมต่อ Supabase · ระบบบัญชีและซิงก์ · โครงสร้างฐานข้อมูล + RLS |
 | `supabase/functions/session-submit/` · `supabase/functions/_shared/` | Edge Function ตรวจรอบเรียนและภารกิจ (`verify.mjs`) · `content.mjs` สร้างจาก `js/data.js` ห้ามแก้เอง |
 | `tools/build-shared.mjs` · `tools/test-sessions.mjs` | สร้าง `content.mjs` ใหม่ · ทดสอบตัวตรวจรอบเรียน |
+| `fonts/digits-*.woff2` | ตัวเลข 0–9 ของ Anuphan (OFL) แทนตัวเลขของ Mitr ที่เลข 0 มีขีด · ดู DESIGN.md |
 | `js/ops.js` · `supabase/ops.sql` | ค่าตั้งจากเซิร์ฟเวอร์ (feature flags · สวิตช์ฉุกเฉิน · ประกาศ) · รายงาน error · โหลดเป็นไฟล์แรก |
 | `js/sounds.js` | เสียงประกอบ สังเคราะห์ด้วย Web Audio API (`SFX.play('correct')`) |
 | `js/data.js` | เนื้อหาบทเรียน การ์ดเรียนรู้ ตัวสร้างโจทย์ (สุ่มตัวเลขใหม่ทุกครั้ง) ภารกิจ ตราสัญลักษณ์ ลีก 5 ระดับ เหรียญหลายระดับ และเรื่องเล่าโจทย์ (`STORIES`) |

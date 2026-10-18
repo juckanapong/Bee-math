@@ -30,6 +30,9 @@ Read this before changing any UI. The values in it come from `css/style.css` (`:
 - English marketing copy or slogans.
 - Em dashes in Thai copy (separate items with `·` instead).
 
+## Unit colours
+Units are told apart by honey that deepens as the course goes on, not by a rainbow: unit 1 `#FFE08A` → 2 `#FFD24D` → 3 `#FFC21A` → 4 `#F5A623` → 5 `#E8890C` → 6 `#D9730D`, all with `--ink` text. Green stays reserved for "correct / current", blue for links and selection; no purple or teal anywhere.
+
 ## Colour tokens
 | Role | Token | Value |
 |---|---|---|
@@ -50,15 +53,15 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 `--var` passes only the large-text threshold (3.6:1 on white). A small *x* must use `--var-text`, which is at least 4.5:1 on white, the red/green feedback sheets and honey-soft.
 
 ## Type
-- **Headings:** `--head` (Mitr 500/600).
+- **Headings:** `--head` (Mitr 500/600). Digits 0–9 in this stack come from `BeeDigits`, an Anuphan digits-only subset in `fonts/` (Mitr's zero has a slash and reads as Ø in equations). Never set equations or numbers in Mitr directly.
 - **Body:** `--body` (Anuphan 400–700), base 16px, line-height 1.5. Thai needs more line height than Latin script.
 - **Main sizes in use:**
   - 13 / 14 / 15 / 16 / 18 / 22 / 26 / 32px
-  - equation (`.eq-big`) about 40px
+  - equation (`.eq-big`) up to 40px, scaled down with the viewport (`min(40px, 10.5vw)`, smaller under `.text-l`/`.text-xl` because those zoom the block)
 - Settings let users enlarge text (`.text-l`, `.text-xl`). New UI must still work at those sizes.
 
 ## Shape and depth
-- **Hexagons:** path nodes, icons, avatars, badges.
+- **Hexagons:** path nodes, icons, badges, and every avatar (leaderboard, friends, teacher table, profile). No circular avatars.
 - **Main radius scale:**
   - 14px: buttons, inputs, small cards
   - 18–22px: cards
@@ -77,6 +80,12 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
   - 700–1099px: side nav
   - 1100px and up: side nav plus right rail
 - **Phone width:** side gutter 16px, no horizontal page scroll.
+
+## Screens that must feel authored, not templated
+- **Practice:** one coach card where the bee names the weakest topic with a real sample equation and one button; other options are secondary rows; topics fold away. No grid of identical tiles.
+- **Wrong answers:** the headline names the likely mistake from the student's number (`wrongNote()` in `js/app.js`); "เกือบแล้ว" only when off by 1.
+- **Out of hearts:** say what was solved, point to the topic to review, never send a struggling learner to the shop.
+- **Teacher dashboard:** a sentence about today and "what to reteach" with sample equations, not KPI tiles; its own side nav without student game items.
 
 ## Copy
 - Short, friendly, speaks directly to the student (for example "ผิดได้ เรียนรู้ได้"). Encourages without talking down.

@@ -21,7 +21,15 @@ document.addEventListener('input', (e) => {
   else if (e.target.id === 'nl-range') nlInput(+e.target.value); // เส้นจำนวนในบทเรียน
 });
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || UI.sheet) return;
+  // หน้าต่างป๊อปอัป: Esc ปิด (ยกเว้นหน้าที่ต้องตอบก่อน) · Tab วนอยู่ในหน้าต่าง
+  if (UI.sheet) {
+    if (e.key === 'Escape' && !['consent', 'set-name'].includes(UI.sheet.type)) { e.preventDefault(); (UI.sheet.type === 'league' ? ACT['league-ok'] : ACT.close)(); }
+    else if (e.key === 'Tab') trapTab(e);
+    return;
+  }
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  // Enter/Space บนปุ่มที่โฟกัสอยู่ = กดปุ่มนั้น (ไม่ใช่คีย์ลัด "ตรวจคำตอบ" ของบทเรียน)
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.tagName === 'BUTTON' && !e.target.matches('[data-act="check"], [data-act="next"], [data-act="s-check"], [data-act="s-next"]')) return;
   const clickFirst = (sel) => document.querySelector(sel)?.click();
   if (UI.view === 'timed') {
     if (/^[1-4]$/.test(e.key)) ACT['timed-ans']({ k: +e.key - 1 });

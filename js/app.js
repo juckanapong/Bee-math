@@ -213,6 +213,8 @@ const isUnlocked = (i) => i === 0 || !!S.done[NODES[i - 1].id];
 const currentIndex = () => { const i = NODES.findIndex((n) => !S.done[n.id]); return i < 0 ? NODES.length : i; };
 const unitReached = (ui) => NODES.some((n, i) => n.ui === ui && isUnlocked(i));
 const unitDone = (ui) => NODES.filter((n) => n.ui === ui).every((n) => S.done[n.id]);
+// ตัวแปรในข้อความการ์ด (x y n ที่พิมพ์ธรรมดา) → x ตัวเอียงแบบเดียวกับในสมการ
+const varText = (html) => String(html).replace(/(?<![A-Za-z&#]|class="v">)([xyn])(?![A-Za-z;]|<\/i>)/g, '<span class="math"><i class="v">$1</i></span>');
 const unitVars = (u) => `--c:${u.color};--cd:${u.dark};--ci:${u.ink}`;
 const tint = (o) => `--h:${o.color};color:${o.ink}`;
 
@@ -274,7 +276,26 @@ function bee(size = 80, mood = 'happy') {
 }
 const BRAND_BEE = `<svg width="30" height="30" viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="42" cy="34" rx="16" ry="22" transform="rotate(-30 42 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/><ellipse cx="78" cy="34" rx="16" ry="22" transform="rotate(30 78 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/><ellipse cx="60" cy="72" rx="36" ry="32" fill="#FFC21A" stroke="#2A1F14" stroke-width="6"/><circle cx="48" cy="66" r="5" fill="#2A1F14"/><circle cx="72" cy="66" r="5" fill="#2A1F14"/><path d="M50 82 Q60 90 70 82" stroke="#2A1F14" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
 const PRAISE = ['เยี่ยมมาก!', 'ถูกต้อง!', 'เก่งสุด ๆ!', 'ยอดเยี่ยม!', 'สุดยอดเลย!'];
-const COMFORT = ['เกือบแล้ว!', 'ไม่เป็นไรนะ ลองดูวิธีคิดนี้', 'ผิดได้ เรียนรู้ได้'];
+const COMFORT = ['ยังไม่ใช่ ลองดูวิธีคิดนี้', 'ผิดได้ เรียนรู้ได้'];
+// หัวข้อแผ่นเฉลยตอนตอบผิด: เดาความผิดที่น่าจะเกิดจากตัวเลขที่ตอบจริง (สมการ ax + b = c · ใช้ analyze() ใน js/askbee.js)
+// ถ้าเดาไม่ได้จึงใช้ข้อความกลาง ๆ · "เกือบแล้ว" ใช้เฉพาะเมื่อห่างจากคำตอบแค่ 1
+function wrongNote(q, given) {
+  const x = q.answer, same = (u, v) => Math.abs(u - v) < 1e-9;
+  if (q.type !== 'input' || typeof given !== 'number' || !Number.isFinite(given) || typeof x !== 'number') return pick(COMFORT);
+  if (x !== 0 && same(given, -x)) return 'เครื่องหมายสลับกันหรือเปล่า? คำตอบเป็นจำนวนตรงข้ามกัน';
+  if (Math.abs(given - x) === 1) return 'เกือบแล้ว! ห่างจากคำตอบแค่ 1';
+  if (q.eq && typeof analyze === 'function' && !/frac|\(/.test(q.eq)) {
+    const A = analyze(q.eq);
+    if (A.R.a === 0 && A.L.a !== 0) {
+      const a = A.L.a, b = A.L.b, c = A.R.b, sign = b > 0 ? 'ลบ' : 'บวก', other = b > 0 ? 'บวก' : 'ลบ';
+      if (b !== 0 && same(given, (c + b) / a)) return `ต้อง${sign} ${Math.abs(b)} ทั้งสองข้าง ไม่ใช่${other}`;
+      if (a !== 1 && b !== 0 && same(given, c - b)) return `ลืมหารด้วย ${a} หรือเปล่า?`;
+      if (a !== 1 && same(given, (c - b) * a)) return `ต้องหารด้วย ${a} ไม่ใช่คูณ`;
+      if (a !== 1 && b !== 0 && same(given, c / a - b)) return `ต้อง${sign} ${Math.abs(b)} ก่อน แล้วค่อยหารด้วย ${a}`;
+    }
+  }
+  return pick(COMFORT);
+}
 
 // ---------- shell ----------
 const chipsHTML = () => `<div class="chips">
@@ -346,9 +367,18 @@ function rightRail() {
 // opts.top = แสดงแถบบน · opts.sub = { title, extra } สำหรับหน้าจอย่อยที่มีปุ่มย้อนกลับ
 const friendDot = () => typeof friendsAlert === 'function' && friendsAlert() > 0;
 // opts.wide = หน้ากว้าง (แดชบอร์ดครู) ไม่มีแผงขวา
+// เมนูข้างของครู: แยกจากเมนูนักเรียน (ไม่มีร้านค้า ลีก เพื่อน)
+function teacherNav() {
+  return `<nav class="sidenav" aria-label="เมนูครู">
+    <div class="side-brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>
+    <button class="side-item active" aria-current="page">${icon('cap', 26)}<span>แดชบอร์ดครู</span></button>
+    <button class="side-item" data-act="go" data-v="classes">${icon('users', 26)}<span>ห้องเรียน</span></button>
+    <button class="side-item side-bottom" data-act="tab" data-v="learn">${icon('back', 26)}<span>กลับไปโหมดเรียน</span></button>
+  </nav>`;
+}
 function shell(body, opts = {}) {
-  const { top = true, sub = null, wide = false } = opts;
-  return `<div class="layout${wide ? ' wide' : ''}">${sideNav()}
+  const { top = true, sub = null, wide = false, teacher = false } = opts;
+  return `<div class="layout${wide ? ' wide' : ''}">${teacher ? teacherNav() : sideNav()}
     <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}${wide ? ' wide' : ''}">${opsBanner()}${body}</main></div>
     ${wide ? '' : rightRail()}</div>${sub ? '' : bottomNav()}${sheetHTML()}`;
 }
@@ -476,10 +506,11 @@ const SHEETS = {
   },
   nohearts() {
     const mins = Math.ceil((HEART_MS - (Date.now() - S.heartsTs)) / 60000);
+    const mist = typeof mistakeGens === 'function' ? mistakeGens().length : 0;
     return `<div class="sheet-card center">${bee(80, 'sad')}<h3>หัวใจหมดแล้ว</h3>
-      <p>รอ ${mins} นาทีเพื่อรับหัวใจคืน 1 ดวง ไปฝึกฝน (ไม่เสียหัวใจ) หรือใช้น้ำหวานเติมหัวใจในร้านค้า</p>
-      <button class="btn primary" data-act="tab" data-v="practice">ไปฝึกฝน</button>
-      <button class="btn ghost" data-act="go" data-v="shop">${icon('drop', 18)} ไปร้านค้า</button></div>`;
+      <p>อีก ${mins} นาทีได้คืน 1 ดวง หรือฝึกให้จบ 1 รอบ (ไม่ใช้หัวใจ) ก็ได้คืนเหมือนกัน</p>
+      ${mist ? '<button class="btn primary" data-act="review-mistakes">ทบทวนข้อที่ผิด</button>' : '<button class="btn primary" data-act="tab" data-v="practice">ไปฝึกฝน</button>'}
+      <button class="btn ghost" data-act="close">ไว้ก่อน</button></div>`;
   },
   quit() {
     return `<div class="sheet-card center">${bee(80, 'sad')}<h3>จะออกจริงเหรอ?</h3>
@@ -550,10 +581,10 @@ function viewCards() {
     <main class="cards-body">
       <span class="pill">${icon('book', 16)} เรียนรู้ · ${esc(n.title)}</span>
       <h2>${card.title}</h2>
-      <div class="talk">${bee(64)}<div class="bubble">${card.body}</div></div>
+      <div class="talk">${bee(64)}<div class="bubble">${varText(card.body)}</div></div>
       ${card.visual ? `<div class="visual">${card.visual}</div>` : ''}
       ${card.demo ? `<div class="demo">${card.demo.map(([e, note], j) =>
-        `<div class="demo-row" style="animation-delay:${0.35 + j * 0.7}s">${M(e)}${note ? `<small>${note}</small>` : ''}</div>`).join('')}</div>` : ''}
+        `<div class="demo-row" style="animation-delay:${0.35 + j * 0.7}s">${M(e)}${note ? `<small>${varText(note)}</small>` : ''}</div>`).join('')}</div>` : ''}
     </main>
     <footer class="lesson-foot"><button class="btn primary wide" data-act="${last ? 'cards-go' : 'cards-next'}">${last ? 'เริ่มทำแบบฝึกหัด' : 'ถัดไป'}</button></footer>
   </div>`;
@@ -786,7 +817,7 @@ function check() {
     if (usesHearts(L.kind) && L.run % 5 === 0 && S.hearts < MAX_HEARTS) { S.hearts++; L.msg = `ถูกติดกัน ${L.run} ข้อ ได้หัวใจคืน 1 ดวง!`; }
   } else {
     L.run = 0; L.mistakes++;
-    L.msg = twoStrikes(L.kind) && L.mistakes > 2 ? 'ผิดเกิน 2 ข้อแล้ว' : q.type === 'match' ? `จับคู่พลาด ${L.mMiss} ครั้ง (พลาดได้ 1 ครั้ง)` : pick(COMFORT);
+    L.msg = twoStrikes(L.kind) && L.mistakes > 2 ? 'ผิดเกิน 2 ข้อแล้ว' : q.type === 'match' ? `จับคู่พลาด ${L.mMiss} ครั้ง (พลาดได้ 1 ครั้ง)` : wrongNote(q, a);
     L.wrong.push(q.gen);
     if (usesHearts(L.kind)) { loseHeart(); L.lostHeart = true; L.heartAnim = true; }
     if ((L.kind === 'lesson' || L.kind === 'practice') && !q.retry) L.queue.push({ ...q, retry: true }); // ทวนข้อที่ผิดอีกครั้งท้ายบท
@@ -854,7 +885,7 @@ function finish(completed) {
     : L.kind === 'jump' ? `ปลดล็อกบทที่ ${L.meta.unit + 1} · ${UNITS[L.meta.unit].title}`
     : L.meta.unitReview !== undefined ? `ทบทวนบทที่ ${L.meta.unitReview + 1}`
     : L.meta.review ? 'ทบทวนข้อที่ผิด' : L.meta.weak ? 'ฝึกจุดอ่อน' : PRACTICE.find((p) => p.id === L.meta.practice)?.title || 'ฝึกฝน';
-  UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, streakUp: !!streak, milestone: streak?.milestone, goal: streak?.goal, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
+  UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, seen: Math.min(L.total, L.idx + 1), streakUp: !!streak, milestone: streak?.milestone, goal: streak?.goal, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
   UI.view = 'result'; UI.L = null;
   render();
   window.scrollTo(0, 0);
@@ -899,8 +930,14 @@ function viewResult() {
       `<button class="btn primary wide" data-act="legend-start" data-u="${r.meta.unit}">ลองอีกครั้ง</button><button class="btn link wide" data-act="tab" data-v="practice">กลับศูนย์ฝึกฝน</button>`);
   }
   if (!r.completed) {
-    return sadScreen('หัวใจหมดแล้ว', 'ไม่เป็นไร! ฝึกฝนเพิ่มอีกนิดแล้วกลับมาลองใหม่นะ',
-      `<button class="btn primary wide" data-act="tab" data-v="practice">ไปฝึกฝน (รับหัวใจคืน)</button><button class="btn link wide" data-act="tab" data-v="learn">กลับหน้าหลัก</button>`);
+    // หัวใจหมดกลางบท: บอกสิ่งที่ทำได้ ชี้เรื่องที่พลาด และพาไปทบทวน (ทบทวนจบได้หัวใจคืน)
+    const missed = r.wrong.map((g) => NODES.find((n) => n.kind === 'lesson' && n.gens.includes(g))?.title).filter(Boolean);
+    const topic = uniq(missed)[0];
+    return sadScreen('หัวใจหมดแล้ว',
+      `บทนี้ยังไม่นับว่าผ่าน แต่${r.seen ? `ตอบถูกไป <b>${r.correct} จาก ${r.seen} ข้อ</b> และ` : ''}ทุกข้อที่ทำถูกบันทึกในทักษะแล้ว
+      <span class="sad-say">${topic ? `น้องผึ้งว่าลองทบทวนเรื่อง<b>${topic}</b>อีกรอบ จบแล้วได้หัวใจคืน 1 ดวง` : 'ฝึกจบ 1 รอบได้หัวใจคืน 1 ดวง แล้วกลับมาลองใหม่นะ'}</span>`,
+      `${r.wrong.length ? '<button class="btn primary wide" data-act="review">ทบทวนข้อที่ผิด</button>' : '<button class="btn primary wide" data-act="tab" data-v="practice">ไปฝึกฝน</button>'}
+      <button class="btn link wide" data-act="tab" data-v="learn">กลับหน้าหลัก</button>`);
   }
   if (!r.passed) {
     return sadScreen('ยังไม่ผ่านด่าน', `ความแม่นยำ ${r.acc}% ต้องได้ 70% ขึ้นไป ลองทบทวนบทเรียนแล้วสู้ใหม่!`,
@@ -996,7 +1033,7 @@ function settleLeague() {
 const reactionIcon = (r) => (r.reaction && flag('reactions') ? `<span class="react" role="img" aria-label="${REACTIONS.find((x) => x.id === r.reaction).name}">${icon(r.reaction, 16)}</span>` : '');
 const rowHTML = (r, z = leagueZones(20)) => `<li class="${r.me ? 'me' : ''} ${r.rank <= z.up && r.xp > 0 ? 'promo' : r.rank >= z.down ? 'demo' : ''}">
   <span class="rank r${r.rank}">${r.rank}</span>
-  <span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}${r.active ? '<i class="live" title="เพิ่งเรียน"></i>' : ''}</span>
+  <span class="av-wrap"><span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}</span>${r.active ? '<i class="live" title="เพิ่งเรียน"></i>' : ''}</span>
   <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}${r.active ? '<span class="sr-only"> · เพิ่งเรียน</span>' : ''}</span>
   ${r.me && r.real && flag('reactions') ? `<button class="react-btn ${r.reaction ? 'set' : ''}" data-act="react-sheet" aria-label="เลือกไอคอนข้างชื่อ"><span>${r.reaction ? icon(r.reaction, 16) : icon('plus', 14)}</span></button>` : reactionIcon(r)}
   <span class="pts">${r.xp} XP</span></li>`;
@@ -1033,7 +1070,7 @@ function viewBoard() {
     ${pending ? `<p class="muted small center">${icon('refresh', 14)} กำลังส่งผล ${pending} รายการ XP จะขึ้นในลีกเมื่อเซิร์ฟเวอร์ตรวจเสร็จ</p>` : ''}
     <ol class="board">${list}</ol>
     ${real
-      ? `<p class="muted small center">ผู้เล่นจริงในลีกเดียวกัน · XP ลีกนับจากคำตอบที่เซิร์ฟเวอร์ตรวจแล้ว${rows.some((r) => r.active) ? ' · <i class="live inline"></i> เพิ่งเรียน' : ''}${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
+      ? `<p class="muted small center">ทุกคนในตารางนี้เป็นนักเรียนจริง${rows.some((r) => r.active) ? ' <i class="live inline"></i> คือเพิ่งเรียนไปเมื่อกี้' : ''}${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
       : `<p class="muted small center">ผู้เล่นอื่นเป็นผู้เล่นจำลอง${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' · <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
 }
 // ยังไม่ได้เข้าสู่ระบบ: อธิบายลีก แล้วชวนสมัคร / เข้าสู่ระบบ / เข้าห้องเรียน
@@ -1184,12 +1221,48 @@ function render() {
   const key = sceneKey(), enter = key !== UI.lastScene;
   UI.lastScene = key;
   const app = document.getElementById('app');
+  const focusKey = focusKeyOf(document.activeElement, app), hadSheet = !!app.querySelector('.sheet');
   app.innerHTML = VIEWS[UI.view]() + (UI.toast ? `<div class="toast" role="status">${UI.toast}</div>` : '');
+  restoreFocus(app, focusKey, hadSheet);
   app.className = 'view-' + UI.view;
   app.toggleAttribute('data-enter', enter);
   if (app.querySelector('.chip')) UI.lastChips = chips; // จำค่าเฉพาะตอนที่ชิปแสดงอยู่ เพื่อให้เด้งเมื่อกลับมาหน้าหลัก
   if (UI.view === 'learn') UI.justDone = null;
   if (enter && UI.view === 'result') runCounters();
+}
+
+// ---------- โฟกัสหลังวาดหน้าใหม่ ----------
+// render() แทนที่ทั้งหน้าด้วย innerHTML โฟกัสจึงหลุดไปที่ body ทุกครั้งที่กดปุ่ม (ผู้ใช้คีย์บอร์ด/โปรแกรมอ่านหน้าจอต้องเริ่มใหม่จากบนสุด)
+// จึงจำ "กุญแจ" ของปุ่มที่โฟกัสอยู่ (id หรือ data-*) แล้วโฟกัสปุ่มที่ตรงกันหลังวาด
+function focusKeyOf(el, app) {
+  if (!el || el === document.body || !app.contains(el)) return null;
+  if (el.id) return '#' + CSS.escape(el.id);
+  if (!el.dataset.act) return null;
+  return Object.entries(el.dataset).map(([k, v]) => `[data-${k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`).join('');
+}
+// หน้าต่างป๊อปอัป: ตั้งชื่อจากหัวข้อ ย้ายโฟกัสเข้าไปตอนเปิด และคืนโฟกัสให้ปุ่มที่เปิดตอนปิด
+function restoreFocus(app, focusKey, hadSheet) {
+  const sheet = app.querySelector('.sheet');
+  const find = (root, key) => { try { return key ? root.querySelector(key) : null; } catch (e) { return null; } };
+  if (sheet) {
+    const h = sheet.querySelector('h2, h3');
+    if (h) { h.id = 'sheet-title'; h.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'sheet-title'); }
+    if (!hadSheet) { UI.sheetReturn = focusKey; (h || sheet).focus({ preventScroll: true }); }
+    else find(sheet, focusKey)?.focus({ preventScroll: true });
+  } else if (hadSheet && UI.sheetReturn) {
+    find(app, UI.sheetReturn)?.focus({ preventScroll: true });
+    UI.sheetReturn = null;
+  } else find(app, focusKey)?.focus({ preventScroll: true });
+}
+// กด Tab ในหน้าต่างป๊อปอัป: วนอยู่ภายในหน้าต่าง
+function trapTab(e) {
+  const sheet = document.querySelector('#app .sheet');
+  if (!sheet) return;
+  const items = [...sheet.querySelectorAll('button:not(:disabled), input:not(:disabled), select, textarea, a[href], [tabindex="0"]')];
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && (document.activeElement === first || !sheet.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
 
 function openNode(i) {

@@ -723,7 +723,7 @@ function makeTimedQuestion(seed, lvlOf) {
 const UNITS = [
   {
     id: 'u1', title: 'รู้จักสมการตัวแปรเดียว', desc: 'สมการ ตัวแปร และคำตอบของสมการ',
-    color: '#FFC21A', dark: '#E09A00', ink: '#2A1F14',
+    color: '#FFE08A', dark: '#E8B730', ink: '#2A1F14',
     lessons: [
       {
         id: 'u1l1', title: 'สมการคืออะไร?', gens: ['whichIsEquation', 'findVariable'],
@@ -748,7 +748,7 @@ const UNITS = [
   },
   {
     id: 'u2', title: 'การแก้สมการแบบพื้นฐาน', desc: 'บวก ลบ คูณ หาร และสมการสองขั้นตอน',
-    color: '#58C23A', dark: '#3E9A25', ink: '#0F2E09',
+    color: '#FFD24D', dark: '#E0A800', ink: '#2A1F14',
     lessons: [
       {
         id: 'u2l1', title: 'บวกและลบ', gens: ['addEq', 'subEq', 'inverseOp'],
@@ -774,7 +774,7 @@ const UNITS = [
   },
   {
     id: 'u3', title: 'บาร์โมเดลช่วยแก้สมการ', desc: 'มองสมการเป็นภาพ แล้วแก้ได้ง่ายขึ้น',
-    color: '#2F6FED', dark: '#1E4FB8', ink: '#FFFFFF',
+    color: '#FFC21A', dark: '#E09A00', ink: '#2A1F14',
     lessons: [
       {
         id: 'u3l1', title: 'อ่านบาร์โมเดล', gens: ['barRead', 'barEqual'],
@@ -798,7 +798,7 @@ const UNITS = [
   },
   {
     id: 'u4', title: 'แบบฝึกหัดและโจทย์ท้าทาย', desc: 'โจทย์ปัญหา ตัวแปรสองข้าง และวงเล็บ',
-    color: '#FF7A1A', dark: '#C85A00', ink: '#2A1F14',
+    color: '#F5A623', dark: '#C77F00', ink: '#2A1F14',
     lessons: [
       {
         id: 'u4l1', title: 'แปลงโจทย์เป็นสมการ', gens: ['wordToEq', 'buildEq', 'matchWords'],
@@ -823,7 +823,7 @@ const UNITS = [
   },
   {
     id: 'u5', title: 'วงเล็บและเศษส่วน', desc: 'กระจายวงเล็บ สมการเศษส่วน และตรวจหาจุดผิด',
-    color: '#7C4DDB', dark: '#5B33B0', ink: '#FFFFFF',
+    color: '#E8890C', dark: '#B86A00', ink: '#2A1F14',
     lessons: [
       {
         id: 'u5l1', title: 'กระจายวงเล็บ', gens: ['distribute', 'bracketsBoth', 'distribute'],
@@ -849,7 +849,7 @@ const UNITS = [
   },
   {
     id: 'u6', title: 'สมการกับชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ และรูปเรขาคณิต',
-    color: '#2EC4A6', dark: '#1E9A82', ink: '#0B2E27',
+    color: '#D9730D', dark: '#A35400', ink: '#2A1F14',
     lessons: [
       {
         id: 'u6l1', title: 'ค่าบริการและอัตรา', gens: ['wordRate', 'tableRate', 'wordToEq2', 'matchWords'],
@@ -880,8 +880,8 @@ const PRACTICE = [
   { id: 'solve', icon: 'equals', color: '#58C23A', ink: '#0F2E09', title: 'ฝึกแก้สมการ', desc: 'บวก ลบ คูณ หาร และสองขั้นตอน', unit: 1, gens: ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep', 'multiEquiv'] },
   { id: 'bar', icon: 'bar', color: '#2F6FED', ink: '#FFFFFF', title: 'ฝึกบาร์โมเดล', desc: 'อ่าน สร้าง และแก้สมการด้วยบาร์', unit: 2, gens: ['barRead', 'barBuild', 'barSolve', 'barEqual'] },
   { id: 'challenge', icon: 'mountain', color: '#FF7A1A', ink: '#2A1F14', title: 'โจทย์ท้าทาย', desc: 'โจทย์ปัญหา ตัวแปรสองข้าง วงเล็บ', unit: 3, gens: ['word', 'buildEq', 'bothSides', 'brackets', 'negative', 'numlineSolve'] },
-  { id: 'steps', icon: 'target', color: '#7C4DDB', ink: '#FFFFFF', title: 'วงเล็บ เศษส่วน และจุดผิด', desc: 'กระจายวงเล็บ เศษส่วน เรียงขั้นตอน หาขั้นที่ผิด', unit: 4, gens: ['bracketsBoth', 'fracTwoStep', 'fracGroup', 'estimateFrac', 'orderSteps', 'findError'] },
-  { id: 'reallife', icon: 'flag', color: '#2EC4A6', ink: '#0B2E27', title: 'โจทย์ชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ ความยาวรอบรูป', unit: 5, gens: ['wordRate', 'tableRate', 'wordConsecutive', 'wordAge', 'wordPerimeter', 'matchWords'] },
+  { id: 'steps', icon: 'target', color: '#E8890C', ink: '#2A1F14', title: 'วงเล็บ เศษส่วน และจุดผิด', desc: 'กระจายวงเล็บ เศษส่วน เรียงขั้นตอน หาขั้นที่ผิด', unit: 4, gens: ['bracketsBoth', 'fracTwoStep', 'fracGroup', 'estimateFrac', 'orderSteps', 'findError'] },
+  { id: 'reallife', icon: 'flag', color: '#D9730D', ink: '#2A1F14', title: 'โจทย์ชีวิตจริง', desc: 'ค่าบริการ จำนวนเรียงกัน อายุ ความยาวรอบรูป', unit: 5, gens: ['wordRate', 'tableRate', 'wordConsecutive', 'wordAge', 'wordPerimeter', 'matchWords'] },
 ];
 
 const QUESTS = [
@@ -896,7 +896,7 @@ const BADGES = [
   { id: 'solver', icon: 'equals', color: '#FFC21A', ink: '#2A1F14', name: 'นักแก้สมการ', desc: 'แก้สมการถูก 25 ข้อ', test: (s) => s.stats.solved >= 25 },
   { id: 'bar', icon: 'bar', color: '#2F6FED', ink: '#FFFFFF', name: 'สถาปนิกบาร์โมเดล', desc: 'ทำโจทย์บาร์โมเดล 15 ข้อ', test: (s) => s.stats.bar >= 15 },
   { id: 'streak3', icon: 'flame', color: '#FF7A1A', ink: '#FFFFFF', name: 'ไฟลุกโชน', desc: 'เรียนต่อเนื่อง 3 วัน', test: (s) => s.streak >= 3 },
-  { id: 'perfect', icon: 'target', color: '#7C4DDB', ink: '#FFFFFF', name: 'ไร้ที่ติ', desc: 'จบบทเรียนโดยไม่ผิดเลย', test: (s) => s.stats.perfect >= 1 },
+  { id: 'perfect', icon: 'target', color: '#2F6FED', ink: '#FFFFFF', name: 'ไร้ที่ติ', desc: 'จบบทเรียนโดยไม่ผิดเลย', test: (s) => s.stats.perfect >= 1 },
   { id: 'unit', icon: 'trophy', color: '#FFC21A', ink: '#2A1F14', name: 'ผู้พิชิตด่าน', desc: 'ผ่านด่านทดสอบ 1 ด่าน', test: (s) => s.stats.tests >= 1 },
   { id: 'xp500', icon: 'bolt', color: '#E8650A', ink: '#FFFFFF', name: 'พลังผึ้ง', desc: 'สะสมครบ 500 XP', test: (s) => s.xp >= 500 },
   { id: 'queen', icon: 'crown', color: '#2A1F14', ink: '#FFC21A', name: 'ราชินีผึ้ง', desc: 'ผ่านทุกด่านในเส้นทาง', test: (s) => NODES.every((n) => s.done[n.id]) },
@@ -926,7 +926,7 @@ const LEVEL_BADGES = [
   { id: 'streak', name: 'ไฟลุกโชน', icon: 'flame', color: '#FF7A1A', ink: '#2A1F14', unit: 'วันติดกัน', steps: [3, 7, 14, 30, 100], value: (s) => Math.max(s.records.bestStreak, s.streak) },
   { id: 'bar', name: 'สถาปนิกบาร์โมเดล', icon: 'bar', color: '#2F6FED', ink: '#FFFFFF', unit: 'ข้อ', steps: [5, 15, 30, 60, 120], value: (s) => s.stats.bar },
   { id: 'xp', name: 'พลังผึ้ง', icon: 'bolt', color: '#58C23A', ink: '#0F2E09', unit: 'XP', steps: [100, 500, 1000, 2500, 5000], value: (s) => s.xp },
-  { id: 'perfect', name: 'ไร้ที่ติ', icon: 'target', color: '#7C4DDB', ink: '#FFFFFF', unit: 'บท', steps: [1, 3, 6, 10, 20], value: (s) => s.stats.perfect },
+  { id: 'perfect', name: 'ไร้ที่ติ', icon: 'target', color: '#2F6FED', ink: '#FFFFFF', unit: 'บท', steps: [1, 3, 6, 10, 20], value: (s) => s.stats.perfect },
 ];
 const MONTH_GOAL = 30; // แต้มภารกิจที่ต้องสะสมเพื่อรับเหรียญประจำเดือน
 
@@ -950,7 +950,7 @@ const STORIES = [
   },
   {
     id: 'trip', title: 'ทัศนศึกษาของห้องเรา', unit: 1,
-    cast: { m: ['ครูมด', 'ม', '#F1E6FF', '#5B2EA6'], f: ['ฟ้าใส', 'ฟ', '#DDF1FF', '#1E4FB8'] },
+    cast: { m: ['ครูมด', 'ม', '#FFE3D1', '#8A3700'], f: ['ฟ้าใส', 'ฟ', '#DDF1FF', '#1E4FB8'] },
     steps: [
       { who: 'm', text: 'ห้องเราจะไปทัศนศึกษา เช่ารถตู้ 3 คัน คันละราคาเท่ากัน บวกค่าทางด่วนอีก 150 บาท รวม 4,650 บาท' },
       { who: 'f', text: 'ค่าเช่ารถตู้คันละเท่าไรคะครู?' },

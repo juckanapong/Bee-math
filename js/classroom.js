@@ -81,7 +81,7 @@ function viewClasses() {
     body = `
       <section><h3 class="shop-sec">ห้องเรียนของฉัน</h3>
         ${mine === null ? '<p class="muted">กำลังโหลด…</p>' : mine.length ? mine.map((c) => `<div class="card class-card">
-          <div class="class-head"><span class="setting-main"><b>${esc(c.name)}</b><small>ครู ${esc(c.teacher || '')}</small></span>
+          <div class="class-head"><span class="setting-main"><b>${esc(c.name)}</b><small>${esc(/^ครู/.test(c.teacher || '') ? c.teacher : 'ครู' + (c.teacher || ''))}</small></span>
             <button class="x mini" data-act="class-leave-ask" data-id="${c.id}" data-n="${esc(c.name)}" aria-label="ออกจากห้อง ${esc(c.name)}">${icon('x', 16)}</button></div>
           ${c.assignments.length ? c.assignments.map((a) => {
             const k = doneCount(done, a.nodes), fin = k === a.nodes.length, d = dueInfo(a, fin);
@@ -101,6 +101,12 @@ function viewClasses() {
 }
 
 // ---------- แดชบอร์ดครู ----------
+// ความแม่นยำของนักเรียน 1 คนในบทเรียน n (null = ตอบไม่ถึง 5 ข้อ)
+function lessonPct(st, n) {
+  let ok = 0, tot = 0;
+  n.gens.forEach((g) => { const v = st.skills?.[g]; if (v) { ok += v[0]; tot += v[1]; } });
+  return tot >= 5 ? Math.round((ok / tot) * 100) : null;
+}
 function studentStatus(st) {
   const idle = st.last_active ? Math.floor((Date.now() - new Date(st.last_active).getTime()) / 864e5) : 99;
   const acc = st.answered ? Math.round((st.correct / st.answered) * 100) : null;
@@ -140,7 +146,10 @@ function viewTeacher() {
       const sts = d.students.map((st) => ({ ...st, doneSet: new Set(st.done), status: studentStatus(st) }));
       const n = sts.length;
       const accs = sts.filter((s) => s.status.acc !== null).map((s) => s.status.acc);
-      const kpi = (label, value, note, cls = '') => `<div class="kpi ${cls}"><small>${label}</small><b>${value}</b><span>${note}</span></div>`;
+      const avgAcc = accs.length ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length) : null;
+      const todayN = sts.filter((s) => s.today).length;
+      const watch = sts.filter((s) => s.status.cls !== 'ok');
+      const nameBtn = (s) => `<button class="t-name-link" data-act="student-open" data-id="${s.id}">${esc(s.name)}</button>`;
       const assignRows = d.assignments.map((a) => {
         const fin = sts.filter((s) => doneCount(s.doneSet, a.nodes) === a.nodes.length).length;
         const started = sts.filter((s) => { const k = doneCount(s.doneSet, a.nodes); return k > 0 && k < a.nodes.length; }).length;
@@ -148,39 +157,44 @@ function viewTeacher() {
         return `<div class="hw-row t"><span class="setting-main"><b>${esc(a.title)}</b><small class="${di.cls}">${di.text} · ${a.nodes.length} ด่าน</small>
             <span class="stack-bar" role="img" aria-label="ทำครบ ${fin} กำลังทำ ${started} ยังไม่เริ่ม ${n - fin - started}">
               <i style="width:${n ? (fin / n) * 100 : 0}%;background:var(--green)"></i><i style="width:${n ? (started / n) * 100 : 0}%;background:var(--honey)"></i></span>
-            <small>ครบ ${fin} · กำลังทำ ${started} · ยังไม่เริ่ม ${n - fin - started}</small></span>
+            <small>ครบ ${fin} คน กำลังทำ ${started} คน ยังไม่เริ่ม ${n - fin - started} คน</small></span>
           <button class="x mini" data-act="assign-delete" data-id="${a.id}" aria-label="ลบงาน ${esc(a.title)}">${icon('x', 16)}</button></div>`;
       }).join('');
-      const skills = classSkills(sts);
+      // เรื่องที่ควรสอนซ้ำ: บทเรียนที่ทั้งห้องตอบถูกน้อยที่สุด (ต่ำกว่า 80%) พร้อมสมการตัวอย่างและจำนวนคนที่ยังต่ำกว่า 60%
+      const reteach = classSkills(sts).filter((x) => x.pct < 80).slice(0, 3).map((x) => ({
+        ...x, low: sts.filter((s) => { const p = lessonPct(s, x.n); return p !== null && p < 60; }), ex: typeof lessonSample === 'function' ? lessonSample(x.n) : null,
+      }));
       body = `${head}
-        <div class="kpis">
-          ${kpi('นักเรียน', n, 'คนในห้องนี้')}
-          ${kpi('เรียนวันนี้', `${sts.filter((s) => s.today).length} / ${n}`, 'คน', 'green')}
-          ${kpi('ความแม่นยำเฉลี่ย', accs.length ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length) + '%' : '–', 'จากข้อที่ตอบทั้งหมด', 'gold')}
-          ${kpi('ต้องการความช่วยเหลือ', sts.filter((s) => s.status.cls !== 'ok').length, 'แม่นยำต่ำหรือไม่ได้เข้า', 'red')}
-        </div>
+        <section class="t-today">
+          <p>วันนี้มีนักเรียนเข้าเรียน <b>${todayN} จาก ${n} คน</b>${avgAcc !== null ? ` ทั้งห้องตอบถูกเฉลี่ย <b>${avgAcc}%</b>` : ''}</p>
+          ${watch.length ? `<p class="t-watch">${icon('flag', 18)}<span>ควรตามดู ${watch.length} คน: ${watch.map((s) => `${nameBtn(s)} <small class="chip-st ${s.status.cls}">${s.status.text}</small>`).join(' ')}</span></p>`
+            : n ? '<p class="t-ok">ทุกคนเรียนตามปกติ</p>' : ''}
+        </section>
         <div class="t-grid">
+          <section class="card t-card"><h2>เรื่องที่ควรสอนซ้ำ</h2>
+            ${reteach.length ? reteach.map((x) => `<div class="rt-row">
+                <span class="rt-main"><b>${esc(x.n.title)}</b><small>บทที่ ${x.n.ui + 1} · ทั้งห้องตอบถูก ${x.pct}%${x.low.length ? ` · ${x.low.length} คนยังต่ำกว่า 60%` : ''}</small>
+                  ${x.ex ? `<span class="rt-eq">${M(x.ex)}</span>` : ''}</span>
+                <span class="rt-pct ${x.pct < 65 ? 'low' : ''}">${x.pct}%</span></div>`).join('')
+              : `<p class="muted">${classSkills(sts).length ? 'ห้องนี้ยังไม่มีเรื่องที่ตอบถูกต่ำกว่า 80%' : 'ยังมีข้อมูลไม่พอ (ต้องตอบอย่างน้อย 5 ข้อต่อบทเรียน)'}</p>`}
+          </section>
           <section class="card t-card"><div class="rail-head"><h2>งานที่มอบหมาย</h2><button class="price-btn" data-act="assign-new">${icon('plus', 16)} มอบหมายงาน</button></div>
             ${assignRows ? `<div class="list-card plain">${assignRows}</div>` : '<p class="muted">ยังไม่มีงาน กด "มอบหมายงาน" เพื่อเลือกด่านให้นักเรียนทำ</p>'}</section>
-          <section class="card t-card"><h2>ความแม่นยำรายบทเรียนของห้อง</h2>
-            ${skills.length ? skills.slice(0, 8).map((x) => `<div class="sk-row"><span>${esc(x.n.title)}</span>
-              <span class="meter" style="--m:${x.pct < 65 ? 'var(--red)' : x.pct < 80 ? 'var(--honey)' : 'var(--green)'}"><span class="fill" style="width:${x.pct}%"></span></span><b>${x.pct}%</b></div>`).join('')
-              + '<p class="muted small">ต่ำกว่า 65% แนะนำให้ทบทวนในห้อง</p>' : '<p class="muted">ยังมีข้อมูลไม่พอ (ต้องตอบอย่างน้อย 5 ข้อต่อบทเรียน)</p>'}</section>
         </div>
-        <section class="card t-card"><div class="rail-head"><h2>นักเรียน</h2><span class="muted small">เรียงคนที่ต้องการความช่วยเหลือก่อน</span></div>
-          ${n ? `<div class="t-table-wrap"><table class="t-table"><thead><tr><th>ชื่อ</th><th>กำลังเรียน</th><th>แม่นยำ</th><th>สตรีค</th><th>XP สัปดาห์</th><th>งานค้าง</th><th>สถานะ</th><th></th></tr></thead><tbody>
+        <section class="card t-card"><div class="rail-head"><h2>นักเรียน</h2><span class="muted small">คนที่ควรตามดูอยู่บนสุด · แตะชื่อเพื่อดูรายละเอียด</span></div>
+          ${n ? `<div class="t-table-wrap"><table class="t-table"><thead><tr><th>ชื่อ</th><th>กำลังเรียน</th><th>ตอบถูก</th><th>สตรีค</th><th>งานค้าง</th><th>สถานะ</th></tr></thead><tbody>
             ${sts.sort((a, b) => ['help', 'away', 'ok'].indexOf(a.status.cls) - ['help', 'away', 'ok'].indexOf(b.status.cls) || a.name.localeCompare(b.name, 'th')).map((s) => `<tr>
-              <td><span class="t-name"><span class="av" style="background:${s.avatar}">${esc(initial(s.name))}</span>${esc(s.name)}</span></td>
-              <td>${esc(currentOf(s.doneSet))}</td><td>${s.status.acc === null ? '–' : s.status.acc + '%'}</td><td>${s.streak} วัน</td><td>${s.week_xp}</td>
+              <td><span class="t-name"><span class="av" style="background:${s.avatar}">${esc(initial(s.name))}</span>${nameBtn(s)}</span></td>
+              <td>${esc(currentOf(s.doneSet))}</td><td>${s.status.acc === null ? '–' : s.status.acc + '%'}</td><td>${s.streak} วัน</td>
               <td>${d.assignments.filter((a) => doneCount(s.doneSet, a.nodes) < a.nodes.length).length}</td>
-              <td><span class="chip-st ${s.status.cls}">${s.status.text}</span></td>
-              <td><button class="x mini" data-act="student-remove-ask" data-id="${s.id}" data-n="${esc(s.name)}" aria-label="นำ ${esc(s.name)} ออกจากห้อง">${icon('x', 16)}</button></td></tr>`).join('')}
+              <td><span class="chip-st ${s.status.cls}">${s.status.text}</span></td></tr>`).join('')}
             </tbody></table></div>` : `<p class="muted">ยังไม่มีนักเรียน แจกรหัส <b>${esc(cls.code)}</b> ให้นักเรียนกรอกที่ ตั้งค่า › ห้องเรียน หรือหน้าบัญชี › "เข้าห้องเรียน"</p>`}
         </section>
-        <p class="muted small">อัปเดตล่าสุด ${timeAgo(d.at)} · ข้อมูลนักเรียนมาจากการซิงก์ของแต่ละคน · <button class="linkbtn danger-link" data-act="class-delete-ask">ลบห้องเรียนนี้</button></p>`;
+        <div class="t-foot"><p class="muted small">อัปเดตล่าสุด ${timeAgo(d.at)} ข้อมูลมาจากการซิงก์ของนักเรียนแต่ละคน</p>
+          <button class="btn danger-text small" data-act="class-delete-ask">ลบห้องเรียนนี้</button></div>`;
     }
   }
-  return shell(`<div class="sub-body teacher">${body}</div>`, { sub: { title: 'แดชบอร์ดครู' }, wide: true });
+  return shell(`<div class="sub-body teacher">${body}</div>`, { sub: { title: 'แดชบอร์ดครู' }, wide: true, teacher: true });
 }
 
 // ---------- แผ่นป๊อปอัป ----------
@@ -205,6 +219,27 @@ Object.assign(SHEETS, {
   'class-leave'(s) {
     return `<div class="sheet-card center"><h3>ออกจากห้อง ${esc(s.name)}?</h3><p>ครูจะไม่เห็นความคืบหน้าของคุณอีก และงานจากห้องนี้จะหายไป</p>
       <button class="btn danger" data-act="class-leave" data-id="${s.id}">ออกจากห้อง</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
+  },
+  // รายละเอียดนักเรียน 1 คน: สถานะ งานค้าง และเรื่องที่ยังอ่อน · ปุ่มนำออกอยู่ที่นี่ (ไม่อยู่ในตาราง)
+  student(s) {
+    const d = Classroom.dash[Classroom.sel], st = d?.students.find((x) => x.id === s.id);
+    if (!st) return '<div class="sheet-card"><p class="muted">ไม่พบข้อมูลนักเรียน</p></div>';
+    const done = new Set(st.done), status = studentStatus(st);
+    const pending = d.assignments.filter((a) => doneCount(done, a.nodes) < a.nodes.length);
+    const weak = NODES.filter((n) => n.kind === 'lesson').map((n) => ({ n, p: lessonPct(st, n) })).filter((x) => x.p !== null && x.p < 75).sort((a, b) => a.p - b.p).slice(0, 3);
+    return `<div class="sheet-card st-sheet">
+      <div class="st-head"><span class="av" style="background:${st.avatar}">${esc(initial(st.name))}</span>
+        <span class="setting-main"><h3>${esc(st.name)}</h3><small>${status.idle >= 99 ? 'ยังไม่เริ่มเรียน' : status.idle === 0 ? 'เข้าเรียนวันนี้' : `เข้าเรียนล่าสุด ${status.idle} วันก่อน`}</small></span>
+        <span class="chip-st ${status.cls}">${status.text}</span></div>
+      <dl class="st-facts"><div><dt>กำลังเรียน</dt><dd>${esc(currentOf(done))}</dd></div>
+        <div><dt>ตอบถูก</dt><dd>${status.acc === null ? '–' : `${status.acc}% <small>(${st.correct}/${st.answered} ข้อ)</small>`}</dd></div>
+        <div><dt>สตรีค</dt><dd>${st.streak} วัน</dd></div><div><dt>XP สัปดาห์นี้</dt><dd>${st.week_xp}</dd></div></dl>
+      <h4>เรื่องที่ยังอ่อน</h4>
+      ${weak.length ? `<ul class="st-list">${weak.map((x) => `<li><span>${esc(x.n.title)}</span><b class="${x.p < 60 ? 'low' : ''}">${x.p}%</b></li>`).join('')}</ul>` : '<p class="muted small">ยังไม่มีเรื่องที่ตอบถูกต่ำกว่า 75%</p>'}
+      <h4>งานค้าง</h4>
+      ${pending.length ? `<ul class="st-list">${pending.map((a) => `<li><span>${esc(a.title)}</span><b>${doneCount(done, a.nodes)}/${a.nodes.length}</b></li>`).join('')}</ul>` : '<p class="muted small">ทำงานครบทุกชิ้นแล้ว</p>'}
+      <button class="btn ghost" data-act="close">ปิด</button>
+      <button class="btn danger-text small" data-act="student-remove-ask" data-id="${st.id}" data-n="${esc(st.name)}">นำออกจากห้อง</button></div>`;
   },
   'student-remove'(s) {
     return `<div class="sheet-card center"><h3>นำ ${esc(s.name)} ออกจากห้อง?</h3><p>นักเรียนเข้าห้องใหม่ได้ด้วยรหัสเดิม</p>
@@ -271,6 +306,7 @@ Object.assign(ACT, {
   'assign-new': () => { UI.sheet = { type: 'assign-new', u: 0 }; render(); },
   'assign-delete': async (d) => { if (await classCall('assignment_delete', { p_id: +d.id })) { showToast('ลบงานแล้ว'); teacherLoad(); } },
   'student-remove-ask': (d) => { UI.sheet = { type: 'student-remove', id: d.id, name: d.n }; render(); },
+  'student-open': (d) => { UI.sheet = { type: 'student', id: d.id }; render(); },
   'student-remove': async (d) => { UI.sheet = null; if (await classCall('class_remove_student', { p_class: Classroom.sel, p_user: d.id })) { showToast('นำออกจากห้องแล้ว'); teacherLoad(); } },
   'class-delete-ask': () => { UI.sheet = { type: 'class-delete' }; render(); },
   'class-delete': async () => { UI.sheet = null; if (await classCall('class_delete', { p_class: Classroom.sel })) { showToast('ลบห้องเรียนแล้ว'); Classroom.sel = null; teacherLoad(null); } },

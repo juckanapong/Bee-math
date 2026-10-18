@@ -218,39 +218,50 @@ function practiceGens(p) {
   const reached = NODES.filter((n, i) => n.kind === 'lesson' && isUnlocked(i));
   return uniq(reached.flatMap((n) => n.gens));
 }
+// ตัวอย่างสมการของตัวสร้างโจทย์ (seed คงที่ตามชื่อ จึงไม่เปลี่ยนทุกครั้งที่วาดหน้า) · ไม่มีสมการ → null
+const sampleEq = (gen) => { try { return makeQuestion(gen, 1, hash(gen)).eq || null; } catch (e) { return null; } };
+const lessonSample = (n) => n.gens.map(sampleEq).find(Boolean) || null;
+// หน้าฝึกฝน: น้องผึ้งชี้เรื่องเดียวที่ควรฝึกตอนนี้ (พร้อมสมการตัวอย่างจริง) · ที่เหลือเป็นทางเลือกรอง
 function viewPracticeHub() {
-  const weak = weakLessons();
+  const weak = weakLessons(), top = weak[0];
   const mist = mistakeGens();
   const storiesOpen = STORIES.filter((st) => unitReached(st.unit));
-  const storiesNew = storiesOpen.filter((st) => !S.stories[st.id]).length;
+  const storyNext = storiesOpen.find((st) => !S.stories[st.id]);
   const legendReady = UNITS.filter((u, ui) => unitDone(ui) && !S.legend[u.id]).length;
-  const tile = (act, ic, h, ink, title, desc, disabled = false) => `<button class="hub-tile" data-act="${act}" ${disabled ? 'disabled' : ''}>
-    ${hex(icon(ic, 22), 'ico', `--h:${h};color:${ink}`)}<b>${title}</b><small>${desc}</small></button>`;
-  const hero = weak.length
-    ? `<small>แนะนำสำหรับคุณ</small><b>ฝึกจุดอ่อน</b><span>น้องผึ้งเลือกโจทย์จาก${weak.slice(0, 2).map((x) => x.n.title).join(' และ ')}</span>`
-    : '<small>แนะนำสำหรับคุณ</small><b>ฝึกจุดอ่อน</b><span>ทำบทเรียนสัก 1–2 บทก่อน น้องผึ้งจะรู้ว่าควรทบทวนอะไร</span>';
-  return shell(`<h1 class="page-title">ศูนย์ฝึกฝน</h1>
-    <section class="hub-hero">
-      <div class="hub-hero-text">${hero}
-        <button class="btn small light" data-act="${weak.length ? 'weak' : 'practice'}" data-id="mix">เริ่มฝึก ไม่เสียหัวใจ</button></div>
-      ${bee(88)}
-    </section>
-    <div class="hub-grid">
-      ${tile('review-mistakes', 'refresh', '#FFE5E5', '#A3262B', 'ทบทวนข้อที่ผิด', mist.length ? `${mist.length} แบบจาก 7 วันล่าสุด` : 'ยังไม่มีข้อที่ผิด', !mist.length)}
-      ${tile('timed-start', 'timer', '#FF7A1A', '#2A1F14', 'ผึ้งเร่งรีบ', `เกม 60 วินาที · สถิติ ${S.stats.timedBest} ข้อ`)}
-      ${tile('stories', 'story', '#58C23A', '#0F2E09', 'เรื่องเล่าโจทย์', storiesOpen.length ? (storiesNew ? `${storiesNew} เรื่องใหม่` : 'อ่านครบแล้ว') : 'ปลดล็อกเมื่อถึงบทที่ 2', !storiesOpen.length)}
-      ${tile('legend', 'crown', '#2A1F14', '#FFC21A', 'ระดับตำนาน', legendReady ? `${legendReady} บทพร้อมท้าทาย` : 'ผ่านทุกด่านในบทก่อน')}
+  const legendAny = legendReady || Object.keys(S.legend).length;
+  const ex = top && lessonSample(top.n);
+  const coach = top
+    ? `<p>${top.s.days >= 7 ? `ไม่ได้ฝึกเรื่อง<b>${top.n.title}</b>มา ${top.s.days} วันแล้ว ลืมง่ายนะ` : `เรื่อง<b>${top.n.title}</b>ยังพลาดบ่อย ตอบถูก ${top.s.acc}% จาก 10 ข้อล่าสุด`}</p>
+      ${ex ? `<div class="coach-eq" aria-label="ตัวอย่างโจทย์">${M(ex)}</div>` : ''}
+      <button class="btn primary wide" data-act="skill" data-i="${NODES.indexOf(top.n)}">ฝึกเรื่องนี้ 8 ข้อ</button>`
+    : `<p>เรียนบทเรียนสัก 1–2 บทก่อน น้องผึ้งจะดูให้ว่าเรื่องไหนควรฝึกเพิ่ม</p>
+      <button class="btn primary wide" data-act="practice" data-id="mix">ฝึกแบบผสม 8 ข้อ</button>`;
+  const topics = PRACTICE.filter((p) => unitReached(p.unit)), lockedTopics = PRACTICE.length - topics.length;
+  return shell(`<h1 class="page-title">ฝึกฝน</h1>
+    <p class="muted page-sub">ไม่ใช้หัวใจ ฝึกจบ 1 รอบได้หัวใจคืน 1 ดวง</p>
+    <section class="coach">${bee(72, top ? 'happy' : 'cheer')}<div class="coach-body">${coach}</div></section>
+    ${mist.length ? `<button class="mist-row" data-act="review-mistakes">${icon('refresh', 20)}
+      <span class="setting-main"><b>ทบทวนข้อที่ผิด</b><small>${mist.length} แบบที่ตอบผิดใน 7 วันล่าสุด</small></span>${icon('chevron', 20, 'go')}</button>` : ''}
+    ${weak.length > 1 ? `<div class="sec-row"><h2>เรื่องอื่นที่ควรทบทวน</h2></div>
+      <div class="list-card">${weak.slice(1, 4).map(({ n, s }) => `<button class="skill-row" data-act="skill" data-i="${NODES.indexOf(n)}">
+        <span class="setting-main"><b>${n.title}</b><small>${s.days >= 7 ? `ไม่ได้ฝึกมา ${s.days} วัน` : `ถูก ${s.acc}% จาก 10 ข้อล่าสุด`}</small></span>${bars(s.level)}</button>`).join('')}</div>` : ''}
+    <div class="sec-row"><h2>เล่นแบบอื่น</h2></div>
+    <div class="modes">
+      <button class="mode" data-act="timed-start">${icon('timer', 22)}<span><b>ผึ้งเร่งรีบ</b><small>แก้สมการให้ได้มากที่สุดใน 60 วินาที</small></span>
+        <span class="mode-rec">${S.stats.timedBest ? `<b>${S.stats.timedBest}</b><small>สถิติ</small>` : '<small>ยังไม่เคยเล่น</small>'}</span></button>
+      <button class="mode" data-act="stories" ${storiesOpen.length ? '' : 'disabled'}>${icon('story', 22)}<span><b>เรื่องเล่าโจทย์</b>
+        <small>${!storiesOpen.length ? 'เปิดเมื่อเรียนถึงบทที่ 2' : storyNext ? `เรื่องใหม่: ${storyNext.title}` : 'อ่านครบทุกเรื่องแล้ว'}</small></span></button>
+      ${legendAny ? `<button class="mode" data-act="legend">${icon('crown', 22)}<span><b>ระดับตำนาน</b>
+        <small>${legendReady ? `${legendReady} บทพร้อมท้าทาย ผิดได้ไม่เกิน 2 ข้อ` : 'ท้าทายบทที่ผ่านแล้วอีกครั้ง'}</small></span></button>` : ''}
     </div>
-    ${weak.length ? `<div class="sec-row"><h3>ทักษะที่ควรทบทวน</h3><span>ความแข็งแรง</span></div>
-      <div class="list-card">${weak.slice(0, 4).map(({ n, s }) => `<button class="skill-row" data-act="skill" data-i="${NODES.indexOf(n)}">
-        <span class="setting-main"><b>${n.title}</b><small>${s.days >= 7 ? `ไม่ได้ฝึกมา ${s.days} วัน` : `ความแม่นยำ ${s.acc}% ใน 10 ข้อล่าสุด`}</small></span>${bars(s.level)}</button>`).join('')}</div>` : ''}
-    <div class="sec-row"><h3>ฝึกตามหัวข้อ</h3></div>
-    <div class="list">${PRACTICE.map((p) => {
-      const open = unitReached(p.unit);
-      return `<button class="card-row ${open ? '' : 'locked'}" data-act="practice" data-id="${p.id}" ${open ? '' : 'disabled'}>
-        ${hex(icon(open ? p.icon : 'lock', 22), 'ico', open ? tint(p) : '')}
-        <span class="cr-main"><b>${p.title}</b><small>${open ? p.desc : `ปลดล็อกเมื่อถึงบทที่ ${p.unit + 1}`}</small></span>${icon('chevron', 22, 'go')}</button>`;
-    }).join('')}</div>`);
+    <details class="topics"><summary>เลือกหัวข้อเอง <span>${topics.length} หัวข้อ</span></summary>
+      <div class="list-card">${topics.map((p) => {
+        const eq = p.gens ? p.gens.map(sampleEq).find(Boolean) : null;
+        return `<button class="topic-row" data-act="practice" data-id="${p.id}"><span class="setting-main"><b>${p.title}</b>
+          <small>${eq ? M(eq) : p.desc}</small></span>${icon('chevron', 20, 'go')}</button>`;
+      }).join('')}</div>
+      ${lockedTopics ? `<p class="muted small">อีก ${lockedTopics} หัวข้อเปิดเมื่อเรียนไปถึง</p>` : ''}
+    </details>`);
 }
 Object.assign(SHEETS, {
   legend() {
@@ -526,7 +537,6 @@ function viewSettings() {
       ${setRow('นโยบายความเป็นส่วนตัว', 'เก็บข้อมูลอะไร ใครเห็น และวิธีขอลบข้อมูล', `<a class="price-btn ghost" href="privacy.html" target="_blank" rel="noopener">อ่าน</a>`)}
       ${setRow('รีเซ็ตความคืบหน้า', 'ลบทุกอย่างแล้วเริ่มใหม่', '<button class="price-btn danger-btn" data-act="reset">รีเซ็ต</button>')}
     </div></section>
-    <p class="muted small center">BeeMath ต้นแบบ · เสียงประกอบสังเคราะห์ในเบราว์เซอร์</p>
   </div>`, { sub: { title: 'ตั้งค่า' } });
 }
 // PWA: เปิดแบบแอปอยู่หรือไม่ และคำแนะนำการติดตั้งตามเบราว์เซอร์
