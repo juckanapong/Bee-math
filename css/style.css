@@ -960,8 +960,8 @@ button.chip { min-height: 36px; }
 .topics { margin: 20px 0 8px; }
 .topics summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 4px; font-family: var(--head); font-size: 18px; font-weight: 500; cursor: pointer; list-style: none; }
 .topics summary::-webkit-details-marker { display: none; }
-.topics summary::after { content: ''; width: 10px; height: 10px; margin-left: 8px; border-right: 3px solid var(--ink-2); border-bottom: 3px solid var(--ink-2); transform: rotate(45deg) translateY(-3px); }
-.topics[open] summary::after { transform: rotate(225deg) translateY(-3px); }
+.topics summary .i-chevron { flex: none; margin-left: 6px; color: var(--ink-2); transform: rotate(90deg); }
+.topics[open] summary .i-chevron { transform: rotate(-90deg); }
 .topics summary span { margin-left: auto; font-family: var(--body); font-size: 14px; font-weight: 600; color: var(--ink-2); }
 .topic-row .setting-main small .math { font-size: 17px; color: var(--ink); }
 .sec-row h2 { margin: 0; font-size: 20px; }

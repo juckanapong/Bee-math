@@ -254,7 +254,7 @@ function viewPracticeHub() {
       ${legendAny ? `<button class="mode" data-act="legend">${icon('crown', 22)}<span><b>ระดับตำนาน</b>
         <small>${legendReady ? `${legendReady} บทพร้อมท้าทาย ผิดได้ไม่เกิน 2 ข้อ` : 'ท้าทายบทที่ผ่านแล้วอีกครั้ง'}</small></span></button>` : ''}
     </div>
-    <details class="topics"><summary>เลือกหัวข้อเอง <span>${topics.length} หัวข้อ</span></summary>
+    <details class="topics"><summary>เลือกหัวข้อเอง <span>${topics.length} หัวข้อ</span>${icon('chevron', 20)}</summary>
       <div class="list-card">${topics.map((p) => {
         const eq = p.gens ? p.gens.map(sampleEq).find(Boolean) : null;
         return `<button class="topic-row" data-act="practice" data-id="${p.id}"><span class="setting-main"><b>${p.title}</b>
