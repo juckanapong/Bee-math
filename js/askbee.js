@@ -159,7 +159,7 @@ SHEETS.ask = () => {
   const chips = askChips(q, A.ok).filter(([k]) => k === 'similar' || !A.items.some((it) => it.k === k));
   const ctx = q.eq ? M(q.eq) : `<span class="ask-ctx-t">${q.prompt}</span>`;
   return `<div class="sheet-card ask-sheet">
-    <div class="ask-head">${bee(48, A.ok ? 'wow' : 'happy')}<div class="setting-main"><h3>ถามน้องผึ้ง</h3><small>คำอธิบายจากโจทย์ข้อนี้</small></div>
+    <div class="ask-head">${bee(48, A.ok ? 'wow' : 'happy')}<div class="setting-main"><h2>ถามน้องผึ้ง</h2><small>คำอธิบายจากโจทย์ข้อนี้</small></div>
       <button class="x mini" data-act="close" aria-label="ปิด">${icon('x', 18)}</button></div>
     <div class="ask-ctx">${ctx}<span class="ask-tag ${A.ok ? 'ok' : 'bad'}">${A.ok ? 'ตอบถูก' : A.user ? `คุณตอบ ${esc(A.user)}` : 'ตอบผิด'}</span>${q.type === 'input' ? `<span class="ask-tag ok">คำตอบ ${q.answer}</span>` : ''}</div>
     <div class="ask-log" id="ask-log">

@@ -79,7 +79,7 @@ function viewClasses() {
     const done = new Set(Object.keys(S.done));
     const mine = Classroom.mine;
     body = `
-      <section><h3 class="shop-sec">ห้องเรียนของฉัน</h3>
+      <section><h2 class="shop-sec">ห้องเรียนของฉัน</h2>
         ${mine === null ? '<p class="muted">กำลังโหลด…</p>' : mine.length ? mine.map((c) => `<div class="card class-card">
           <div class="class-head"><span class="setting-main"><b>${esc(c.name)}</b><small>${esc(/^ครู/.test(c.teacher || '') ? c.teacher : 'ครู' + (c.teacher || ''))}</small></span>
             <button class="x mini" data-act="class-leave-ask" data-id="${c.id}" data-n="${esc(c.name)}" aria-label="ออกจากห้อง ${esc(c.name)}">${icon('x', 16)}</button></div>
@@ -181,7 +181,7 @@ function viewTeacher() {
           <section class="card t-card"><div class="rail-head"><h2>งานที่มอบหมาย</h2><button class="price-btn" data-act="assign-new">${icon('plus', 16)} มอบหมายงาน</button></div>
             ${assignRows ? `<div class="list-card plain">${assignRows}</div>` : '<p class="muted">ยังไม่มีงาน กด "มอบหมายงาน" เพื่อเลือกด่านให้นักเรียนทำ</p>'}</section>
         </div>
-        <section class="card t-card"><div class="rail-head"><h2>นักเรียน</h2><span class="muted small">คนที่ควรตามดูอยู่บนสุด · แตะชื่อเพื่อดูรายละเอียด</span></div>
+        <section class="card t-card"><div class="rail-head"><h2>นักเรียน</h2><span class="muted small">แตะชื่อเพื่อดูรายละเอียด</span></div>
           ${n ? `<div class="t-table-wrap"><table class="t-table"><thead><tr><th>ชื่อ</th><th>กำลังเรียน</th><th>ตอบถูก</th><th>สตรีค</th><th>งานค้าง</th><th>สถานะ</th></tr></thead><tbody>
             ${sts.sort((a, b) => ['help', 'away', 'ok'].indexOf(a.status.cls) - ['help', 'away', 'ok'].indexOf(b.status.cls) || a.name.localeCompare(b.name, 'th')).map((s) => `<tr>
               <td><span class="t-name"><span class="av" style="background:${s.avatar}">${esc(initial(s.name))}</span>${nameBtn(s)}</span></td>
@@ -190,7 +190,7 @@ function viewTeacher() {
               <td><span class="chip-st ${s.status.cls}">${s.status.text}</span></td></tr>`).join('')}
             </tbody></table></div>` : `<p class="muted">ยังไม่มีนักเรียน แจกรหัส <b>${esc(cls.code)}</b> ให้นักเรียนกรอกที่ ตั้งค่า › ห้องเรียน หรือหน้าบัญชี › "เข้าห้องเรียน"</p>`}
         </section>
-        <div class="t-foot"><p class="muted small">อัปเดตล่าสุด ${timeAgo(d.at)} ข้อมูลมาจากการซิงก์ของนักเรียนแต่ละคน</p>
+        <div class="t-foot"><p class="muted small">อัปเดตล่าสุด ${timeAgo(d.at)} ตัวเลขจะเปลี่ยนเมื่อนักเรียนเปิดแอปครั้งถัดไป</p>
           <button class="btn danger-text small" data-act="class-delete-ask">ลบห้องเรียนนี้</button></div>`;
     }
   }
@@ -200,7 +200,7 @@ function viewTeacher() {
 // ---------- แผ่นป๊อปอัป ----------
 Object.assign(SHEETS, {
   'class-new'() {
-    return `<div class="sheet-card"><h3>สร้างห้องเรียน</h3>
+    return `<div class="sheet-card"><h2>สร้างห้องเรียน</h2>
       <form class="acct-form" data-form="class-new"><label class="fld">ชื่อห้อง<input id="class-name" maxlength="40" placeholder="เช่น ม.1/3 คณิตศาสตร์" required></label>
         ${consentBox(`ฉันจะแจ้งนักเรียนและผู้ปกครองเรื่อง${privacyLink()}ก่อนให้นักเรียนเข้าห้อง (ครูจะเห็นชื่อและความคืบหน้าของนักเรียน)`)}
         <button class="btn primary" type="submit">สร้างห้อง</button></form></div>`;
@@ -208,7 +208,7 @@ Object.assign(SHEETS, {
   'assign-new'(s) {
     const u = s.u ?? 0;
     const nodes = NODES.filter((n) => n.ui === u);
-    return `<div class="sheet-card"><h3>มอบหมายงาน</h3>
+    return `<div class="sheet-card"><h2>มอบหมายงาน</h2>
       <form class="acct-form" data-form="assign-new">
         <label class="fld">บท<select id="assign-unit" data-act-change="assign-unit">${UNITS.map((x, i) => `<option value="${i}" ${i === u ? 'selected' : ''}>บทที่ ${i + 1} · ${x.title}</option>`).join('')}</select></label>
         <fieldset class="fld node-picks"><legend>ด่านที่ต้องทำ</legend>${nodes.map((n) => `<label class="pick-node"><input type="checkbox" name="assign-node" value="${n.id}" checked> ${esc(n.kind === 'test' ? 'ด่านทดสอบท้ายบท' : n.title)}</label>`).join('')}</fieldset>
@@ -217,7 +217,7 @@ Object.assign(SHEETS, {
         <button class="btn primary" type="submit">มอบหมายงาน</button></form></div>`;
   },
   'class-leave'(s) {
-    return `<div class="sheet-card center"><h3>ออกจากห้อง ${esc(s.name)}?</h3><p>ครูจะไม่เห็นความคืบหน้าของคุณอีก และงานจากห้องนี้จะหายไป</p>
+    return `<div class="sheet-card center"><h2>ออกจากห้อง ${esc(s.name)}?</h2><p>ครูจะไม่เห็นความคืบหน้าของคุณอีก และงานจากห้องนี้จะหายไป</p>
       <button class="btn danger" data-act="class-leave" data-id="${s.id}">ออกจากห้อง</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
   // รายละเอียดนักเรียน 1 คน: สถานะ งานค้าง และเรื่องที่ยังอ่อน · ปุ่มนำออกอยู่ที่นี่ (ไม่อยู่ในตาราง)
@@ -229,7 +229,7 @@ Object.assign(SHEETS, {
     const weak = NODES.filter((n) => n.kind === 'lesson').map((n) => ({ n, p: lessonPct(st, n) })).filter((x) => x.p !== null && x.p < 75).sort((a, b) => a.p - b.p).slice(0, 3);
     return `<div class="sheet-card st-sheet">
       <div class="st-head"><span class="av" style="background:${st.avatar}">${esc(initial(st.name))}</span>
-        <span class="setting-main"><h3>${esc(st.name)}</h3><small>${status.idle >= 99 ? 'ยังไม่เริ่มเรียน' : status.idle === 0 ? 'เข้าเรียนวันนี้' : `เข้าเรียนล่าสุด ${status.idle} วันก่อน`}</small></span>
+        <span class="setting-main"><h2>${esc(st.name)}</h2><small>${status.idle >= 99 ? 'ยังไม่เริ่มเรียน' : status.idle === 0 ? 'เข้าเรียนวันนี้' : `เข้าเรียนล่าสุด ${status.idle} วันก่อน`}</small></span>
         <span class="chip-st ${status.cls}">${status.text}</span></div>
       <dl class="st-facts"><div><dt>กำลังเรียน</dt><dd>${esc(currentOf(done))}</dd></div>
         <div><dt>ตอบถูก</dt><dd>${status.acc === null ? '–' : `${status.acc}% <small>(${st.correct}/${st.answered} ข้อ)</small>`}</dd></div>
@@ -242,12 +242,12 @@ Object.assign(SHEETS, {
       <button class="btn danger-text small" data-act="student-remove-ask" data-id="${st.id}" data-n="${esc(st.name)}">นำออกจากห้อง</button></div>`;
   },
   'student-remove'(s) {
-    return `<div class="sheet-card center"><h3>นำ ${esc(s.name)} ออกจากห้อง?</h3><p>นักเรียนเข้าห้องใหม่ได้ด้วยรหัสเดิม</p>
+    return `<div class="sheet-card center"><h2>นำ ${esc(s.name)} ออกจากห้อง?</h2><p>นักเรียนเข้าห้องใหม่ได้ด้วยรหัสเดิม</p>
       <button class="btn danger" data-act="student-remove" data-id="${s.id}">นำออก</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
   'class-delete'() {
     const c = Classroom.teach.find((x) => x.id === Classroom.sel);
-    return `<div class="sheet-card center"><h3>ลบห้อง ${esc(c.name)}?</h3><p>รายชื่อนักเรียนในห้องและงานที่มอบหมายจะถูกลบ (ความคืบหน้าของนักเรียนยังอยู่)</p>
+    return `<div class="sheet-card center"><h2>ลบห้อง ${esc(c.name)}?</h2><p>รายชื่อนักเรียนในห้องและงานที่มอบหมายจะถูกลบ (ความคืบหน้าของนักเรียนยังอยู่)</p>
       <button class="btn danger" data-act="class-delete">ลบห้องเรียน</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
 });

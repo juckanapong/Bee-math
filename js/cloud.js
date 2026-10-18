@@ -76,6 +76,8 @@ function mergeStates(a, b) {
   const out = JSON.parse(JSON.stringify(base));
   for (const k of ['done', 'badges', 'chests', 'legend', 'stories', 'monthBadges', 'owned', 'fqClaimed', 'leagueSeen']) out[k] = { ...(other[k] || {}), ...(base[k] || {}) };
   out.records = { ...(other.records || {}), ...(base.records || {}) };
+  out.badgeLv = { ...(other.badgeLv || {}), ...(base.badgeLv || {}) };
+  for (const k of Object.keys(other.badgeLv || {})) out.badgeLv[k] = Math.max(other.badgeLv[k] || 0, base.badgeLv?.[k] || 0);
   for (const k of Object.keys(other.records || {})) out.records[k] = Math.max(other.records[k] || 0, base.records?.[k] || 0);
   out.onboarded = !!(base.onboarded || other.onboarded);
   if ((other.consent?.at || 0) > (base.consent?.at || 0)) out.consent = other.consent;
@@ -408,8 +410,8 @@ function timeAgo(ts) {
 function syncLabel() {
   if (!Cloud.enabled()) return 'ยังไม่ได้เปิดระบบบัญชี';
   if (!Cloud.user) return Cloud.status === 'error' ? Cloud.error : 'ยังไม่ได้เข้าสู่ระบบ ความคืบหน้าเก็บในเครื่องนี้เท่านั้น';
-  return { syncing: 'กำลังซิงก์…', offline: 'ออฟไลน์ จะซิงก์เมื่อกลับมาออนไลน์', paused: 'ระบบออนไลน์ปิดชั่วคราว ความคืบหน้าเก็บในเครื่อง จะซิงก์เมื่อเปิดระบบ', error: Cloud.error || 'ซิงก์ไม่สำเร็จ', loading: 'กำลังเชื่อมต่อ…' }[Cloud.status]
-    || (Cloud.lastSync ? `ซิงก์แล้ว ${timeAgo(Cloud.lastSync)}` : 'เชื่อมต่อแล้ว');
+  return { syncing: 'กำลังบันทึก…', offline: 'ไม่มีอินเทอร์เน็ต จะบันทึกลงบัญชีเมื่อต่อเน็ตได้', paused: 'บัญชีออนไลน์ปิดปรับปรุงชั่วคราว ความคืบหน้าเก็บไว้ในเครื่องก่อน', error: Cloud.error || 'บันทึกลงบัญชีไม่สำเร็จ', loading: 'กำลังเชื่อมต่อ…' }[Cloud.status]
+    || (Cloud.lastSync ? `บันทึกลงบัญชีแล้ว ${timeAgo(Cloud.lastSync)}` : 'เชื่อมต่อแล้ว');
 }
 function viewAccount() {
   const a = UI.acct || (UI.acct = { tab: 'signin' });
@@ -419,19 +421,19 @@ function viewAccount() {
       <p class="muted">ผู้ดูแลต้องสร้างโปรเจกต์ Supabase แล้วใส่ค่าใน <code>js/config.js</code> (ดูขั้นตอนใน README) ระหว่างนี้ใช้ "สำรองความคืบหน้า" ในหน้าตั้งค่าเพื่อย้ายเครื่องได้</p></div>`;
   } else if (Cloud.user) {
     body = `<div class="card acct-card">
-      <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน (ไม่ใช้อีเมล) · ใช้ได้บนเครื่องนี้' : esc(Cloud.user.email || '') + (Cloud.user.app_metadata?.provider === 'google' ? ' · บัญชี Google' : '')}</small></span></div>
+      <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน ใช้ได้บนเครื่องนี้เครื่องเดียว' : esc(Cloud.user.email || '') + (Cloud.user.app_metadata?.provider === 'google' ? ' · บัญชี Google' : '')}</small></span></div>
       <p class="sync-line ${Cloud.status}">${icon(Cloud.status === 'error' ? 'x' : ['offline', 'paused'].includes(Cloud.status) ? 'clock' : 'check', 16)} ${esc(syncLabel())}</p>
-      <button class="btn primary" data-act="cloud-sync" ${Cloud.status === 'syncing' ? 'disabled' : ''}>${icon('refresh', 18)} ซิงก์ตอนนี้</button>
+      <button class="btn primary" data-act="cloud-sync" ${Cloud.status === 'syncing' ? 'disabled' : ''}>${icon('refresh', 18)} บันทึกตอนนี้</button>
       <button class="btn" data-act="${Cloud.user.is_anonymous ? 'cloud-signout-anon' : 'cloud-signout'}">ออกจากระบบ</button>
     </div>
     <p class="muted small">ออกจากระบบแล้วความคืบหน้าในเครื่องนี้จะถูกล้าง (เก็บไว้ในบัญชีแล้ว) เพื่อให้คนอื่นใช้เครื่องนี้ต่อได้อย่างปลอดภัย</p>
     <p class="muted small">${consentOk() ? `ยอมรับ${privacyLink()}แล้ว` : `ยังไม่ได้ยอมรับ${privacyLink()}ฉบับปัจจุบัน`}</p>
     <button class="btn danger-text" data-act="cloud-delete-ask">ลบบัญชีและข้อมูลทั้งหมด</button>`;
   } else {
-    const tabs = [['signin', 'เข้าสู่ระบบ'], ['signup', 'สมัครบัญชี'], ['class', 'รหัสห้องเรียน']];
+    const tabs = [['signin', 'เข้าสู่ระบบ'], ['signup', 'สมัคร'], ['class', 'รหัสห้อง']];
     const form = a.tab === 'class'
       ? `<form class="acct-form" data-form="anon-join">
-          <p class="muted">สำหรับนักเรียนที่ไม่มีอีเมล: กรอกชื่อและรหัสห้องจากครู ความคืบหน้าจะซิงก์ให้ครูเห็น (บัญชีนี้ใช้ได้บนเครื่องนี้ ย้ายเครื่องด้วยไฟล์สำรองในหน้าตั้งค่า)</p>
+          <p class="muted">สำหรับนักเรียนที่ไม่มีอีเมล: กรอกชื่อและรหัสห้องจากครู แล้วครูจะเห็นความคืบหน้าของคุณ บัญชีนี้ใช้ได้บนเครื่องนี้เครื่องเดียว ถ้าจะย้ายเครื่องให้ใช้ไฟล์สำรองในหน้าตั้งค่า</p>
           <label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" minlength="2" value="${isDefaultName(S.name) ? '' : esc(S.name)}" placeholder="ชื่อที่ครูจะเห็น" required></label>
           <label class="fld">รหัสห้องเรียน<input id="class-code" placeholder="HIVE-XXXX" maxlength="9" autocapitalize="characters" autocomplete="off" required></label>
           ${consentBox(`ฉันอ่าน${privacyLink()}แล้ว และครูหรือผู้ปกครองแจ้งเรื่องการใช้ข้อมูลให้ทราบแล้ว`)}
@@ -446,16 +448,16 @@ function viewAccount() {
           ${a.tab === 'signup' ? `<label class="fld">ชื่อที่แสดง<input id="acct-name" maxlength="20" minlength="2" value="${isDefaultName(S.name) ? '' : esc(S.name)}" placeholder="ชื่อที่เพื่อนและครูจะเห็น" autocomplete="nickname" required></label>` : ''}
           <label class="fld">อีเมล<input type="email" id="acct-email" autocomplete="email" required></label>
           <label class="fld">รหัสผ่าน<input type="password" id="acct-pw" minlength="6" autocomplete="${a.tab === 'signup' ? 'new-password' : 'current-password'}" required></label>
-          ${a.tab === 'signup' ? consentBox(`ฉันอ่าน${privacyLink()}แล้ว · ถ้าอายุต่ำกว่า 20 ปี ผู้ปกครองรับทราบและยินยอมแล้ว`) : ''}
+          ${a.tab === 'signup' ? consentBox(`ฉันอ่าน${privacyLink()}แล้ว และถ้าอายุต่ำกว่า 20 ปี ผู้ปกครองรับทราบและยินยอมแล้ว`) : ''}
           <button class="btn primary" type="submit" ${a.busy ? 'disabled' : ''}>${a.busy ? 'กำลังดำเนินการ…' : a.tab === 'signup' ? 'สมัครบัญชี' : 'เข้าสู่ระบบ'}</button>
           ${a.tab === 'signin' ? '<button class="btn link" type="button" data-act="acct-tab" data-t="forgot">ลืมรหัสผ่าน?</button>' : '<p class="muted small">ความคืบหน้าที่ทำไว้ในเครื่องนี้จะถูกย้ายเข้าบัญชีใหม่</p>'}
         </form>
         <div class="or-line"><span>หรือ</span></div>
         <button class="btn google-btn" type="button" data-act="acct-google" ${a.busy ? 'disabled' : ''}>${GOOGLE_G}${a.tab === 'signup' ? 'สมัครด้วย Google' : 'เข้าสู่ระบบด้วย Google'}</button>
-        ${a.tab === 'signup' ? '<p class="muted small">สมัครด้วย Google ก็ต้องติ๊กยอมรับนโยบายด้านบนก่อน · แอปใช้ชื่อที่แสดงที่คุณตั้ง ไม่แสดงชื่อจริงหรือรูปจาก Google</p>' : ''}`;
+        ${a.tab === 'signup' ? '<p class="muted small">สมัครด้วย Google ก็ต้องติ๊กยอมรับนโยบายด้านบนก่อน แอปจะใช้ชื่อที่คุณตั้งเอง ไม่ดึงชื่อจริงหรือรูปจาก Google</p>' : ''}`;
     body = `<div class="card acct-card">
-      <div class="acct-intro">${bee(64, 'happy')}<p>เก็บความคืบหน้าไว้บนคลาวด์ เรียนต่อได้ทุกเครื่อง ไม่หายแม้ล้างเบราว์เซอร์</p></div>
-      <p class="muted small">ไม่สมัครก็เรียนได้ครบทุกบท (ข้อมูลอยู่ในเครื่องนี้เท่านั้น) · ${privacyLink('อ่านว่าเราเก็บข้อมูลอะไรบ้าง')}</p>
+      <div class="acct-intro">${bee(64, 'happy')}<p>สมัครแล้วเรียนต่อได้ทุกเครื่อง ความคืบหน้าไม่หายแม้ล้างเบราว์เซอร์</p></div>
+      <p class="muted small">ไม่สมัครก็เรียนได้ครบทุกบท ความคืบหน้าจะอยู่ในเครื่องนี้ ${privacyLink('อ่านว่าเราเก็บข้อมูลอะไรบ้าง')}</p>
       ${a.tab === 'forgot' ? '' : `<div class="seg wide" role="tablist">${tabs.map(([t, l]) => `<button role="tab" aria-selected="${a.tab === t}" class="${a.tab === t ? 'on' : ''}" data-act="acct-tab" data-t="${t}">${l}</button>`).join('')}</div>`}
       ${a.err ? `<p class="acct-msg err" role="alert">${esc(a.err)}</p>` : ''}${a.msg ? `<p class="acct-msg ok" role="status">${esc(a.msg)}</p>` : ''}
       ${form}
@@ -465,7 +467,7 @@ function viewAccount() {
 }
 Object.assign(SHEETS, {
   'set-name'() {
-    return `<div class="sheet-card"><h3>ตั้งชื่อที่แสดง</h3>
+    return `<div class="sheet-card"><h2>ตั้งชื่อที่แสดง</h2>
       <p>ชื่อนี้จะแสดงในลีก รายชื่อเพื่อน และห้องเรียน เพื่อนและครูจะได้รู้ว่าเป็นคุณ</p>
       <form class="acct-form" data-form="set-name">
         <label class="fld">ชื่อที่แสดง<input id="set-name" maxlength="20" minlength="2" placeholder="เช่น ชื่อเล่นของคุณ" autocomplete="nickname" required></label>
@@ -473,24 +475,24 @@ Object.assign(SHEETS, {
         <button class="btn primary" type="submit">บันทึกชื่อ</button></form></div>`;
   },
   consent() {
-    return `<div class="sheet-card"><h3>นโยบายความเป็นส่วนตัว</h3>
-      <p>บัญชีนี้เก็บชื่อที่แสดงและความคืบหน้าการเรียนบนเซิร์ฟเวอร์ เพื่อซิงก์ข้ามเครื่อง ลีก เพื่อน และห้องเรียน ไม่มีโฆษณาและไม่ขายข้อมูล</p>
-      <p>${privacyLink('อ่านนโยบายฉบับเต็ม')} · ถ้าอายุต่ำกว่า 20 ปี ให้ผู้ปกครองอ่านด้วยนะ</p>
+    return `<div class="sheet-card"><h2>นโยบายความเป็นส่วนตัว</h2>
+      <p>บัญชีนี้เก็บชื่อที่แสดงและความคืบหน้าการเรียนไว้ เพื่อให้เรียนต่อได้ทุกเครื่อง และใช้ลีก เพื่อน กับห้องเรียนได้ ไม่มีโฆษณาและไม่ขายข้อมูล</p>
+      <p>ถ้าอายุต่ำกว่า 20 ปี ชวนผู้ปกครองมา${privacyLink('อ่านนโยบายฉบับเต็ม')}ด้วยกันนะ</p>
       <button class="btn primary" data-act="consent-yes">ยอมรับและใช้บัญชีต่อ</button>
       <button class="btn ghost" data-act="consent-no">ไม่ยอมรับ (ออกจากระบบ)</button></div>`;
   },
   'cloud-signout-anon'() {
-    return `<div class="sheet-card center"><h3>ออกจากบัญชีห้องเรียน?</h3>
+    return `<div class="sheet-card center"><h2>ออกจากบัญชีห้องเรียน?</h2>
       <p>บัญชีนี้ไม่มีอีเมลและรหัสผ่าน ถ้าออกจากระบบแล้วจะ<b>กลับเข้าบัญชีเดิมไม่ได้อีก</b> แนะนำให้ดาวน์โหลดไฟล์สำรองในหน้าตั้งค่าก่อน</p>
       <button class="btn danger" data-act="cloud-signout">ออกจากระบบ</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
   'cloud-delete'() {
-    return `<div class="sheet-card center"><h3>ลบบัญชีถาวร?</h3>
-      <p>ความคืบหน้าทั้งหมดบนคลาวด์และในเครื่องนี้จะถูกลบ และกู้คืนไม่ได้</p>
+    return `<div class="sheet-card center"><h2>ลบบัญชีถาวร?</h2>
+      <p>ความคืบหน้าทั้งหมดทั้งในบัญชีและในเครื่องนี้จะถูกลบ และกู้คืนไม่ได้</p>
       <button class="btn danger" data-act="cloud-delete">ลบบัญชี</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
   'new-password'() {
-    return `<div class="sheet-card"><h3>ตั้งรหัสผ่านใหม่</h3>
+    return `<div class="sheet-card"><h2>ตั้งรหัสผ่านใหม่</h2>
       <form class="acct-form" data-form="new-password">
         <label class="fld">รหัสผ่านใหม่<input type="password" id="acct-pw" minlength="6" autocomplete="new-password" required></label>
         <button class="btn primary" type="submit">บันทึกรหัสผ่าน</button></form></div>`;
@@ -535,7 +537,7 @@ Object.assign(ACT, {
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },
   'league-join': (d) => { UI.acct = { tab: d.t || 'signup' }; ACT.go({ v: 'account' }); },
   'league-retry': async () => { Cloud.leagueError = null; render(); await leagueSync(true); render(); },
-  'cloud-sync': async () => { await cloudPull(); if (Cloud.status === 'synced') showToast('ซิงก์แล้ว'); },
+  'cloud-sync': async () => { await cloudPull(); if (Cloud.status === 'synced') showToast('บันทึกแล้ว'); },
   'cloud-signout': async () => { UI.sheet = null; await cloudSignOut(); UI.acct = { tab: 'signin' }; showToast('ออกจากระบบแล้ว'); },
   'cloud-signout-anon': () => { UI.sheet = { type: 'cloud-signout-anon' }; render(); },
   'cloud-delete-ask': () => { UI.sheet = { type: 'cloud-delete' }; render(); },

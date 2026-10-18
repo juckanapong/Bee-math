@@ -88,7 +88,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); UI.installPrompt = e; if (UI.view === 'settings') render(); });
 window.addEventListener('appinstalled', () => { UI.installPrompt = null; showToast('ติดตั้ง BeeMath แล้ว!'); });
 window.addEventListener('online', () => { if (UI.view !== 'lesson') render(); });
-window.addEventListener('offline', () => showToast('ออฟไลน์อยู่ ยังเรียนต่อได้ตามปกติ'));
+window.addEventListener('offline', () => showToast('ไม่มีอินเทอร์เน็ต ยังเรียนต่อได้ตามปกติ'));
 
 render();
 scrollToCurrent();

@@ -51,7 +51,7 @@ function feedText(e) {
 function feedHTML() {
   const list = (flag('feed') && typeof Feed !== 'undefined' && Feed.data) || [];
   if (!list.length) return '';
-  return `<section><h3 class="shop-sec">ความเคลื่อนไหว</h3><div class="list-card">${list.slice(0, 12).map((e) => `<div class="friend-row feed-row">
+  return `<section><h2 class="shop-sec">ความเคลื่อนไหว</h2><div class="list-card">${list.slice(0, 12).map((e) => `<div class="friend-row feed-row">
     ${e.me ? `<span class="av" style="background:#FFC21A">คุณ</span>` : friendAv(e.name, e.avatar)}
     <span class="setting-main"><b>${feedText(e)}</b><small>${icon(FEED_ICON[e.kind] || 'star', 13)} ${timeAgo(new Date(e.at).getTime())}</small></span>
     ${e.me ? (e.kudos ? `<span class="kudos-count" aria-label="ได้กำลังใจ ${e.kudos} คน">${icon('heart', 16)}${e.kudos}</span>` : '')
@@ -96,16 +96,16 @@ function viewFriends() {
     const d = Friends.data;
     const inbox = d.inbox.slice(0, 5);
     body = `
-      ${inbox.length ? `<section><h3 class="shop-sec">ข้อความจากเพื่อน</h3><div class="list-card">${inbox.map((m) =>
+      ${inbox.length ? `<section><h2 class="shop-sec">ข้อความจากเพื่อน</h2><div class="list-card">${inbox.map((m) =>
         `<div class="friend-row">${friendAv(m.name, m.avatar)}<span class="setting-main"><b>${esc(msgText(m))}</b><small>${timeAgo(new Date(m.at).getTime())}</small></span>
           ${icon(m.kind === 'cheer' ? 'heart' : 'bell', 20)}</div>`).join('')}</div></section>` : ''}
       ${feedHTML()}
       ${questCard(d)}
-      ${d.incoming.length ? `<section><h3 class="shop-sec">คำขอเป็นเพื่อน</h3><div class="list-card">${d.incoming.map((f) =>
+      ${d.incoming.length ? `<section><h2 class="shop-sec">คำขอเป็นเพื่อน</h2><div class="list-card">${d.incoming.map((f) =>
         `<div class="friend-row">${friendAv(f.name, f.avatar)}<span class="setting-main"><b>${esc(f.name)}</b><small>อยากเป็นเพื่อนกับคุณ</small></span>
           <button class="price-btn" data-act="friend-accept" data-id="${f.id}">ยอมรับ</button>
           <button class="price-btn ghost" data-act="friend-decline" data-id="${f.id}">ปฏิเสธ</button></div>`).join('')}</div></section>` : ''}
-      <section><div class="sec-row tight"><h3>เพื่อนของฉัน</h3><span>${d.friends.length} คน</span></div>
+      <section><div class="sec-row tight"><h2>เพื่อนของฉัน</h2><span>${d.friends.length} คน</span></div>
         ${d.friends.length ? `<div class="list-card">${d.friends.map((f) => {
           const kind = f.today ? 'cheer' : 'nudge', sent = Friends.sent[f.id + ':' + kind];
           return `<div class="friend-row">${friendAv(f.name, f.avatar)}
@@ -120,7 +120,7 @@ function viewFriends() {
       <section class="code-card">
         <span class="setting-main"><small>รหัสเพื่อนของคุณ</small><b class="friend-code">${esc(d.code)}</b></span>
         <button class="price-btn ghost" data-act="friend-copy">คัดลอก</button></section>
-      <p class="muted small">เพื่อนเห็นเฉพาะชื่อที่แสดง สีอวตาร สตรีค และ XP ของสัปดาห์ · ข้อความเป็นแบบสำเร็จรูปเท่านั้น</p>`;
+      <p class="muted small">เพื่อนจะเห็นแค่ชื่อที่แสดง สีอวตาร สตรีค และ XP ของสัปดาห์นี้ และส่งหากันได้แค่ข้อความสำเร็จรูป</p>`;
   }
   const add = Cloud?.user ? `<button class="price-btn" data-act="friend-add">${icon('plus', 16)} เพิ่มเพื่อน</button>` : '';
   return shell(`<div class="sub-body">${body}</div>`, { sub: { title: 'เพื่อน', extra: add } });
@@ -128,20 +128,20 @@ function viewFriends() {
 
 Object.assign(SHEETS, {
   'friend-add'() {
-    return `<div class="sheet-card"><h3>เพิ่มเพื่อน</h3>
+    return `<div class="sheet-card"><h2>เพิ่มเพื่อน</h2>
       <form class="acct-form" data-form="friend-add">
         <label class="fld">รหัสเพื่อนของเพื่อน<input id="friend-code" placeholder="BEE-XXXXX" maxlength="9" autocapitalize="characters" autocomplete="off" required></label>
         <button class="btn primary" type="submit">ส่งคำขอเป็นเพื่อน</button></form>
       ${Friends.data ? `<p class="muted small">รหัสของคุณคือ <b>${esc(Friends.data.code)}</b> ให้เพื่อนกรอกรหัสนี้ แล้วกดยอมรับคำขอได้เลย</p>` : ''}</div>`;
   },
   'friend-remove'(s) {
-    return `<div class="sheet-card center"><h3>เลิกเป็นเพื่อนกับ ${esc(s.name)}?</h3>
+    return `<div class="sheet-card center"><h2>เลิกเป็นเพื่อนกับ ${esc(s.name)}?</h2>
       <p>สตรีคคู่และภารกิจคู่หูกับเพื่อนคนนี้จะหายไป</p>
       <button class="btn danger" data-act="friend-remove" data-id="${s.id}">เลิกเป็นเพื่อน</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
   'fq-pick'() {
     const fs = Friends.data?.friends || [];
-    return `<div class="sheet-card"><h3>เลือกเพื่อนคู่หูสัปดาห์นี้</h3>
+    return `<div class="sheet-card"><h2>เลือกเพื่อนคู่หูสัปดาห์นี้</h2>
       <p>สะสม XP รวมกันให้ได้ 300 XP ก่อนจบสัปดาห์ สำเร็จแล้วได้คนละ ${FQ_REWARD} น้ำหวาน</p>
       <div class="list-card">${fs.map((f) => `<div class="friend-row">${friendAv(f.name, f.avatar)}<span class="setting-main"><b>${esc(f.name)}</b><small>${f.week_xp} XP สัปดาห์นี้</small></span>
         <button class="price-btn" data-act="fq-start" data-id="${f.id}" data-n="${esc(f.name)}">เลือก</button></div>`).join('')}</div></div>`;

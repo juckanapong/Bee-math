@@ -891,14 +891,11 @@ const QUESTS = [
   { id: 'perfect', icon: 'target', color: '#E8650A', ink: '#FFFFFF', title: 'จบบทเรียนโดยไม่ผิดเลย 1 ครั้ง', goal: 1, reward: 20 },
 ];
 
+// เหรียญตรามีชุดเดียว: เหรียญพิเศษได้ครั้งเดียว (ที่นี่) + เหรียญหลายระดับ (LEVEL_BADGES ด้านล่าง)
+// ตราเก่าที่ซ้ำกับเหรียญหลายระดับ (solver bar streak3 perfect xp500) ยังอยู่ใน S.badges ของผู้เล่นเดิม แต่ไม่แสดงแล้ว
 const BADGES = [
   { id: 'first', icon: 'flag', color: '#58C23A', ink: '#0F2E09', name: 'ก้าวแรก', desc: 'จบบทเรียนแรก', test: (s) => s.stats.lessons >= 1 },
-  { id: 'solver', icon: 'equals', color: '#FFC21A', ink: '#2A1F14', name: 'นักแก้สมการ', desc: 'แก้สมการถูก 25 ข้อ', test: (s) => s.stats.solved >= 25 },
-  { id: 'bar', icon: 'bar', color: '#2F6FED', ink: '#FFFFFF', name: 'สถาปนิกบาร์โมเดล', desc: 'ทำโจทย์บาร์โมเดล 15 ข้อ', test: (s) => s.stats.bar >= 15 },
-  { id: 'streak3', icon: 'flame', color: '#FF7A1A', ink: '#FFFFFF', name: 'ไฟลุกโชน', desc: 'เรียนต่อเนื่อง 3 วัน', test: (s) => s.streak >= 3 },
-  { id: 'perfect', icon: 'target', color: '#2F6FED', ink: '#FFFFFF', name: 'ไร้ที่ติ', desc: 'จบบทเรียนโดยไม่ผิดเลย', test: (s) => s.stats.perfect >= 1 },
-  { id: 'unit', icon: 'trophy', color: '#FFC21A', ink: '#2A1F14', name: 'ผู้พิชิตด่าน', desc: 'ผ่านด่านทดสอบ 1 ด่าน', test: (s) => s.stats.tests >= 1 },
-  { id: 'xp500', icon: 'bolt', color: '#E8650A', ink: '#FFFFFF', name: 'พลังผึ้ง', desc: 'สะสมครบ 500 XP', test: (s) => s.xp >= 500 },
+  { id: 'unit', icon: 'trophy', color: '#FFC21A', ink: '#2A1F14', name: 'ผู้พิชิตด่าน', desc: 'ผ่านด่านทดสอบท้ายบทครั้งแรก', test: (s) => s.stats.tests >= 1 },
   { id: 'queen', icon: 'crown', color: '#2A1F14', ink: '#FFC21A', name: 'ราชินีผึ้ง', desc: 'ผ่านทุกด่านในเส้นทาง', test: (s) => NODES.every((n) => s.done[n.id]) },
 ];
 
@@ -928,6 +925,7 @@ const LEVEL_BADGES = [
   { id: 'xp', name: 'พลังผึ้ง', icon: 'bolt', color: '#58C23A', ink: '#0F2E09', unit: 'XP', steps: [100, 500, 1000, 2500, 5000], value: (s) => s.xp },
   { id: 'perfect', name: 'ไร้ที่ติ', icon: 'target', color: '#2F6FED', ink: '#FFFFFF', unit: 'บท', steps: [1, 3, 6, 10, 20], value: (s) => s.stats.perfect },
 ];
+const badgeLevel = (b, s) => b.steps.filter((x) => b.value(s) >= x).length;
 const MONTH_GOAL = 30; // แต้มภารกิจที่ต้องสะสมเพื่อรับเหรียญประจำเดือน
 
 // เรื่องเล่าโจทย์: บทสนทนาสลับกับคำถาม (unit = บทที่ต้องไปถึงก่อนจึงปลดล็อก)

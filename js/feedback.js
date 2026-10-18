@@ -35,7 +35,7 @@ function openFeedback(kind = 'bug', q = null) {
 
 SHEETS.feedback = () => {
   const f = UI.fb, online = typeof Cloud !== 'undefined' && Cloud.user;
-  return `<div class="sheet-card fb-sheet"><h3>${f.q ? 'รายงานโจทย์ข้อนี้' : 'แจ้งปัญหา / ข้อเสนอแนะ'}</h3>
+  return `<div class="sheet-card fb-sheet"><h2>${f.q ? 'รายงานโจทย์ข้อนี้' : 'แจ้งปัญหา / ข้อเสนอแนะ'}</h2>
     <form class="acct-form" data-form="feedback">
       <div class="fb-kinds" role="radiogroup" aria-label="เรื่องที่จะแจ้ง">${FB_KINDS.map(([k, t]) =>
         `<button type="button" role="radio" aria-checked="${f.kind === k}" class="fb-kind ${f.kind === k ? 'on' : ''}" data-act="fb-kind" data-k="${k}">${t}</button>`).join('')}</div>
@@ -43,7 +43,7 @@ SHEETS.feedback = () => {
       <label class="fld">เล่าให้ฟังหน่อย${f.q ? ' (เช่น เฉลยผิดตรงไหน)' : ''}
         <textarea id="fb-text" maxlength="1000" rows="4" required placeholder="${f.q ? 'เช่น คิดว่าคำตอบควรเป็น 5 เพราะ…' : 'เกิดอะไรขึ้น ทำอะไรอยู่ตอนนั้น หรืออยากให้มีอะไรเพิ่ม'}">${esc(f.text)}</textarea></label>
       <label class="consent fb-attach"><input type="checkbox" id="fb-attach" ${f.attach ? 'checked' : ''}><span>แนบข้อมูลอุปกรณ์ (ขนาดจอ เบราว์เซอร์) ช่วยให้แก้ปัญหาได้เร็วขึ้น</span></label>
-      <p class="muted small">อย่าใส่ข้อมูลส่วนตัว เช่น เบอร์โทร ที่อยู่ หรือรหัสผ่าน · ${online ? `ส่งในนามบัญชี "${esc(S.name)}"` : `ยังไม่ได้เข้าสู่ระบบ จะเปิดแอปอีเมลเพื่อส่งถึง ${FEEDBACK_EMAIL}`}</p>
+      <p class="muted small">อย่าใส่ข้อมูลส่วนตัว เช่น เบอร์โทร ที่อยู่ หรือรหัสผ่าน ${online ? `ส่งในนามบัญชี "${esc(S.name)}"` : `ยังไม่ได้เข้าสู่ระบบ จะเปิดแอปอีเมลเพื่อส่งถึง ${FEEDBACK_EMAIL}`}</p>
       ${f.err ? `<p class="acct-msg err" role="alert">${esc(f.err)}</p>` : ''}
       <button class="btn primary" type="submit" ${f.busy ? 'disabled' : ''}>${f.busy ? 'กำลังส่ง…' : online ? 'ส่ง' : 'เปิดแอปอีเมล'}</button>
       <button class="btn ghost" type="button" data-act="close">ยกเลิก</button>
@@ -63,7 +63,7 @@ FORM_HANDLERS.feedback = async () => {
     UI.sheet = null; render();
     return;
   }
-  if (!netOK()) { f.err = cloudPaused() ? 'ระบบออนไลน์ปิดชั่วคราว ลองส่งใหม่ภายหลัง (ข้อความยังอยู่)' : 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตแล้วกดส่งอีกครั้ง (ข้อความยังอยู่)'; return render(); }
+  if (!netOK()) { f.err = cloudPaused() ? 'ส่งไม่ได้ชั่วคราว ข้อความยังอยู่ ลองส่งใหม่ภายหลังนะ' : 'ไม่มีอินเทอร์เน็ต ข้อความยังอยู่ ต่อเน็ตแล้วกดส่งอีกครั้ง'; return render(); }
   f.busy = true; f.err = null; render();
   const { error } = await Cloud.client.rpc('feedback_send', { p_kind: f.kind, p_message: f.text, p_context: ctx });
   f.busy = false;

@@ -46,7 +46,7 @@ function defaultState() {
     skills: {}, mistakes: [],
     quests: { day: today(), p: {}, claimed: {} },
     month: { key: monthKey(), points: 0 }, monthBadges: {},
-    badges: {},
+    badges: {}, badgeLv: {},
     settings: { sound: true, volume: 0.7, reduceMotion: false, textSize: 'm', adaptive: true },
   };
 }
@@ -62,6 +62,8 @@ function load() {
       if (raw.onboarded === undefined) s.onboarded = true; // ผู้เล่นเดิมไม่ต้องผ่านหน้าเริ่มต้น
       if (!raw.days) { s.days = {}; if (raw.lastDay) s.days[raw.lastDay] = 'learn'; }
       if (!raw.records) s.records.bestStreak = s.streak;
+      // ข้อมูลก่อนรวมระบบเหรียญตรา: นับระดับที่มีอยู่แล้วโดยไม่ประกาศว่าได้ใหม่
+      if (!raw.badgeLv) s.badgeLv = Object.fromEntries(LEVEL_BADGES.map((b) => [b.id, badgeLevel(b, s)]));
       return s;
     }
   } catch (e) { /* ไม่มีที่เก็บข้อมูล — เริ่มใหม่ */ }
@@ -221,9 +223,18 @@ const tint = (o) => `--h:${o.color};color:${o.ink}`;
 function checkBadges() {
   const fresh = [];
   for (const b of BADGES) if (!S.badges[b.id] && b.test(S)) { S.badges[b.id] = today(); fresh.push(b); }
+  for (const b of LEVEL_BADGES) {
+    const lvl = badgeLevel(b, S);
+    if (lvl > (S.badgeLv[b.id] || 0)) { S.badgeLv[b.id] = lvl; fresh.push({ ...b, lvl }); }
+  }
   return fresh;
 }
 const badgeHex = (b, got, cls = 'badge-hex') => hex(got ? icon(b.icon, 26) : icon('lock', 22), cls, got ? tint(b) : '');
+// เหรียญตราทั้งชุด สำหรับโปรไฟล์: เหรียญหลายระดับก่อน แล้วตามด้วยเหรียญพิเศษ
+const allBadges = () => [
+  ...LEVEL_BADGES.map((b) => ({ b, lvl: badgeLevel(b, S), got: badgeLevel(b, S) > 0 })),
+  ...BADGES.map((b) => ({ b, lvl: 0, got: !!S.badges[b.id] })),
+];
 
 function showToast(msg) {
   UI.toast = msg;
@@ -387,7 +398,7 @@ function opsBanner() {
   if (typeof cloudPaused !== 'function') return '';
   const paused = cloudPaused() && typeof Cloud !== 'undefined' && Cloud.enabled();
   const note = noticeText();
-  return `${paused ? `<div class="banner ops warn" role="status">${icon('clock', 18)}<span>${esc(Remote.kill.message || 'ระบบออนไลน์ปิดปรับปรุงชั่วคราว เรียนต่อได้ตามปกติ ความคืบหน้าเก็บในเครื่องและจะซิงก์เมื่อเปิดระบบ')}</span></div>` : ''}
+  return `${paused ? `<div class="banner ops warn" role="status">${icon('clock', 18)}<span>${esc(Remote.kill.message || 'ลีก เพื่อน และบัญชีออนไลน์ปิดปรับปรุงชั่วคราว เรียนต่อได้ตามปกติ ความคืบหน้าเก็บไว้ในเครื่องก่อน')}</span></div>` : ''}
     ${note ? `<div class="banner ops" role="status">${icon('bell', 18)}<span>${esc(note)}</span></div>` : ''}`;
 }
 // หัวหน้าจอย่อยที่มีปุ่มย้อนกลับ
@@ -398,17 +409,17 @@ const OFFSETS = [0, 52, 78, 52, 0, -52, -78, -52];
 
 // ข้อความให้กำลังใจจากน้องผึ้งข้างด่านปัจจุบัน
 function nudge(i) {
-  if (i === 0) return 'สวัสดี!<br>มาเริ่มเรียนกันเลย';
-  if (NODES[i].kind === 'test') return 'ด่านทดสอบมาแล้ว<br>สู้ ๆ นะ!';
+  if (i === 0) return 'สวัสดี! แตะที่ด่าน<br>มาเริ่มเรียนกัน';
+  if (NODES[i].kind === 'test') return 'ด่านทดสอบมาแล้ว<br>แตะเลย สู้ ๆ นะ!';
   const left = NODES.slice(i).findIndex((m) => m.kind === 'test');
-  return left === 1 ? 'อีกบทเดียว<br>ก็ถึงด่านทดสอบแล้ว!' : `อีก ${left} บท<br>ก็ถึงด่านทดสอบ`;
+  return left === 1 ? 'เริ่มบทนี้เลย<br>บทสุดท้ายก่อนทดสอบแล้ว' : `เริ่มบทนี้เลย<br>อีก ${left} บทถึงด่านทดสอบ`;
 }
 
 function viewLearn() {
   const cur = currentIndex();
   const goal = S.goal, todayXP = S.today.xp;
   const boost = boostLeft();
-  let html = `<section class="goal card" aria-label="เป้าหมายวันนี้">
+  let html = `<h1 class="sr-only">เส้นทางการเรียน</h1><section class="goal card" aria-label="เป้าหมายวันนี้">
     <span class="goal-ic">${icon(todayXP >= goal ? 'check' : 'target')}</span>
     <div class="goal-main">
       <div class="goal-row"><span>${todayXP >= goal ? 'ถึงเป้าหมายวันนี้แล้ว!' : 'เป้าหมายวันนี้'}</span><span>${Math.min(todayXP, goal)} / ${goal} XP</span></div>
@@ -448,7 +459,7 @@ function viewLearn() {
       const ic = n.kind === 'test' ? icon('trophy', 30) : done ? icon(legend ? 'crown' : 'check', 30) : open ? icon('star', 34) : icon('lock', 26);
       const label = (n.kind === 'test' ? 'ด่านทดสอบ: ' + u.title : n.title) + (done ? ' ผ่านแล้ว' : isCur ? ' ด่านปัจจุบัน' : open ? '' : ' ล็อกอยู่');
       html += `<div class="node-row k-${n.kind}${isCur ? ' is-cur' : ''}" style="--dx:${dx}px">
-        ${isCur ? '<span class="halo hex"></span><div class="start-tip">เริ่มเลย!</div>' : ''}
+        ${isCur ? '<span class="halo hex"></span>' : ''}
         <button class="node ${state}" data-act="node" data-i="${i}" aria-label="${esc(label)}"><span class="hex face">${ic}</span></button>
         ${isCur ? `<div class="path-bee" style="--side:${dx >= 0 ? -1 : 1}"><p class="say">${nudge(i)}</p>${bee(96)}</div>` : ''}
       </div>`;
@@ -459,7 +470,7 @@ function viewLearn() {
     });
     html += '</div>';
   });
-  if (cur >= NODES.length) html += `<div class="all-done">${bee(110, 'cheer')}<h3>เรียนครบทุกบทแล้ว!</h3><p>ลองท้าทาย “ระดับตำนาน” ในศูนย์ฝึกฝนดูสิ</p></div>`;
+  if (cur >= NODES.length) html += `<div class="all-done">${bee(110, 'cheer')}<h2>เรียนครบทุกบทแล้ว!</h2><p>ลองท้าทาย “ระดับตำนาน” ในศูนย์ฝึกฝนดูสิ</p></div>`;
   return shell(html);
 }
 
@@ -495,7 +506,7 @@ const SHEETS = {
     const idx = n.kind === 'lesson' ? n.unit.lessons.findIndex((l) => l.id === n.id) + 1 : null;
     return `<div class="sheet-card" style="${unitVars(n.unit)}">
       <span class="sheet-tag">บทที่ ${n.ui + 1} · ${n.kind === 'test' ? 'ด่านทดสอบท้ายบท' : `บทเรียน ${idx}/${n.unit.lessons.length}`}</span>
-      <h3>${n.kind === 'test' ? 'ด่านทดสอบ: ' + n.unit.title : n.title}</h3>
+      <h2>${n.kind === 'test' ? 'ด่านทดสอบ: ' + n.unit.title : n.title}</h2>
       ${!open ? '<p>ทำบทเรียนก่อนหน้าให้ผ่านก่อน จึงจะปลดล็อกด่านนี้</p>'
         : n.kind === 'test' ? '<p>ตอบถูก 70% ขึ้นไปเพื่อผ่านด่าน และปลดล็อกบทถัดไป</p>'
         : `<p>${done ? 'ผ่านแล้ว ทบทวนอีกครั้งเพื่อรับ XP เพิ่ม' : 'เรียนเนื้อหาสั้น ๆ แล้วทำแบบฝึกหัด 6 ข้อ'}</p>`}
@@ -507,41 +518,49 @@ const SHEETS = {
   nohearts() {
     const mins = Math.ceil((HEART_MS - (Date.now() - S.heartsTs)) / 60000);
     const mist = typeof mistakeGens === 'function' ? mistakeGens().length : 0;
-    return `<div class="sheet-card center">${bee(80, 'sad')}<h3>หัวใจหมดแล้ว</h3>
+    return `<div class="sheet-card center">${bee(80, 'sad')}<h2>หัวใจหมดแล้ว</h2>
       <p>อีก ${mins} นาทีได้คืน 1 ดวง หรือฝึกให้จบ 1 รอบ (ไม่ใช้หัวใจ) ก็ได้คืนเหมือนกัน</p>
       ${mist ? '<button class="btn primary" data-act="review-mistakes">ทบทวนข้อที่ผิด</button>' : '<button class="btn primary" data-act="tab" data-v="practice">ไปฝึกฝน</button>'}
       <button class="btn ghost" data-act="close">ไว้ก่อน</button></div>`;
   },
   quit() {
-    return `<div class="sheet-card center">${bee(80, 'sad')}<h3>จะออกจริงเหรอ?</h3>
+    return `<div class="sheet-card center">${bee(80, 'sad')}<h2>จะออกจริงเหรอ?</h2>
       <p>ความคืบหน้าในรอบนี้จะหายไปนะ</p>
       <button class="btn primary" data-act="close">ทำต่อ</button>
       <button class="btn danger-text" data-act="quit-yes">ออก</button></div>`;
   },
   reset() {
-    return `<div class="sheet-card center"><h3>รีเซ็ตความคืบหน้าทั้งหมด?</h3><p>XP บทเรียน น้ำหวาน ตราสัญลักษณ์ และสตรีคจะถูกลบ</p>
+    return `<div class="sheet-card center"><h2>รีเซ็ตความคืบหน้าทั้งหมด?</h2><p>XP บทเรียน น้ำหวาน ตราสัญลักษณ์ และสตรีคจะถูกลบ</p>
       <button class="btn danger" data-act="reset-yes">ลบทั้งหมด</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;
   },
   avatar() {
-    return `<div class="sheet-card center"><h3>เลือกสีกรอบอวตาร</h3><div class="swatches">${AVATAR_COLORS
+    return `<div class="sheet-card center"><h2>เลือกสีกรอบอวตาร</h2><div class="swatches">${AVATAR_COLORS
       .map((c, i) => `<button class="swatch ${S.avatar === c ? 'sel' : ''}" data-act="avatar" data-a="${c}" aria-label="สีที่ ${i + 1}" ${S.avatar === c ? 'aria-pressed="true"' : ''}>
         ${hex(hex(S.avatar === c ? icon('check', 22) : '', 'sw-in', `background:${c}`), 'sw-out')}</button>`).join('')}</div></div>`;
   },
   badge(s) {
+    const lb = LEVEL_BADGES.find((x) => x.id === s.id);
+    if (lb) {
+      const v = lb.value(S), lvl = badgeLevel(lb, S), next = lb.steps[lvl];
+      return `<div class="sheet-card center">${badgeHex(lb, lvl, 'badge-hex big')}<h2>${lb.name}</h2>
+        <p>${lvl ? `ระดับ ${lvl} จาก 5` : 'ยังไม่ได้รับ'} ตอนนี้มี <span class="nowrap">${num(v)} ${lb.unit}</span></p>
+        <p class="small">${next ? `ระดับ ${lvl + 1} ต้องมี <span class="nowrap">${num(next)} ${lb.unit}</span>` : 'ถึงระดับสูงสุดแล้ว'}</p>
+        <button class="btn primary" data-act="close">ตกลง</button></div>`;
+    }
     const b = BADGES.find((x) => x.id === s.id), got = S.badges[b.id];
-    return `<div class="sheet-card center">${badgeHex(b, got, 'badge-hex big')}<h3>${b.name}</h3><p>${b.desc}</p>
+    return `<div class="sheet-card center">${badgeHex(b, got, 'badge-hex big')}<h2>${b.name}</h2><p>${b.desc}</p>
       <p class="small">${got ? 'ได้รับเมื่อ ' + thaiDate(got) : 'ยังไม่ได้รับ'}</p>
       <button class="btn primary" data-act="close">ตกลง</button></div>`;
   },
   chest(s) {
-    return `<div class="sheet-card center"><div class="chest-big">${CHEST_SVG(true)}</div><h3>เปิดหีบแล้ว!</h3>
+    return `<div class="sheet-card center"><div class="chest-big">${CHEST_SVG(true)}</div><h2>เปิดหีบแล้ว!</h2>
       <p>ได้รับ <b>${s.nectar} น้ำหวาน</b>${s.boost ? ' และ <b>XP สองเท่า 15 นาที</b>' : ''}</p>
       <button class="btn primary" data-act="close">เยี่ยมเลย</button></div>`;
   },
   jump(s) {
     const first = Math.min(s.u - 1, UNITS.findIndex((u, ui) => !unitDone(ui)));
     return `<div class="sheet-card" style="${unitVars(UNITS[s.u])}"><span class="sheet-tag">ทดสอบข้ามบท</span>
-      <h3>ข้ามไปเรียนบทที่ ${s.u + 1}: ${UNITS[s.u].title}</h3>
+      <h2>ข้ามไปเรียนบทที่ ${s.u + 1}: ${UNITS[s.u].title}</h2>
       <p>ตอบ 10 ข้อจากบทที่ ${first + 1}${s.u - 1 > first ? `–${s.u}` : ''} ผิดได้ไม่เกิน 2 ข้อ ไม่ใช้หัวใจ ผ่านแล้วบทก่อนหน้าจะนับว่าผ่านทั้งหมด</p>
       <button class="btn primary" data-act="jump-start" data-u="${s.u}">เริ่มทดสอบ +20 XP</button>
       <button class="btn ghost" data-act="close">ไว้ก่อน</button></div>`;
@@ -549,14 +568,14 @@ const SHEETS = {
   league() {
     const r = S.leagueResult, t = tierOf(r.to);
     const msg = r.to > r.from ? `เลื่อนขึ้นสู่ลีก${t.name}!` : r.to < r.from ? `ตกไปอยู่ลีก${t.name}` : `อยู่ลีก${t.name}ต่อ`;
-    return `<div class="sheet-card center">${hex(icon(t.icon, 40), 'tier-hex big', tint(t))}<h3>${msg}</h3>
+    return `<div class="sheet-card center">${hex(icon(t.icon, 40), 'tier-hex big', tint(t))}<h2>${msg}</h2>
       <p>สัปดาห์ที่แล้วคุณได้อันดับที่ ${r.rank} จาก ${r.n || 20} คน</p>
       ${r.reward ? `<p class="earn">${icon('drop', 16)} รางวัลอันดับ ${r.rank} +${r.reward} น้ำหวาน</p>` : ''}
       <button class="btn primary" data-act="league-ok">${r.reward ? 'รับรางวัล' : 'ตกลง'}</button></div>`;
   },
   react() {
     const cur = leagueRows().find((x) => x.me)?.reaction;
-    return `<div class="sheet-card center"><h3>ไอคอนข้างชื่อในลีก</h3><p>ทุกคนในกลุ่มจะเห็นไอคอนนี้ข้างชื่อของคุณ</p>
+    return `<div class="sheet-card center"><h2>ไอคอนข้างชื่อในลีก</h2><p>ทุกคนในกลุ่มจะเห็นไอคอนนี้ข้างชื่อของคุณ</p>
       <div class="react-pick">${REACTIONS.map((x) => `<button class="react-opt ${cur === x.id ? 'sel' : ''}" data-act="react" data-r="${x.id}" aria-pressed="${cur === x.id}">
         ${icon(x.id, 26)}<span>${x.name}</span></button>`).join('')}</div>
       ${cur ? '<button class="btn ghost" data-act="react" data-r="">ไม่ใช้ไอคอน</button>' : ''}
@@ -694,7 +713,7 @@ function viewLesson() {
   const foot = L.checked
     ? feedbackFoot(L.ok, L.msg, answerHTML, q.explain, 'next', L.kind === 'placement', L.note, heartLine(L))
     : q.type === 'match'
-      ? `<footer class="lesson-foot match-foot"><span>แตะ 1 ช่องในแต่ละฝั่งเพื่อจับคู่ · จับคู่แล้ว <b>${L.mDone.length} / ${q.pairs.length}</b></span></footer>`
+      ? `<footer class="lesson-foot match-foot"><span>จับคู่แล้ว <b>${L.mDone.length} / ${q.pairs.length}</b></span></footer>`
       : `<footer class="lesson-foot">${kbdHint(q.type)}<button class="btn primary wide" data-act="check" ${ready ? '' : 'disabled'}>ตรวจคำตอบ</button></footer>`;
   const pills = [
     L.kind === 'test' ? `<span class="pill">${icon('trophy', 16)} ด่านทดสอบ</span>` : '',
@@ -714,7 +733,7 @@ function viewLesson() {
     <header class="lesson-top"><button class="x" data-act="quit" aria-label="ออก">${icon('x', 22)}</button>
       <div class="progress ${L.run >= 3 ? 'hot' : ''}" role="progressbar" aria-label="ความคืบหน้า" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pct}%;--from:${fromPct}%"></div></div>
       ${status}</header>
-    <main class="lesson-body">
+    <main class="lesson-body"><h1 class="sr-only">ข้อที่ ${L.idx + 1} จาก ${L.total}</h1>
       ${pills ? `<div class="pills">${pills}</div>` : ''}
       ${usesHearts(L.kind) && S.hearts === 1 && !L.checked ? `<p class="heart-warn">${icon('heart', 16)} เหลือหัวใจดวงสุดท้าย ค่อย ๆ คิดนะ ไม่ต้องรีบ</p>` : ''}
       ${L.run >= 3 && !L.checked ? `<div class="combo">${icon('flame', 18)} ถูกติดกัน ${L.run} ข้อ!</div>` : ''}
@@ -758,17 +777,17 @@ function heartLine(L) {
   if (!L.lostHeart) return null;
   return S.hearts > 0
     ? { text: `<span class="nw">เสียหัวใจ 1 ดวง</span> · <span class="nw">เหลือ ${S.hearts} ดวง</span>`, empty: false }
-    : { text: 'หัวใจหมดแล้ว บทนี้จะจบหลังข้อนี้ · ไปฝึกฝนเพื่อรับหัวใจคืนได้', empty: true };
+    : { text: 'หัวใจหมดแล้ว ข้อนี้เป็นข้อสุดท้ายของบทนี้', empty: true };
 }
 function feedbackFoot(ok, msg, answerHTML, explain, act, quiet = false, note = '', heart = null) {
   if (quiet) {
-    return `<footer class="lesson-foot fb neutral" aria-live="polite"><div class="fb-head"><span class="fb-ic">${icon('check', 22)}</span><div><h3>บันทึกคำตอบแล้ว</h3><p>ทำข้อต่อไปได้เลย</p></div></div>
+    return `<footer class="lesson-foot fb neutral" aria-live="polite"><div class="fb-head"><span class="fb-ic">${icon('check', 22)}</span><div><h2>บันทึกคำตอบแล้ว</h2><p>ทำข้อต่อไปได้เลย</p></div></div>
       <button class="btn primary wide" data-act="${act}">ทำต่อ</button></footer>`;
   }
   // บนจอใหญ่ แถบนี้จัดเป็นแถวเดียว: ผลตรวจ | เฉลย | ปุ่ม
   return `<footer class="lesson-foot fb ${ok ? 'ok' : 'bad'}" aria-live="polite">
     <div class="fb-head"><span class="fb-ic">${icon(ok ? 'check' : 'x', 22)}</span>
-      <div><h3>${msg}</h3>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${heart ? `<p class="fb-heart">${icon('heart', 15)} ${heart.text}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div>
+      <div><h2>${msg}</h2>${!ok && answerHTML ? `<p>คำตอบที่ถูกคือ ${answerHTML}</p>` : ''}${heart ? `<p class="fb-heart">${icon('heart', 15)} ${heart.text}</p>` : ''}${note ? `<p class="lvl-note">${icon(ok ? 'up' : 'down', 14)} ${note}</p>` : ''}</div>
       ${act === 'next' && typeof openFeedback === 'function' ? `<button class="fb-flag" data-act="report-q" aria-label="รายงานโจทย์ข้อนี้" title="รายงานโจทย์ข้อนี้">${icon('flag', 20)}</button>` : ''}</div>
     ${ok ? '' : `<div class="explain">${explain}</div>`}
     <div class="fb-act"><button class="btn ${ok ? 'go' : 'danger'} wide" data-act="${act}">${ok ? 'ทำต่อ' : heart?.empty ? 'เข้าใจแล้ว ดูผล' : 'เข้าใจแล้ว ไปต่อ'}</button><span class="kbd-hint">หรือกด <kbd>Enter</kbd></span>
@@ -808,6 +827,9 @@ function check() {
   if (ok) {
     S.stats.correct++;
     if (q.tags.includes('solve')) { S.stats.solved++; quest('solve'); }
+    // จำสมการที่ยากที่สุดที่แก้ได้ในรอบนี้ ไว้โชว์ในหน้าจบ (ระดับโจทย์ก่อน แล้วดูความยาวสมการ)
+    const hard = (q.lvl || 0) * 100 + (q.eq || '').length;
+    if (q.eq && typeof q.answer === 'number' && hard >= (L.best?.hard || 0)) L.best = { eq: q.eq, x: q.answer, hard };
     if (!q.retry) L.firstTry++;
     if (q.pu !== undefined) L.unitOk[q.pu] = (L.unitOk[q.pu] || 0) + 1;
     L.run++;
@@ -885,7 +907,7 @@ function finish(completed) {
     : L.kind === 'jump' ? `ปลดล็อกบทที่ ${L.meta.unit + 1} · ${UNITS[L.meta.unit].title}`
     : L.meta.unitReview !== undefined ? `ทบทวนบทที่ ${L.meta.unitReview + 1}`
     : L.meta.review ? 'ทบทวนข้อที่ผิด' : L.meta.weak ? 'ฝึกจุดอ่อน' : PRACTICE.find((p) => p.id === L.meta.practice)?.title || 'ฝึกฝน';
-  UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, seen: Math.min(L.total, L.idx + 1), streakUp: !!streak, milestone: streak?.milestone, goal: streak?.goal, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
+  UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, seen: Math.min(L.total, L.idx + 1), best: L.best || null, streakUp: !!streak, milestone: streak?.milestone, goal: streak?.goal, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
   UI.view = 'result'; UI.L = null;
   render();
   window.scrollTo(0, 0);
@@ -899,7 +921,7 @@ const HONEYCOMB = `<svg class="combs" viewBox="0 0 390 360" aria-hidden="true">
 // ตัวเลขล้วน (หรือมี %) จะนับขึ้นจาก 0 ตอนเปิดหน้าผลลัพธ์
 const countUp = (v) => { const m = String(v).match(/^(\+?)(\d+)(%?)$/); return m ? `${m[1]}<span class="count" data-to="${m[2]}">${m[2]}</span>${m[3]}` : v; };
 const statTile = (cls, label, ic, value) => `<div class="tile-stat ${cls}"><small>${label}</small><b>${icon(ic, 20)}${countUp(value)}</b></div>`;
-const sadScreen = (title, text, actions) => `<div class="result center-y">${bee(120, 'sad')}<h2>${title}</h2><p>${text}</p><div class="result-actions">${actions}</div></div>`;
+const sadScreen = (title, text, actions) => `<div class="result center-y">${bee(120, 'sad')}<h1>${title}</h1><p>${text}</p><div class="result-actions">${actions}</div></div>`;
 // การ์ดรางวัลที่ใช้ร่วมกันในหน้าจบ: น้ำหวาน ก้าวสำคัญสตรีค ตราสัญลักษณ์ใหม่
 function rewardsHTML(r) {
   let d = 0; // เลื่อนเวลาให้รางวัลโผล่ทีละชิ้น
@@ -907,8 +929,8 @@ function rewardsHTML(r) {
   return `${r.nectar ? `<span class="earn" ${delay()}>${icon('drop', 16)} +${r.nectar} น้ำหวาน</span>` : ''}
     ${r.hardBonus ? `<span class="earn hard" ${delay()}>${icon('mountain', 16)} รวมโบนัสโจทย์ท้าทาย +${r.hardBonus} XP</span>` : ''}
     ${r.milestone ? `<div class="new-badge" ${delay()}>${hex(icon('flame', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ก้าวสำคัญ! สตรีค ${r.milestone.days} วัน</small><b>รับ ${r.milestone.nectar} น้ำหวาน${r.milestone.days === 30 ? ' + ดอกไม้ประดับ' : ''}</b></div></div>` : ''}
-    ${r.goal ? `<div class="new-badge" ${delay()}>${hex(icon('target', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ครบเป้าหมายสตรีค ${r.goal.n} วัน!</small><b>รับ ${r.goal.nectar} น้ำหวาน · ตั้งเป้าใหม่ได้ที่หน้าสตรีค</b></div></div>` : ''}
-    ${(r.badges || []).map((b) => `<div class="new-badge" ${delay()}>${badgeHex(b, true)}<div><small>ได้ตราสัญลักษณ์ใหม่</small><b>${b.name}</b></div></div>`).join('')}`;
+    ${r.goal ? `<div class="new-badge" ${delay()}>${hex(icon('target', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ครบเป้าหมายสตรีค ${r.goal.n} วัน!</small><b>ได้ ${r.goal.nectar} น้ำหวาน ไปตั้งเป้าถัดไปที่หน้าสตรีคได้เลย</b></div></div>` : ''}
+    ${(r.badges || []).map((b) => `<div class="new-badge" ${delay()}>${badgeHex(b, true)}<div><small>${b.lvl > 1 ? `เหรียญตราขึ้นเป็นระดับ ${b.lvl}` : 'ได้เหรียญตราใหม่'}</small><b>${b.name}</b></div></div>`).join('')}`;
 }
 const RESULT_VIEWS = {};
 function viewResult() {
@@ -917,7 +939,7 @@ function viewResult() {
   if (r.kind === 'placement') {
     const u = UNITS[r.startUnit];
     return `<div class="result win">${HONEYCOMB}<div class="hero hex">${bee(170, 'cheer')}</div>
-      <h2>วัดระดับเสร็จแล้ว!</h2><p>เริ่มเรียนที่บทที่ ${r.startUnit + 1} · ${u.title}</p>
+      <h1>วัดระดับเสร็จแล้ว!</h1><p>เริ่มเรียนที่บทที่ ${r.startUnit + 1} · ${u.title}</p>
       <div class="tiles">${statTile('green', 'ตอบถูก', 'target', `${r.correct}/10`)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}</div>
       <div class="result-actions"><button class="btn primary wide" data-act="tab" data-v="learn">เริ่มเรียน</button></div></div>`;
   }
@@ -949,7 +971,9 @@ function viewResult() {
   const nextTab = (r.kind === 'practice' && r.meta.unitReview === undefined) || r.kind === 'legend' ? 'practice' : 'learn';
   return `<div class="result win">${HONEYCOMB}${confetti()}
     <div class="hero hex">${bee(170, 'cheer')}</div>
-    <h2>${title}</h2><p>${esc(r.sub)}</p>
+    <h1>${title}</h1><p>${esc(r.sub)}</p>
+    ${r.best ? `<div class="solved"><small>สมการที่ยากที่สุดที่คุณแก้ได้</small><div class="solved-eq">${M(r.best.eq)}</div>
+      <span class="solved-x">${icon('check', 18)}${M('x = ' + r.best.x)}</span></div>` : ''}
     <div class="tiles">
       ${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}
       ${statTile('green', r.perfect ? 'ไร้ที่ติ!' : 'แม่นยำ', 'target', r.acc + '%')}
@@ -1060,18 +1084,18 @@ function viewBoard() {
     if (r.rank === z.up && !top && n > z.up) list += `<li class="zone up">${icon('up', 14)} เขตเลื่อนลีก</li>`;
     if (r.rank === z.down - 1 && t > 0) list += `<li class="zone down">${icon('down', 14)} เขตตกลีก</li>`;
   });
-  const rules = `${top ? 'ลีกสูงสุดแล้ว' : `${z.up} อันดับแรกเลื่อนขึ้น`}${t > 0 && z.down <= n ? ` · อันดับ ${z.down}–${n} ตกลีก` : ''}`;
+  const rules = top ? 'ลีกสูงสุดแล้ว รักษาอันดับไว้นะ' : `${z.up} อันดับแรกได้เลื่อนลีก`;
   const rewards = leagueRewards();
   const pending = real && typeof outboxCount === 'function' ? outboxCount() : 0;
   return shell(`${tierRow()}
     <h1 class="page-title center">ลีก${tierOf(t).name}</h1>
-    <p class="muted center">${icon('clock', 15)} เหลือ ${weekLeft()} · ${real ? `${n} คนในกลุ่มนี้` : 'กลุ่มละ 20 คน'} · ${rules}</p>
-    ${rewards.length ? `<p class="league-prize">${icon('drop', 15)}<span>รางวัลจบสัปดาห์ · อันดับ ${rewards.map((x) => x.rank).join('/')}: ${rewards.map((x) => x.nectar).join(' / ')} <span class="nowrap">น้ำหวาน</span></span></p>` : ''}
-    ${pending ? `<p class="muted small center">${icon('refresh', 14)} กำลังส่งผล ${pending} รายการ XP จะขึ้นในลีกเมื่อเซิร์ฟเวอร์ตรวจเสร็จ</p>` : ''}
+    <p class="muted center">${rules} ${icon('clock', 15)} <span class="nowrap">จบสัปดาห์ในอีก ${weekLeft()}</span></p>
+    ${rewards.length ? `<p class="league-prize">${icon('drop', 15)}<span>จบสัปดาห์ ${rewards.map((x) => `<span class="nowrap">อันดับ ${x.rank} ได้ ${x.nectar}</span>`).join(' ')} <span class="nowrap">น้ำหวาน</span></span></p>` : ''}
+    ${pending ? `<p class="muted small center">${icon('refresh', 14)} มีผลอีก ${pending} รอบที่ยังส่งไม่ถึง XP จะขึ้นในตารางเมื่อส่งเสร็จ</p>` : ''}
     <ol class="board">${list}</ol>
     ${real
-      ? `<p class="muted small center">ทุกคนในตารางนี้เป็นนักเรียนจริง${rows.some((r) => r.active) ? ' <i class="live inline"></i> คือเพิ่งเรียนไปเมื่อกี้' : ''}${n < 5 ? ' · ชวนเพื่อนมาสมัครเพื่อแข่งกันสนุกขึ้น!' : ''}</p>`
-      : `<p class="muted small center">ผู้เล่นอื่นเป็นผู้เล่นจำลอง${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' · <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
+      ? `<p class="muted small center">ทุกคนในตารางนี้เป็นนักเรียนจริง${rows.some((r) => r.active) ? ' <i class="live inline"></i> คือเพิ่งเรียนไปเมื่อกี้' : ''}${n < 5 ? ' ชวนเพื่อนมาเข้ากลุ่มสิ ยิ่งคนเยอะยิ่งสนุก' : ''}</p>`
+      : `<p class="muted small center">ตอนนี้แข่งกับผู้เล่นจำลองอยู่${typeof Cloud !== 'undefined' && Cloud.enabled() ? ' <button class="linkbtn" data-act="go" data-v="account">เข้าสู่ระบบเพื่อแข่งกับผู้เล่นจริง</button>' : ''}</p>`}`);
 }
 // ยังไม่ได้เข้าสู่ระบบ: อธิบายลีก แล้วชวนสมัคร / เข้าสู่ระบบ / เข้าห้องเรียน
 function boardGuest() {
@@ -1095,7 +1119,7 @@ function boardGuest() {
 }
 // เข้าสู่ระบบแล้วแต่ยังไม่มีข้อมูลลีกจริง: บอกสาเหตุ (กำลังโหลด / ผิดพลาด) แทนการโชว์ผู้เล่นจำลองที่ทำให้เข้าใจผิด
 function boardPending() {
-  const err = Cloud.leagueError || (Cloud.status === 'offline' || !navigator.onLine ? 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตแล้วลองใหม่' : '');
+  const err = Cloud.leagueError || (Cloud.status === 'offline' || !navigator.onLine ? 'ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วลองใหม่อีกครั้ง' : '');
   return shell(`${tierRow()}
     <h1 class="page-title center">ลีก${tierOf(S.league.tier).name}</h1>
     <div class="card center league-wait">${bee(72, err ? 'sad' : 'happy')}
@@ -1113,7 +1137,7 @@ function viewQuests() {
   const preview = me.rank <= 4 ? rows.slice(0, 4) : [...rows.slice(0, 3), me];
   const mp = Math.min(MONTH_GOAL, S.month.points);
   return shell(`<h1 class="page-title">ภารกิจประจำวัน</h1>
-    <p class="muted">${icon('clock', 15)} รีเซ็ตในอีก ${hrs} ชั่วโมง · รับรางวัลแต่ละข้อได้ ${NECTAR.quest} น้ำหวาน และ 1 แต้มประจำเดือน</p>
+    <p class="muted">${icon('clock', 15)} ภารกิจชุดใหม่มาในอีก <span class="nowrap">${hrs} ชั่วโมง</span></p>
     <div class="quest-card">${QUESTS.map((q) => {
       const v = Math.min(q.goal, S.quests.p[q.id] || 0), done = v >= q.goal, claimed = S.quests.claimed[q.id];
       return `<div class="quest ${done ? 'done' : ''}">${hex(icon(q.icon, 22), 'ico', tint(q))}
@@ -1141,13 +1165,13 @@ const PROFILE_PATTERN = `<svg class="pattern" viewBox="0 0 390 150" preserveAspe
   <polygon points="352,-10 378,5 378,35 352,50 326,35 326,5"/></g></svg>`;
 function viewProfile() {
   const lv = levelInfo(S.xp);
-  const got = BADGES.filter((b) => S.badges[b.id]).length;
+  const badges = allBadges(), got = badges.filter((x) => x.got).length;
   const unitProg = UNITS.map((u, ui) => {
     const ns = NODES.filter((n) => n.ui === ui), d = ns.filter((n) => S.done[n.id]).length;
     return `<div class="uprog"><div class="uprog-row"><span>${u.title}${S.legend[u.id] ? ' · ระดับตำนาน' : ''}</span><span>${d}/${ns.length}</span></div>
       <div class="meter" style="--m:${u.color}"><div style="width:${(d / ns.length) * 100}%"></div></div></div>`;
   }).join('');
-  return shell(`<div class="profile-hero">${PROFILE_PATTERN}
+  return shell(`<h1 class="sr-only">โปรไฟล์ของ ${esc(S.name)}</h1><div class="profile-hero">${PROFILE_PATTERN}
       <button class="gear" data-act="settings" aria-label="ตั้งค่า">${icon('gear', 22)}</button>
       <button class="avatar-hex hex" data-act="pick-avatar" aria-label="เปลี่ยนสีกรอบอวตาร">${hex(bee(84), 'inner', `background:${S.avatar}`)}</button>
     </div>
@@ -1170,9 +1194,10 @@ function viewProfile() {
       <div class="stat">${icon('check', 26)}<div><b>${Object.keys(S.done).length} / ${NODES.length}</b><small>ด่านที่ผ่าน</small></div></div>
       <div class="stat">${icon('drop', 26)}<div><b>${num(S.nectar)}</b><small>น้ำหวาน</small></div></div>
     </div>
-    <div class="sec-row"><h3>ความก้าวหน้า</h3></div>${unitProg}
-    <div class="sec-row"><h3>ตราสัญลักษณ์</h3><span>${got} / ${BADGES.length}</span></div>
-    <div class="badges">${BADGES.map((b) => `<button class="badge ${S.badges[b.id] ? 'got' : ''}" data-act="badge" data-id="${b.id}">${badgeHex(b, S.badges[b.id])}<span>${b.name}</span></button>`).join('')}</div>`, { top: false });
+    <div class="sec-row"><h2>ความก้าวหน้า</h2></div>${unitProg}
+    <div class="sec-row"><h2>เหรียญตรา</h2><button class="linkbtn" data-act="go" data-v="achievements">ได้แล้ว ${got} จาก ${badges.length}</button></div>
+    <div class="badges">${badges.map(({ b, lvl, got }) => `<button class="badge ${got ? 'got' : ''}" data-act="badge" data-id="${b.id}">
+      <span class="lvl-wrap">${badgeHex(b, got)}${lvl ? `<span class="lvl-tag">ระดับ ${lvl}</span>` : ''}</span><span>${b.name}</span></button>`).join('')}</div>`, { top: false });
 }
 
 // ---------- render & actions ----------

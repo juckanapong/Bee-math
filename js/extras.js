@@ -16,7 +16,7 @@ function viewOnboarding() {
         ${switchHTML('ob-remind', o.remind, 'เปิดการเตือน')}
       </div>
       ${typeof Cloud !== 'undefined' && Cloud.enabled() ? '<button class="btn link" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}
-      <p class="muted small center">ไม่ต้องสมัครก็เรียนได้ ความคืบหน้าเก็บในเครื่องนี้เท่านั้น · <a href="privacy.html" target="_blank" rel="noopener">นโยบายความเป็นส่วนตัว</a></p>`
+      <p class="muted small center">ไม่ต้องสมัครก็เรียนได้ ความคืบหน้าจะเก็บไว้ในเครื่องนี้ <a class="pp-link" href="privacy.html" target="_blank" rel="noopener">อ่านนโยบายความเป็นส่วนตัว</a></p>`
     : `<h1 class="ob-title">เคยเรียนสมการมาก่อนไหม?</h1>
       <p class="muted">เลือกจุดเริ่มต้นที่เหมาะกับตัวเอง</p>
       <button class="big-pick ${o.level === 'basic' ? 'sel' : ''}" data-act="ob-level" data-l="basic">
@@ -70,7 +70,7 @@ function remindNote() {
   if (iosNeedsInstall()) return 'บน iPhone/iPad ให้เพิ่มแอปลงหน้าจอโฮมก่อน จึงจะเตือนตอนปิดแอปได้';
   if (!Cloud.user) return 'เข้าสู่ระบบเพื่อรับแจ้งเตือนแม้ปิดแอป';
   if (Notification.permission === 'denied') return 'เบราว์เซอร์บล็อกการแจ้งเตือนไว้ เปิดได้ที่การตั้งค่าของเบราว์เซอร์';
-  if (Push.on) return `แจ้งเตือนแม้ปิดแอป วันละครั้งถ้ายังไม่ได้เรียน · ส่งได้ ${PUSH_FROM}–21:00 น.${pushTime() !== S.remind.time ? ` (จะเตือนเวลา ${pushTime()} น.)` : ''}`;
+  if (Push.on) return `น้องผึ้งจะเตือนวันละครั้งในวันที่ยังไม่ได้เรียน แม้ปิดแอปอยู่${pushTime() !== S.remind.time ? ` (จะเตือนเวลา ${pushTime()} น.)` : ''}`;
   return 'กำลังเปิดการแจ้งเตือน…';
 }
 
@@ -90,7 +90,7 @@ function streakGoalHTML() {
   return `<section class="card sgoal">
     <div class="sgoal-head">${hex(icon(g.done ? 'check' : 'target', 22), 'ico', '--h:#FF7A1A;color:#2A1F14')}<span class="setting-main">
       <b>${g.done ? `ครบเป้าหมาย ${g.n} วันแล้ว!` : `เป้าหมาย: เรียนต่อเนื่องอีก ${g.n} วัน`}</b>
-      <small>${g.done ? `ได้รับ ${def.nectar} น้ำหวานแล้ว` : `ได้ ${got} / ${g.n} วัน · ครบแล้วรับ ${def.nectar} น้ำหวาน`}</small></span></div>
+      <small>${g.done ? `ได้รับ ${def.nectar} น้ำหวานแล้ว` : `${got} จาก ${g.n} วัน ครบแล้วได้ ${def.nectar} น้ำหวาน`}</small></span></div>
     <div class="meter" role="progressbar" aria-label="ความคืบหน้าเป้าหมายสตรีค" aria-valuenow="${got}" aria-valuemin="0" aria-valuemax="${g.n}"><div style="width:${(got / g.n) * 100}%"></div></div>
     <button class="btn ${g.done ? 'primary' : 'link'} small" data-act="sgoal-reset">${g.done ? 'ตั้งเป้าหมายใหม่' : 'เปลี่ยนเป้าหมาย'}</button>
   </section>`;
@@ -132,7 +132,7 @@ function viewStreak() {
       <div class="cal-legend"><span><i class="lg learn"></i>เรียนแล้ว</span><span><i class="lg shield"></i>ใช้โล่สตรีค</span><span><i class="lg today"></i>วันนี้</span></div>
     </section>
     <section>
-      <div class="sec-row tight"><h3>ก้าวสำคัญ</h3><span>${nextM ? `อีก ${nextM - S.streak} วัน` : 'ครบทุกก้าวแล้ว!'}</span></div>
+      <div class="sec-row tight"><h2>ก้าวสำคัญ</h2><span>${nextM ? `อีก ${nextM - S.streak} วัน` : 'ครบทุกก้าวแล้ว!'}</span></div>
       <div class="milestones">${ms}</div>
       ${nextM ? `<p class="muted small">ครบ ${nextM} วัน รับ ${MILESTONES[nextM]} น้ำหวาน${nextM === 30 ? ' และดอกไม้ประดับให้น้องผึ้ง' : ''}</p>` : ''}
     </section>
@@ -156,7 +156,7 @@ const SHOP = [
   { sec: 'หัวใจ', id: 'free', name: 'ได้หัวใจคืนฟรี', icon: 'heart', color: '#FFE5E5', ink: '#A3262B',
     desc: () => 'ฝึกฝนจบ 1 รอบ หรือตอบถูกติดกัน 5 ข้อในบทเรียน', blocked: () => 'ฟรี' },
   { sec: 'สตรีค', id: 'shield', name: 'โล่สตรีค', icon: 'shield', color: '#A9DCFF', ink: '#1E4FB8', price: 200,
-    desc: () => `กันสตรีคหายเมื่อพลาด 1 วัน · มี ${S.shields} / ${MAX_SHIELDS}`, blocked: () => S.shields >= MAX_SHIELDS && 'มีครบแล้ว',
+    desc: () => `ใช้แทนวันที่พลาดได้ 1 วัน <span class="nowrap">(มีอยู่ ${S.shields} จาก ${MAX_SHIELDS})</span>`, blocked: () => S.shields >= MAX_SHIELDS && 'มีครบแล้ว',
     buy: () => { S.shields++; return 'ได้โล่สตรีคแล้ว'; } },
   { sec: 'สตรีค', id: 'repair', name: 'ซ่อมสตรีค', icon: 'wrench', color: '#FFE3D1', ink: '#A24400', price: 400,
     desc: () => (S.streakLost ? `กู้สตรีค ${S.streakLost.streak} วันคืน` : 'ใช้ได้ภายใน 48 ชม. หลังสตรีคขาด'), blocked: () => !S.streakLost && 'ยังไม่ต้องใช้',
@@ -188,8 +188,10 @@ function shopAction(it) {
 function viewShop() {
   const secs = uniq(SHOP.map((it) => it.sec));
   return shell(`<div class="sub-body">
-    <div class="note blue">${icon('drop', 20)}<p>ได้น้ำหวาน: จบบทเรียน +${NECTAR.lesson} · ไร้ที่ติ +${NECTAR.perfect} · ภารกิจ +${NECTAR.quest} · ด่านทดสอบ +${NECTAR.test} · ก้าวสำคัญสตรีค</p></div>
-    ${secs.map((sec) => `<section><h3 class="shop-sec">${sec}</h3><div class="list-card">${SHOP.filter((it) => it.sec === sec).map((it) =>
+    <details class="earn-how"><summary>${icon('drop', 18)}<span>หาน้ำหวานเพิ่มได้จากไหน?</span>${icon('chevron', 18)}</summary>
+      <ul>${[['จบบทเรียน', NECTAR.lesson], ['จบแบบไม่ผิดเลย', NECTAR.perfect], ['รับรางวัลภารกิจ', NECTAR.quest], ['ผ่านด่านทดสอบ', NECTAR.test]]
+        .map(([t, n]) => `<li><span>${t}</span><b>+${n}</b></li>`).join('')}<li><span>สตรีคครบ 7, 30, 100 วัน</span><b>โบนัส</b></li></ul></details>
+    ${secs.map((sec) => `<section><h2 class="shop-sec">${sec}</h2><div class="list-card">${SHOP.filter((it) => it.sec === sec).map((it) =>
       `<div class="shop-row">${hex(icon(it.icon, 22), 'ico', tint(it))}
         <span class="setting-main"><b>${it.name}</b><small>${it.desc()}</small></span>${shopAction(it)}</div>`).join('')}</div></section>`).join('')}
     <div class="shop-preview">${bee(72)}<p>${S.outfit ? 'น้องผึ้งใส่' + SHOP.find((it) => it.id === S.outfit).name + 'อยู่' : 'ยังไม่ได้แต่งตัวน้องผึ้ง'}</p></div>
@@ -265,7 +267,7 @@ function viewPracticeHub() {
 }
 Object.assign(SHEETS, {
   legend() {
-    return `<div class="sheet-card"><h3>ระดับตำนาน</h3><p>ทำโจทย์ 10 ข้อจากทั้งบท ผิดได้ไม่เกิน 2 ข้อ ไม่ใช้หัวใจ ผ่านแล้วด่านในบทจะเปลี่ยนเป็นมงกุฎ</p>
+    return `<div class="sheet-card"><h2>ระดับตำนาน</h2><p>ทำโจทย์ 10 ข้อจากทั้งบท ผิดได้ไม่เกิน 2 ข้อ ไม่ใช้หัวใจ ผ่านแล้วด่านในบทจะเปลี่ยนเป็นมงกุฎ</p>
       <div class="list-card">${UNITS.map((u, ui) => {
         const ready = unitDone(ui), done = !!S.legend[u.id];
         return `<div class="shop-row">${hex(icon(done ? 'crown' : ready ? 'star' : 'lock', 20), 'ico', ready ? '--h:#2A1F14;color:#FFC21A' : '')}
@@ -274,7 +276,7 @@ Object.assign(SHEETS, {
       }).join('')}</div></div>`;
   },
   stories() {
-    return `<div class="sheet-card"><h3>เรื่องเล่าโจทย์</h3><p>อ่านสถานการณ์ แล้วตั้งสมการแก้ปัญหาไปกับตัวละคร ไม่ใช้หัวใจ จบเรื่องได้ 15 XP</p>
+    return `<div class="sheet-card"><h2>เรื่องเล่าโจทย์</h2><p>อ่านสถานการณ์ แล้วตั้งสมการแก้ปัญหาไปกับตัวละคร ไม่ใช้หัวใจ จบเรื่องได้ 15 XP</p>
       <div class="list-card">${STORIES.map((st) => {
         const open = unitReached(st.unit), done = !!S.stories[st.id];
         return `<div class="shop-row">${hex(icon(open ? 'story' : 'lock', 20), 'ico', open ? '--h:#58C23A;color:#0F2E09' : '')}
@@ -351,7 +353,7 @@ function finishTimed() {
 }
 function viewTimed() {
   const T = UI.T, left = Math.max(0, T.end - Date.now());
-  const last = T.last ? (T.last.ok ? 'ถูก! +2 วินาที' : `ผิด −5 วินาที · ข้อก่อนตอบ ${T.last.answer}`) : `หาค่าของ ${M('x')} ให้เร็วที่สุด`;
+  const last = T.last ? (T.last.ok ? 'ถูก! +2 วินาที' : `ผิด −5 วินาที ข้อที่แล้วตอบ ${T.last.answer}`) : `หาค่าของ ${M('x')} ให้เร็วที่สุด`;
   return `<div class="timed">
     <header class="lesson-top"><button class="x" data-act="timed-quit" aria-label="ออกจากเกม">${icon('x', 22)}</button>
       <h1 class="timed-title">ผึ้งเร่งรีบ</h1><span class="chip">สถิติ ${S.stats.timedBest}</span></header>
@@ -369,12 +371,12 @@ function viewTimed() {
       <p class="kbd-hint center">กด <kbd>1</kbd>–<kbd>4</kbd> เพื่อตอบได้เร็วขึ้น</p>
       <div class="timed-opts">${T.q.choices.map((c, k) => `<button class="topt" data-act="timed-ans" data-k="${k}"><span class="kbd">${k + 1}</span>${c}</button>`).join('')}</div>
     </main>
-    <footer class="timed-foot">ตอบถูก +2 วินาที · ผิด −5 วินาที · ไม่เสียหัวใจ · ได้ XP ตามจำนวนข้อที่ถูก</footer>
+    <footer class="timed-foot">ถูกได้เวลาเพิ่ม 2 วินาที ผิดเสีย 5 วินาที ไม่เสียหัวใจ</footer>
   </div>`;
 }
 RESULT_VIEWS.timed = (r) => `<div class="result win">${HONEYCOMB}${r.newBest ? confetti() : ''}
   <div class="hero hex">${bee(170, r.score ? 'cheer' : 'sad')}</div>
-  <h2>หมดเวลา!</h2><p>${r.newBest ? 'ทำสถิติใหม่ได้แล้ว!' : `สถิติของคุณคือ ${S.stats.timedBest} ข้อ`}</p>
+  <h1>หมดเวลา!</h1><p>${r.newBest ? 'ทำสถิติใหม่ได้แล้ว!' : `สถิติของคุณคือ ${S.stats.timedBest} ข้อ`}</p>
   <div class="tiles">${statTile('green', 'ข้อที่ถูก', 'target', r.score)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}${statTile('orange', 'คอมโบสูงสุด', 'flame', r.bestCombo)}</div>
   ${rewardsHTML(r)}
   <div class="result-actions"><button class="btn primary wide" data-act="timed-start">เล่นอีกครั้ง</button>
@@ -451,7 +453,7 @@ function nextStory() {
 }
 RESULT_VIEWS.story = (r) => `<div class="result win">${HONEYCOMB}${confetti()}
   <div class="hero hex">${bee(170, 'cheer')}</div>
-  <h2>จบเรื่องแล้ว!</h2><p>${esc(r.title)}</p>
+  <h1>จบเรื่องแล้ว!</h1><p>${esc(r.title)}</p>
   <div class="tiles">${statTile('green', 'ตอบถูก', 'target', `${r.correct}/${r.total}`)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}${statTile('orange', 'สตรีค', 'flame', S.streak)}</div>
   ${rewardsHTML(r)}
   <div class="result-actions"><button class="btn primary wide" data-act="tab" data-v="practice">ไปต่อ</button></div></div>`;
@@ -471,14 +473,15 @@ function viewAchievements() {
   return shell(`<div class="sub-body">
     <section class="month-hero">
       ${hex(`${icon('sun', 24)}<small>${monthName(S.month.key)}</small>`, 'month-hex', got ? '' : 'opacity:.55')}
-      <div class="mh-main"><small>เหรียญประจำเดือน · เหลือ ${daysLeft} วัน</small><b>${got ? 'ได้เหรียญเดือนนี้แล้ว!' : `ทำภารกิจให้ได้ ${MONTH_GOAL} แต้ม`}</b>
-        <div class="meter labeled dark"><div style="width:${(mp / MONTH_GOAL) * 100}%"></div><span>${mp} / ${MONTH_GOAL}</span></div>
-        <small>รับรางวัลภารกิจประจำวัน 1 ข้อ = 1 แต้ม</small></div>
+      <div class="mh-main"><h2>${got ? 'ได้เหรียญเดือนนี้แล้ว!' : 'เหรียญประจำเดือน'}</h2>
+        <div class="meter dark" role="img" aria-label="${mp} จาก ${MONTH_GOAL} แต้ม"><div style="width:${(mp / MONTH_GOAL) * 100}%"></div></div>
+        <small><span class="nowrap">${mp} จาก ${MONTH_GOAL} แต้ม</span> <span class="nowrap">เหลืออีก ${daysLeft} วัน</span></small>
+        ${got ? '' : '<p>รับรางวัลภารกิจประจำวัน 1 ข้อได้ 1 แต้ม</p>'}</div>
     </section>
     ${Object.keys(S.monthBadges).length ? `<div class="month-list">${Object.keys(S.monthBadges).sort().map((k) => hex(`<small>${monthName(k)}</small>`, 'month-mini')).join('')}</div>` : ''}
-    <div class="sec-row tight"><h3>สถิติส่วนตัว</h3></div>
+    <div class="sec-row tight"><h2>สถิติส่วนตัว</h2></div>
     <div class="records">${records.map(([ic, label, v, cls]) => `<div class="rec ${cls}">${icon(ic, 22)}<b>${v}</b><small>${label}</small></div>`).join('')}</div>
-    <div class="sec-row tight"><h3>เหรียญตรา</h3><span>แต่ละเหรียญมี 5 ระดับ</span></div>
+    <div class="sec-row tight"><h2>เหรียญตรา</h2><span>แต่ละเหรียญมี 5 ระดับ</span></div>
     <div class="list-card">${LEVEL_BADGES.map((b) => {
       const v = b.value(S), lvl = b.steps.filter((s) => v >= s).length, nextGoal = b.steps[lvl];
       const prev = lvl ? b.steps[lvl - 1] : 0;
@@ -488,6 +491,12 @@ function viewAchievements() {
         <span class="setting-main"><span class="lvl-top"><b>${b.name}</b><small>${nextGoal ? `${num(v)} / ${num(nextGoal)}` : 'ระดับสูงสุด'}</small></span>
           <span class="meter" style="--m:${b.color}"><span class="fill" style="width:${pct}%"></span></span>
           <small>${nextGoal ? `ระดับ ${lvl + 1}: ${num(nextGoal)} ${b.unit}` : `ครบ ${num(b.steps[4])} ${b.unit} แล้ว`}</small></span></div>`;
+    }).join('')}</div>
+    <div class="sec-row tight"><h2>เหรียญพิเศษ</h2><span>ได้ครั้งเดียว</span></div>
+    <div class="list-card">${BADGES.map((b) => {
+      const got = S.badges[b.id];
+      return `<button class="lvl-row" data-act="badge" data-id="${b.id}"><span class="lvl-wrap">${badgeHex(b, got, 'ico lvl-hex')}</span>
+        <span class="setting-main"><b>${b.name}</b><small>${got ? 'ได้เมื่อ ' + thaiDate(got) : b.desc}</small></span></button>`;
     }).join('')}</div>
   </div>`, { sub: { title: 'ความสำเร็จ' } });
 }
@@ -500,38 +509,38 @@ function viewSettings() {
   const sysReduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const signedIn = typeof Cloud !== 'undefined' && Cloud.user;
   return shell(`<div class="sub-body">
-    <section><h3 class="shop-sec">บัญชี</h3><div class="list-card">
+    <section><h2 class="shop-sec">บัญชี</h2><div class="list-card">
       ${setRow(signedIn ? esc(Cloud.user.email || 'บัญชีของฉัน') : 'บัญชี BeeMath', typeof syncLabel === 'function' ? esc(syncLabel()) : '',
         `<button class="price-btn ${signedIn ? 'ghost' : ''}" data-act="go" data-v="account">${signedIn ? 'จัดการ' : 'เข้าสู่ระบบ'}</button>`)}
     </div></section>
-    <section><h3 class="shop-sec">ห้องเรียน</h3><div class="list-card">
-      ${setRow('ห้องเรียนและงานจากครู', 'เข้าห้องด้วยรหัสจากครู · ครูสร้างห้องและดูแดชบอร์ดได้', '<button class="price-btn ghost" data-act="go" data-v="classes">เปิด</button>')}
+    <section><h2 class="shop-sec">ห้องเรียน</h2><div class="list-card">
+      ${setRow('ห้องเรียนและงานจากครู', 'ใส่รหัสห้องที่ได้จากครู หรือสร้างห้องถ้าคุณเป็นครู', '<button class="price-btn ghost" data-act="go" data-v="classes">เปิด</button>')}
     </div></section>
-    <section><h3 class="shop-sec">เสียง</h3><div class="list-card">
+    <section><h2 class="shop-sec">เสียง</h2><div class="list-card">
       ${setRow('เสียงประกอบ', 'ตอบถูก ตอบผิด จบบทเรียน และรับรางวัล', switchHTML('sound', st.sound, 'เปิดเสียงประกอบ'))}
       ${setRow('ระดับเสียง', '', `<span class="vol"><input type="range" id="volume" min="0" max="100" step="10" value="${Math.round(st.volume * 100)}" aria-label="ระดับเสียง" ${st.sound ? '' : 'disabled'}>
         <button class="price-btn ghost" data-act="sfx-test" ${st.sound ? '' : 'disabled'}>ลองฟัง</button></span>`)}
     </div></section>
-    <section><h3 class="shop-sec">การแสดงผล</h3><div class="list-card">
+    <section><h2 class="shop-sec">การแสดงผล</h2><div class="list-card">
       ${setRow('ลดการเคลื่อนไหว', sysReduce ? 'เครื่องของคุณตั้งค่าลดการเคลื่อนไหวไว้แล้ว แอปจะลดให้อัตโนมัติ' : 'ปิดแอนิเมชันเกือบทั้งหมด', switchHTML('motion', st.reduceMotion || sysReduce, 'ลดการเคลื่อนไหว'))}
       ${setRow('ขนาดตัวอักษร', 'มีผลกับเนื้อหาและโจทย์', `<span class="seg" role="radiogroup" aria-label="ขนาดตัวอักษร">${TEXT_SIZES.map(([v, t]) =>
         `<button role="radio" aria-checked="${st.textSize === v}" class="${st.textSize === v ? 'on' : ''}" data-act="text-size" data-s="${v}">${t}</button>`).join('')}</span>`)}
     </div></section>
-    <section><h3 class="shop-sec">การเรียน</h3><div class="list-card">
-      ${setRow('ปรับความยากอัตโนมัติ', 'ตอบถูกติดกันโจทย์จะท้าทายขึ้น (ได้โบนัส XP) · ผิดบ่อยจะง่ายลง', switchHTML('adaptive', st.adaptive !== false, 'ปรับความยากอัตโนมัติ'))}
+    <section><h2 class="shop-sec">การเรียน</h2><div class="list-card">
+      ${setRow('ปรับความยากอัตโนมัติ', 'ตอบถูกติดกันโจทย์จะยากขึ้นและได้ XP เพิ่ม ถ้าผิดบ่อยจะง่ายลง', switchHTML('adaptive', st.adaptive !== false, 'ปรับความยากอัตโนมัติ'))}
       ${setRow('เป้าหมายรายวัน', '', `<select id="goal-select" aria-label="เป้าหมายรายวัน">${GOALS.map(([xp, name]) => `<option value="${xp}" ${S.goal === xp ? 'selected' : ''}>${name} · ${xp} XP</option>`).join('')}</select>`)}
       ${setRow('เตือนให้มาเรียน', remindNote(), `<span class="vol"><input type="time" id="remind-time" value="${S.remind.time}" aria-label="เวลาเตือน" ${S.remind.on ? '' : 'disabled'}>${switchHTML('remind', S.remind.on, 'เปิดการเตือน')}</span>`)}
     </div></section>
-    <section><h3 class="shop-sec">โปรไฟล์</h3><div class="list-card">
+    <section><h2 class="shop-sec">โปรไฟล์</h2><div class="list-card">
       ${setRow('ชื่อที่แสดง', '', `<input class="text-input" id="name" value="${esc(S.name)}" maxlength="20" aria-label="ชื่อที่แสดง">`)}
       ${setRow('สีกรอบอวตาร', '', `<button class="price-btn ghost" data-act="pick-avatar">${hex('', 'sw-dot', `background:${S.avatar}`)}เปลี่ยน</button>`)}
     </div></section>
-    <section><h3 class="shop-sec">แอป</h3><div class="list-card">
+    <section><h2 class="shop-sec">แอป</h2><div class="list-card">
       ${setRow('ติดตั้ง BeeMath เป็นแอป', installHint(), isStandalone() ? '<span class="claimed">ติดตั้งแล้ว</span>' : UI.installPrompt ? '<button class="price-btn" data-act="install">ติดตั้ง</button>' : '')}
-      ${setRow('สถานะการเชื่อมต่อ', navigator.onLine ? 'ออนไลน์' : 'ออฟไลน์ ยังเรียนต่อได้ ความคืบหน้าบันทึกในเครื่อง', '')}
+      ${setRow('สถานะการเชื่อมต่อ', navigator.onLine ? 'ออนไลน์' : 'ไม่มีอินเทอร์เน็ต ยังเรียนต่อได้ ความคืบหน้าบันทึกไว้ในเครื่อง', '')}
     </div></section>
-    <section><h3 class="shop-sec">ข้อมูลของฉัน</h3><div class="list-card">
-      ${setRow('สำรองความคืบหน้า', 'ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น ดาวน์โหลดเก็บไว้กันหาย หรือย้ายไปเครื่องอื่น', '<button class="price-btn" data-act="export">ดาวน์โหลด</button>')}
+    <section><h2 class="shop-sec">ข้อมูลของฉัน</h2><div class="list-card">
+      ${setRow('สำรองความคืบหน้า', 'ดาวน์โหลดไฟล์เก็บไว้กันหาย หรือใช้ย้ายไปเรียนต่อเครื่องอื่น', '<button class="price-btn" data-act="export">ดาวน์โหลด</button>')}
       ${setRow('กู้คืนจากไฟล์', 'เลือกไฟล์สำรองที่ดาวน์โหลดไว้', '<label class="price-btn ghost file-btn">เลือกไฟล์<input type="file" id="import-file" accept="application/json,.json"></label>')}
       ${setRow('แจ้งปัญหา / ข้อเสนอแนะ', 'เจอบั๊ก โจทย์ผิด หรืออยากให้มีอะไรเพิ่ม บอกผู้พัฒนาได้เลย', '<button class="price-btn" data-act="fb-open">เขียน</button>')}
       ${setRow('นโยบายความเป็นส่วนตัว', 'เก็บข้อมูลอะไร ใครเห็น และวิธีขอลบข้อมูล', `<a class="price-btn ghost" href="privacy.html" target="_blank" rel="noopener">อ่าน</a>`)}
@@ -573,7 +582,7 @@ function readImport(file) {
 }
 SHEETS.import = () => {
   const st = UI.pendingImport.state;
-  return `<div class="sheet-card center"><h3>กู้คืนความคืบหน้า?</h3>
+  return `<div class="sheet-card center"><h2>กู้คืนความคืบหน้า?</h2>
     <p>ไฟล์นี้มี ${num(st.xp)} XP · ผ่าน ${Object.keys(st.done).length} ด่าน · สตรีค ${st.streak || 0} วัน${UI.pendingImport.exported ? ` · สำรองเมื่อ ${thaiDate(UI.pendingImport.exported.slice(0, 10))}` : ''}</p>
     <p>ข้อมูลปัจจุบันในเครื่องนี้จะถูกแทนที่</p>
     <button class="btn primary" data-act="import-yes">กู้คืน</button><button class="btn ghost" data-act="close">ยกเลิก</button></div>`;

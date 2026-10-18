@@ -86,11 +86,17 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 - **Wrong answers:** the headline names the likely mistake from the student's number (`wrongNote()` in `js/app.js`); "เกือบแล้ว" only when off by 1.
 - **Out of hearts:** say what was solved, point to the topic to review, never send a struggling learner to the shop.
 - **Teacher dashboard:** a sentence about today and "what to reteach" with sample equations, not KPI tiles; its own side nav without student game items.
+- **Lesson complete:** celebrate the math first. Show the hardest equation the student just solved (`L.best`), then the stats as one quiet row with hairline dividers, then rewards. Confetti stays in the hero band and never crosses the headline.
+- **Learn path:** only the bee speaks at the current node (`nudge()`), and its line tells the student what to do. No second "start" tag.
+- **Badges:** one system called "เหรียญตรา" with five levelled badges (`LEVEL_BADGES`) plus three one-time special badges (`BADGES`). The result screen announces both new badges and level-ups.
 
 ## Copy
 - Short, friendly, speaks directly to the student (for example "ผิดได้ เรียนรู้ได้"). Encourages without talking down.
 - Number errors must be correct. Math in explanations is generated from the question's own numbers, never invented.
+- One idea per caption. Do not chain clauses with " · "; that separator is only for short metadata such as "บทที่ 2 · บวกและลบ". Long rules belong behind a `<details>` (see the shop).
+- No engineer words in student-facing copy: say "บันทึก" or "ไม่มีอินเทอร์เน็ต", not "ซิงก์", "คลาวด์", "เซิร์ฟเวอร์" or "ออฟไลน์".
+- Keep a number with its unit (`.nowrap`), e.g. "8 ชม." or "50 น้ำหวาน".
 
 ## Known debt (from documenting, not yet fixed)
 - **Corner radii:** 10 different values (3–28px); should be reduced to the scale above.
-- **Font sizes:** 16 different values, including 11–12px (in chips, small labels, some captions). Check their readability on phones.
+- **Font sizes:** still many values, but the minimum is now 13px everywhere (fixed in the P2 pass).
