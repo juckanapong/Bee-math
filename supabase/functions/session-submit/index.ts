@@ -70,7 +70,21 @@ async function submitSession(uid: string, body: Record<string, unknown>) {
     p_user: uid, p_id: id, p_xp: r.xp, p_stats: r.stats, p_result: { ...r.summary, content },
   });
   if (err2) throw err2;
+  if (!data?.duplicate) await feedFromSession(uid, s.kind, body.meta, r.summary);
   return json(data);
+}
+
+// ฟีดเพื่อน (supabase/notify_feed.sql): ผ่านด่านทดสอบ → unit · ผ่านระดับตำนาน → legend (ครั้งแรกของแต่ละบท)
+// ไม่ให้ความผิดพลาดของฟีดทำให้การส่งผลรอบเรียนล้มเหลว
+async function feedFromSession(uid: string, kind: string, meta: unknown, summary: Record<string, unknown>) {
+  if (!summary?.passed || (kind !== 'test' && kind !== 'legend')) return;
+  const m = (meta ?? {}) as { i?: number; unit?: string };
+  const ui = kind === 'test' ? C.NODES[m.i ?? -1]?.ui : C.UNITS.findIndex((u: { id: string }) => u.id === m.unit);
+  if (ui === undefined || ui < 0) return;
+  const { error } = await admin.rpc('feed_add', {
+    p_user: uid, p_kind: kind === 'test' ? 'unit' : 'legend', p_data: { unit: ui + 1, title: C.UNITS[ui].title }, p_dedupe: `${kind}:${ui}`,
+  });
+  if (error && !/does not exist/.test(error.message)) console.error('feed_add', error);
 }
 
 // บันทึกว่ารอบนี้ไม่ผ่านการตรวจ (XP 0) เพื่อให้ตรวจย้อนหลังได้ แล้วตอบ 422

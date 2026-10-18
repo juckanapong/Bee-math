@@ -116,6 +116,7 @@ async function cloudPull() {
   if (typeof classroomSync === 'function') classroomSync(true);
   if (merged) showToast('รวมความคืบหน้าในเครื่องนี้เข้ากับบัญชีแล้ว');
   outboxFlush(); // ผลของรอบที่ค้างส่งจากครั้งก่อน
+  pushSync(); // ผูกการแจ้งเตือนของเครื่องนี้กับบัญชี
   consentCheck();
   cloudRender();
 }
@@ -168,6 +169,61 @@ async function leagueSync(force = false) {
   if (changed) { Cloud.applying = true; save(); Cloud.applying = false; }
   if (['board', 'quests', 'learn', 'practice', 'profile'].includes(UI.view)) cloudRender();
 }
+// ---------- แจ้งเตือน Push (supabase/notify_feed.sql · supabase/functions/push-send) ----------
+// เปิด "เตือนให้มาเรียน" + เข้าสู่ระบบ + อนุญาตแจ้งเตือน → สมัครรับ Push แล้วบันทึกเวลาเตือนไว้ที่เซิร์ฟเวอร์
+// เซิร์ฟเวอร์ส่งเมื่อถึงเวลาและยังไม่ได้เรียนวันนี้ (ไม่เกินวันละครั้ง · เว้นช่วง 21:00–07:00)
+const PUSH_FROM = '07:00', PUSH_UNTIL = '20:45';
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+  && location.protocol === 'https:' && !!window.BEEMATH_CONFIG?.vapidPublicKey;
+// iPhone/iPad: Push ใช้ได้เฉพาะแอปที่เพิ่มลงหน้าจอโฮมแล้ว
+const iosNeedsInstall = () => /iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches;
+const Push = { on: false, busy: false };
+const b64url = (s) => { const b = atob((s + '='.repeat((4 - (s.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
+// เวลาเตือนที่เซิร์ฟเวอร์ใช้ (อยู่ในช่วงที่ส่งได้เสมอ)
+const pushTime = () => (S.remind.time < PUSH_FROM ? PUSH_FROM : S.remind.time > PUSH_UNTIL ? PUSH_UNTIL : S.remind.time);
+async function pushSync() {
+  if (!pushSupported() || !Cloud.client || Push.busy) return;
+  Push.busy = true;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    let sub = await reg.pushManager.getSubscription();
+    const want = !!(Cloud.user && S.remind.on && Notification.permission === 'granted');
+    if (want) {
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64url(window.BEEMATH_CONFIG.vapidPublicKey) });
+      const k = sub.toJSON().keys;
+      const { error } = await Cloud.client.rpc('push_save', { p_endpoint: sub.endpoint, p_p256dh: k.p256dh, p_auth: k.auth, p_time: pushTime(), p_on: true });
+      Push.on = !error;
+    } else if (sub) {
+      if (Cloud.user) await Cloud.client.rpc('push_remove', { p_endpoint: sub.endpoint });
+      await sub.unsubscribe();
+      Push.on = false;
+    } else Push.on = false;
+  } catch (e) { Push.on = false; } finally { Push.busy = false; }
+  if (UI.view === 'settings') cloudRender();
+}
+
+// ---------- ฟีดเพื่อน ----------
+const Feed = { data: null, at: 0, gave: {} };
+async function feedSync(force = false) {
+  if (!Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (!force && Date.now() - Feed.at < 30000) return;
+  Feed.at = Date.now();
+  const { data, error } = await Cloud.client.rpc('friends_feed');
+  if (!error && Array.isArray(data)) { Feed.data = data; if (UI.view === 'friends') cloudRender(); }
+}
+async function feedKudos(id) {
+  const ev = Feed.data?.find((e) => e.id === id);
+  if (!ev || ev.gave) return;
+  ev.gave = true; ev.kudos++; render(); // แสดงผลทันที
+  const { error } = await Cloud.client.rpc('feed_kudos_give', { p_event: id });
+  if (error) { ev.gave = false; ev.kudos--; showToast(cloudError(error)); render(); }
+}
+// สตรีคถึงก้าวสำคัญ / ครบเป้าหมายสตรีค → แจ้งเพื่อนในฟีด (ไม่รอผล)
+function cloudFeedStreak(kind, days) {
+  if (Cloud.client && Cloud.user && navigator.onLine) Cloud.client.rpc('feed_post_streak', { p_kind: kind, p_days: days }).then(() => {}, () => {});
+}
+
 // ตั้งไอคอนข้างชื่อในลีก (league_react ใน supabase/league_v3.sql) แล้วดึงตารางใหม่ · คืนค่า true เมื่อสำเร็จ
 async function cloudReact(reaction) {
   if (!Cloud.client || !Cloud.user || !navigator.onLine) return false;
@@ -259,7 +315,7 @@ const GOOGLE_G = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="t
 
 // ---------- นโยบายความเป็นส่วนตัว (privacy.html) ----------
 // เปลี่ยน v เมื่อแก้นโยบาย → ผู้มีบัญชีจะถูกขอให้ยอมรับฉบับใหม่
-const PRIVACY = { v: '2026-10-15c', url: 'privacy.html' };
+const PRIVACY = { v: '2026-10-18', url: 'privacy.html' };
 const privacyLink = (t = 'นโยบายความเป็นส่วนตัว') => `<a href="${PRIVACY.url}" target="_blank" rel="noopener">${t}</a>`;
 const consentOk = () => S.consent?.v === PRIVACY.v;
 function giveConsent(via) { S.consent = { v: PRIVACY.v, at: Date.now(), via }; save(); }
@@ -321,6 +377,9 @@ async function cloudSignIn(email, password) {
 async function cloudSignOut() {
   if (syncMeta().dirty) await cloudPush();
   await outboxFlush(); // ส่งไม่หมดก็ไม่หาย: คิวผูกกับบัญชี ส่งต่อเมื่อเข้าสู่ระบบครั้งหน้า
+  // เลิกส่งแจ้งเตือนมาที่เครื่องนี้ (เครื่องที่ใช้ร่วมกันในโรงเรียน)
+  try { const sub = await (await navigator.serviceWorker?.getRegistration())?.pushManager.getSubscription(); if (sub) { await Cloud.client.rpc('push_remove', { p_endpoint: sub.endpoint }); await sub.unsubscribe(); } } catch (e) { /* ignore */ }
+  Push.on = false; Feed.data = null;
   await Cloud.client.auth.signOut();
   Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null; Cloud.league = null;
   if (typeof Friends !== 'undefined') { Friends.data = null; Friends.at = 0; Friends.sent = {}; }

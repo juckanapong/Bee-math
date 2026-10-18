@@ -45,21 +45,56 @@ function startPlacement() {
   });
   startSession('placement', gens, { units }, 10, true);
 }
-function requestNotify() {
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+// ขอสิทธิ์แจ้งเตือน แล้วสมัครรับ Push จากเซิร์ฟเวอร์ (ถ้าเข้าสู่ระบบอยู่ · js/cloud.js)
+async function requestNotify() {
+  if (S.remind.on && 'Notification' in window && Notification.permission === 'default') await Notification.requestPermission();
+  if (typeof pushSync === 'function') await pushSync(); // ปิดการเตือน = ยกเลิก Push ของเครื่องนี้ด้วย
+  render();
 }
-// เตือนให้มาเรียน (ทำงานเมื่อเปิดแอปค้างไว้เท่านั้น เพราะเว็บแบบไฟล์เดียวตั้งเวลาแจ้งเตือนล่วงหน้าไม่ได้)
+// เตือนให้มาเรียนตอนเปิดแอปค้างไว้ · ถ้ารับ Push จากเซิร์ฟเวอร์อยู่แล้ว ใช้แค่ข้อความในแอป (ไม่ให้แจ้งเตือนซ้ำ)
 function remindCheck() {
   if (!S.remind.on || S.lastDay === today() || S.remindedDay === today()) return;
   const now = new Date();
   if (`${pad(now.getHours())}:${pad(now.getMinutes())}` < S.remind.time) return;
   S.remindedDay = today(); save();
   const body = S.streak ? `เรียนวันนี้เพื่อรักษาสตรีค ${S.streak} วันไว้นะ!` : 'มาฝึกแก้สมการกับน้องผึ้งกันเถอะ!';
-  if ('Notification' in window && Notification.permission === 'granted') new Notification('BeeMath', { body });
+  if ('Notification' in window && Notification.permission === 'granted' && !(typeof Push !== 'undefined' && Push.on)) new Notification('BeeMath', { body });
   else showToast(body);
 }
 
+// คำอธิบายใต้ตั้งค่าการเตือน: บอกว่าจะได้แจ้งเตือนแบบไหน และต้องทำอะไรเพิ่ม
+function remindNote() {
+  if (!S.remind.on) return 'ปิดอยู่';
+  const cloud = typeof Cloud !== 'undefined' && Cloud.enabled();
+  if (!cloud || typeof pushSupported !== 'function' || !pushSupported()) return 'ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์';
+  if (iosNeedsInstall()) return 'บน iPhone/iPad ให้เพิ่มแอปลงหน้าจอโฮมก่อน จึงจะเตือนตอนปิดแอปได้';
+  if (!Cloud.user) return 'เข้าสู่ระบบเพื่อรับแจ้งเตือนแม้ปิดแอป';
+  if (Notification.permission === 'denied') return 'เบราว์เซอร์บล็อกการแจ้งเตือนไว้ เปิดได้ที่การตั้งค่าของเบราว์เซอร์';
+  if (Push.on) return `แจ้งเตือนแม้ปิดแอป วันละครั้งถ้ายังไม่ได้เรียน · ส่งได้ ${PUSH_FROM}–21:00 น.${pushTime() !== S.remind.time ? ` (จะเตือนเวลา ${pushTime()} น.)` : ''}`;
+  return 'กำลังเปิดการแจ้งเตือน…';
+}
+
 // ---------- สตรีค ----------
+// เป้าหมายสตรีค: เลือกจำนวนวันที่จะเรียนต่อเนื่องเพิ่ม · แสดงความคืบหน้า · สตรีคขาดก่อนครบ = เริ่มใหม่
+function streakGoalHTML() {
+  const g = S.streakGoal;
+  const broken = g && !g.done && S.streak < g.start;
+  if (!g || broken) {
+    return `<section class="card sgoal">
+      <div class="sgoal-head">${hex(icon('target', 22), 'ico', '--h:#FF7A1A;color:#2A1F14')}<span class="setting-main"><b>ตั้งเป้าหมายสตรีค</b>
+        <small>${broken ? `สตรีคขาดก่อนครบเป้า ${g.n} วัน ลองตั้งใหม่อีกครั้งนะ` : 'เลือกว่าจะเรียนต่อเนื่องอีกกี่วัน ครบแล้วรับน้ำหวาน'}</small></span></div>
+      <div class="sgoal-pick">${STREAK_GOALS.map((x) => `<button class="sgoal-opt" data-act="sgoal-set" data-n="${x.n}"><b>${x.n} วัน</b><small>${icon('drop', 13)} ${x.nectar}</small></button>`).join('')}</div>
+    </section>`;
+  }
+  const def = STREAK_GOALS.find((x) => x.n === g.n), got = Math.min(g.n, Math.max(0, S.streak - g.start));
+  return `<section class="card sgoal">
+    <div class="sgoal-head">${hex(icon(g.done ? 'check' : 'target', 22), 'ico', '--h:#FF7A1A;color:#2A1F14')}<span class="setting-main">
+      <b>${g.done ? `ครบเป้าหมาย ${g.n} วันแล้ว!` : `เป้าหมาย: เรียนต่อเนื่องอีก ${g.n} วัน`}</b>
+      <small>${g.done ? `ได้รับ ${def.nectar} น้ำหวานแล้ว` : `ได้ ${got} / ${g.n} วัน · ครบแล้วรับ ${def.nectar} น้ำหวาน`}</small></span></div>
+    <div class="meter" role="progressbar" aria-label="ความคืบหน้าเป้าหมายสตรีค" aria-valuenow="${got}" aria-valuemin="0" aria-valuemax="${g.n}"><div style="width:${(got / g.n) * 100}%"></div></div>
+    <button class="btn ${g.done ? 'primary' : 'link'} small" data-act="sgoal-reset">${g.done ? 'ตั้งเป้าหมายใหม่' : 'เปลี่ยนเป้าหมาย'}</button>
+  </section>`;
+}
 function viewStreak() {
   const now = new Date(), y = now.getFullYear(), m = now.getMonth();
   const offset = (new Date(y, m, 1).getDay() + 6) % 7, daysIn = new Date(y, m + 1, 0).getDate();
@@ -90,6 +125,7 @@ function viewStreak() {
     ${S.streakLost ? `<section class="banner warn col">
       <b>สตรีค ${S.streakLost.streak} วันเพิ่งขาด</b><span>ซ่อมได้ภายใน 48 ชม. ด้วยน้ำหวาน 400</span>
       <button class="btn small primary" data-act="buy" data-id="repair">${icon('wrench', 18)} ซ่อมสตรีค</button></section>` : ''}
+    ${streakGoalHTML()}
     <section class="card cal-card" aria-label="ปฏิทินเดือนนี้">
       <div class="cal-head"><b>${now.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><span>เรียน ${learned} วัน${shielded ? ` · ใช้โล่ ${shielded} ครั้ง` : ''}</span></div>
       <div class="cal">${['จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส', 'อา'].map((d) => `<span class="cal-dow">${d}</span>`).join('')}${cells}</div>
@@ -298,7 +334,7 @@ function finishTimed() {
   save();
   submitRun('timed', T, {}, true);
   SFX.play(T.score ? 'complete' : 'fail');
-  UI.result = { kind: 'timed', score: T.score, xp, nectar, newBest, bestCombo: T.bestCombo, milestone: streak?.milestone, badges, wrong: [] };
+  UI.result = { kind: 'timed', score: T.score, xp, nectar, newBest, bestCombo: T.bestCombo, milestone: streak?.milestone, goal: streak?.goal, badges, wrong: [] };
   UI.view = 'result';
   render();
 }
@@ -397,7 +433,7 @@ function nextStory() {
   save();
   submitRun('story', st, { story: story.id }, true);
   SFX.play('complete');
-  UI.result = { kind: 'story', title: story.title, xp, nectar: 5, correct: st.correct, total: story.steps.filter((s) => s.q).length, milestone: streak?.milestone, badges, wrong: [] };
+  UI.result = { kind: 'story', title: story.title, xp, nectar: 5, correct: st.correct, total: story.steps.filter((s) => s.q).length, milestone: streak?.milestone, goal: streak?.goal, badges, wrong: [] };
   UI.st = null; UI.view = 'result';
   render();
   window.scrollTo(0, 0);
@@ -473,7 +509,7 @@ function viewSettings() {
     <section><h3 class="shop-sec">การเรียน</h3><div class="list-card">
       ${setRow('ปรับความยากอัตโนมัติ', 'ตอบถูกติดกันโจทย์จะท้าทายขึ้น (ได้โบนัส XP) · ผิดบ่อยจะง่ายลง', switchHTML('adaptive', st.adaptive !== false, 'ปรับความยากอัตโนมัติ'))}
       ${setRow('เป้าหมายรายวัน', '', `<select id="goal-select" aria-label="เป้าหมายรายวัน">${GOALS.map(([xp, name]) => `<option value="${xp}" ${S.goal === xp ? 'selected' : ''}>${name} · ${xp} XP</option>`).join('')}</select>`)}
-      ${setRow('เตือนให้มาเรียน', 'ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์', `<span class="vol"><input type="time" id="remind-time" value="${S.remind.time}" aria-label="เวลาเตือน" ${S.remind.on ? '' : 'disabled'}>${switchHTML('remind', S.remind.on, 'เปิดการเตือน')}</span>`)}
+      ${setRow('เตือนให้มาเรียน', remindNote(), `<span class="vol"><input type="time" id="remind-time" value="${S.remind.time}" aria-label="เวลาเตือน" ${S.remind.on ? '' : 'disabled'}>${switchHTML('remind', S.remind.on, 'เปิดการเตือน')}</span>`)}
     </div></section>
     <section><h3 class="shop-sec">โปรไฟล์</h3><div class="list-card">
       ${setRow('ชื่อที่แสดง', '', `<input class="text-input" id="name" value="${esc(S.name)}" maxlength="20" aria-label="ชื่อที่แสดง">`)}
@@ -577,7 +613,9 @@ Object.assign(ACT, {
     UI.pendingImport = null; UI.sheet = null;
     showToast('กู้คืนความคืบหน้าแล้ว');
   },
-  'toggle-remind': () => { S.remind.on = !S.remind.on; if (S.remind.on) requestNotify(); save(); render(); },
+  'sgoal-set': (d) => { S.streakGoal = { n: +d.n, start: S.lastDay === today() ? S.streak - 1 : S.streak, done: false }; save(); SFX.play('tap'); render(); },
+  'sgoal-reset': () => { S.streakGoal = null; save(); render(); },
+  'toggle-remind': () => { S.remind.on = !S.remind.on; save(); render(); requestNotify(); },
   buy: (d) => {
     const it = SHOP.find((x) => x.id === d.id);
     if (!it.outfit && it.blocked?.()) return;

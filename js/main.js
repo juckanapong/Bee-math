@@ -9,7 +9,7 @@ document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.id === 'name') S.name = t.value.trim() || 'ผู้เรียน';
   else if (t.id === 'goal-select') S.goal = +t.value;
-  else if (t.id === 'remind-time') { S.remind.time = t.value; S.remindedDay = null; }
+  else if (t.id === 'remind-time') { S.remind.time = t.value; S.remindedDay = null; if (typeof pushSync === 'function') pushSync(); }
   else if (t.id === 'volume') { S.settings.volume = +t.value / 100; SFX.play('tap'); }
   else if (t.id === 'import-file') { if (t.files[0]) readImport(t.files[0]); t.value = ''; return; }
   else return;

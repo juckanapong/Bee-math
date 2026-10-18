@@ -633,6 +633,20 @@ code { padding: 1px 6px; border-radius: 6px; background: var(--track); font-size
 
 /* ---------- เพื่อน · ภารกิจคู่หู ---------- */
 .friend-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; }
+/* ฟีดเพื่อน · ให้กำลังใจ (ระยะ 6) */
+.feed-row .setting-main b { font-weight: 600; }
+.feed-row .setting-main small { display: inline-flex; align-items: center; gap: 4px; }
+.kudos-btn { flex: none; min-width: 52px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 10px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 14px; background: var(--card); color: var(--ink-2); font: 700 14px var(--body); cursor: pointer; }
+.kudos-btn.on { border-color: #F7C1C3; background: var(--red-soft); color: var(--red-text); }
+.kudos-count { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--red-text); font-weight: 700; font-size: 14px; }
+/* เป้าหมายสตรีค */
+.sgoal { display: grid; gap: 12px; padding: 14px; }
+.sgoal-head { display: flex; align-items: center; gap: 12px; }
+.sgoal-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.sgoal-opt { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 64px; padding: 8px 4px; border: 2px solid var(--line); border-bottom-width: 4px; border-radius: 14px; background: var(--card); cursor: pointer; }
+.sgoal-opt b { font-family: var(--head); font-weight: 500; font-size: 17px; color: var(--orange-text); }
+.sgoal-opt small { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 600; color: var(--blue-dark); }
+.sgoal .btn.small { justify-self: start; }
 .friend-row .setting-main small.ok { color: var(--green-text); font-weight: 600; }
 .friend-row .setting-main small.warn { color: var(--red-text); font-weight: 600; }
 .friend-row .av, .fq-pair .av { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50%; font-family: var(--head); font-size: 16px; color: var(--ink); border: 2px solid #fff; }

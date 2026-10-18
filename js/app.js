@@ -12,6 +12,8 @@ const AVATAR_COLORS = ['#FFF0C2', '#DDF3D3', '#E3EDFF', '#FFE3D1', '#F1E6FF', '#
 const GOALS = [[10, 'สบาย ๆ', 'ราว 5 นาที'], [20, 'ปกติ', 'ราว 10 นาที'], [30, 'จริงจัง', 'ราว 15 นาที'], [50, 'สุดยอด', 'ราว 20 นาที']];
 // ก้าวสำคัญของสตรีค: วัน → น้ำหวานที่ได้
 const MILESTONES = { 7: 20, 30: 50, 100: 100, 365: 365 };
+// เป้าหมายสตรีค: เรียนต่อเนื่องเพิ่มอีก n วันนับจากวันที่ตั้ง แล้วได้น้ำหวาน (ตั้งใหม่ได้เรื่อย ๆ)
+const STREAK_GOALS = [{ n: 7, nectar: 20 }, { n: 14, nectar: 40 }, { n: 30, nectar: 80 }, { n: 50, nectar: 150 }];
 // น้ำหวานที่ได้เมื่อจบแต่ละแบบ
 const NECTAR = { lesson: 5, test: 20, practice: 3, legend: 20, jump: 10, perfect: 5, quest: 10 };
 
@@ -36,7 +38,7 @@ function defaultState() {
     week: { key: weekKey(), xp: 0 }, league: { tier: 0 }, leagueResult: null, leagueSeen: {},
     hearts: MAX_HEARTS, heartsTs: Date.now(),
     streak: 0, lastDay: null, days: {}, shields: 0, streakLost: null,
-    nectar: 100, boostUntil: 0, outfit: null, owned: {},
+    nectar: 100, boostUntil: 0, outfit: null, owned: {}, streakGoal: null,
     done: {}, legend: {}, stories: {}, chests: {}, fqClaimed: {},
     stats: { lessons: 0, solved: 0, bar: 0, perfect: 0, tests: 0, correct: 0, answered: 0, timedBest: 0 },
     records: { bestStreak: 0, bestDayXP: 0, bestCombo: 0 },
@@ -114,7 +116,17 @@ function learnToday() {
   S.records.bestStreak = Math.max(S.records.bestStreak, S.streak);
   const reward = MILESTONES[S.streak];
   if (reward) { S.nectar += reward; if (S.streak >= 30) S.owned.flower = true; }
-  return { milestone: reward ? { days: S.streak, nectar: reward } : null };
+  if (reward && typeof cloudFeedStreak === 'function') cloudFeedStreak('streak', S.streak); // ฟีดเพื่อน
+  // เป้าหมายสตรีค: ครบแล้วให้รางวัลทันที (เหมือนก้าวสำคัญ)
+  const g = S.streakGoal;
+  let goal = null;
+  if (g && !g.done && S.streak >= g.start + g.n) {
+    const def = STREAK_GOALS.find((x) => x.n === g.n);
+    g.done = true; S.nectar += def.nectar;
+    goal = { n: g.n, nectar: def.nectar };
+    if (typeof cloudFeedStreak === 'function') cloudFeedStreak('goal', g.n);
+  }
+  return { milestone: reward ? { days: S.streak, nectar: reward } : null, goal };
 }
 
 const usesHearts = (kind) => kind === 'lesson' || kind === 'test';
@@ -834,7 +846,7 @@ function finish(completed) {
     : L.kind === 'jump' ? `ปลดล็อกบทที่ ${L.meta.unit + 1} · ${UNITS[L.meta.unit].title}`
     : L.meta.unitReview !== undefined ? `ทบทวนบทที่ ${L.meta.unitReview + 1}`
     : L.meta.review ? 'ทบทวนข้อที่ผิด' : L.meta.weak ? 'ฝึกจุดอ่อน' : PRACTICE.find((p) => p.id === L.meta.practice)?.title || 'ฝึกฝน';
-  UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, streakUp: !!streak, milestone: streak?.milestone, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
+  UI.result = { kind: L.kind, meta: L.meta, completed, passed, xp, nectar, acc, perfect, streakUp: !!streak, milestone: streak?.milestone, goal: streak?.goal, badges, sub, wrong: uniq(L.wrong), correct: L.firstTry, ...extra };
   UI.view = 'result'; UI.L = null;
   render();
   window.scrollTo(0, 0);
@@ -856,6 +868,7 @@ function rewardsHTML(r) {
   return `${r.nectar ? `<span class="earn" ${delay()}>${icon('drop', 16)} +${r.nectar} น้ำหวาน</span>` : ''}
     ${r.hardBonus ? `<span class="earn hard" ${delay()}>${icon('mountain', 16)} รวมโบนัสโจทย์ท้าทาย +${r.hardBonus} XP</span>` : ''}
     ${r.milestone ? `<div class="new-badge" ${delay()}>${hex(icon('flame', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ก้าวสำคัญ! สตรีค ${r.milestone.days} วัน</small><b>รับ ${r.milestone.nectar} น้ำหวาน${r.milestone.days === 30 ? ' + ดอกไม้ประดับ' : ''}</b></div></div>` : ''}
+    ${r.goal ? `<div class="new-badge" ${delay()}>${hex(icon('target', 26), 'badge-hex', '--h:#FF7A1A;color:#2A1F14')}<div><small>ครบเป้าหมายสตรีค ${r.goal.n} วัน!</small><b>รับ ${r.goal.nectar} น้ำหวาน · ตั้งเป้าใหม่ได้ที่หน้าสตรีค</b></div></div>` : ''}
     ${(r.badges || []).map((b) => `<div class="new-badge" ${delay()}>${badgeHex(b, true)}<div><small>ได้ตราสัญลักษณ์ใหม่</small><b>${b.name}</b></div></div>`).join('')}`;
 }
 const RESULT_VIEWS = {};

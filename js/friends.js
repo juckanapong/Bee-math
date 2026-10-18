@@ -25,6 +25,7 @@ async function friendsSync(force = false) {
 // เปิดหน้าเพื่อน: ดึงข้อมูลใหม่ถ้าเก่ากว่า 20 วินาที และทำเครื่องหมายว่าอ่านข้อความแล้ว
 function friendsRefresh() {
   if (!Cloud.user) return;
+  if (typeof feedSync === 'function') setTimeout(() => feedSync(), 0);
   if (Date.now() - Friends.at > 20000) setTimeout(() => friendsSync(true), 0);
   if (Friends.data?.inbox.some((m) => !m.seen)) {
     Friends.data.inbox.forEach((m) => { m.seen = true; });
@@ -35,6 +36,27 @@ async function friendsCall(fn, args) {
   const { data, error } = await Cloud.client.rpc(fn, args);
   if (error) { showToast(cloudError(error)); return null; }
   return data ?? true;
+}
+
+// ---------- ฟีดความเคลื่อนไหว (supabase/notify_feed.sql) ----------
+const FEED_ICON = { unit: 'trophy', legend: 'crown', league: 'up', streak: 'flame', goal: 'target' };
+function feedText(e) {
+  const who = e.me ? 'คุณ' : esc(e.name), d = e.data || {};
+  if (e.kind === 'unit') return `${who}ผ่านบทที่ ${d.unit} · ${esc(d.title || '')}`;
+  if (e.kind === 'legend') return `${who}ผ่านระดับตำนานบทที่ ${d.unit}`;
+  if (e.kind === 'league') return `${who}เลื่อนขึ้นลีก${esc(d.name || '')}`;
+  if (e.kind === 'streak') return `${who}เรียนต่อเนื่องครบ ${d.days} วัน`;
+  return `${who}ทำเป้าหมายสตรีค ${d.days} วันสำเร็จ`;
+}
+function feedHTML() {
+  const list = (typeof Feed !== 'undefined' && Feed.data) || [];
+  if (!list.length) return '';
+  return `<section><h3 class="shop-sec">ความเคลื่อนไหว</h3><div class="list-card">${list.slice(0, 12).map((e) => `<div class="friend-row feed-row">
+    ${e.me ? `<span class="av" style="background:#FFC21A">คุณ</span>` : friendAv(e.name, e.avatar)}
+    <span class="setting-main"><b>${feedText(e)}</b><small>${icon(FEED_ICON[e.kind] || 'star', 13)} ${timeAgo(new Date(e.at).getTime())}</small></span>
+    ${e.me ? (e.kudos ? `<span class="kudos-count" aria-label="ได้กำลังใจ ${e.kudos} คน">${icon('heart', 16)}${e.kudos}</span>` : '')
+      : `<button class="kudos-btn ${e.gave ? 'on' : ''}" data-act="feed-kudos" data-id="${e.id}" aria-pressed="${e.gave}" aria-label="${e.gave ? 'ให้กำลังใจแล้ว' : 'ให้กำลังใจ'}" ${e.gave ? 'disabled' : ''}>${icon('heart', 18)}<span>${e.kudos || ''}</span></button>`}
+  </div>`).join('')}</div></section>`;
 }
 
 // ---------- หน้าเพื่อน ----------
@@ -77,6 +99,7 @@ function viewFriends() {
       ${inbox.length ? `<section><h3 class="shop-sec">ข้อความจากเพื่อน</h3><div class="list-card">${inbox.map((m) =>
         `<div class="friend-row">${friendAv(m.name, m.avatar)}<span class="setting-main"><b>${esc(msgText(m))}</b><small>${timeAgo(new Date(m.at).getTime())}</small></span>
           ${icon(m.kind === 'cheer' ? 'heart' : 'bell', 20)}</div>`).join('')}</div></section>` : ''}
+      ${feedHTML()}
       ${questCard(d)}
       ${d.incoming.length ? `<section><h3 class="shop-sec">คำขอเป็นเพื่อน</h3><div class="list-card">${d.incoming.map((f) =>
         `<div class="friend-row">${friendAv(f.name, f.avatar)}<span class="setting-main"><b>${esc(f.name)}</b><small>อยากเป็นเพื่อนกับคุณ</small></span>
@@ -157,6 +180,7 @@ Object.assign(ACT, {
     showToast(r === 'sent' ? (d.k === 'cheer' ? `ส่งกำลังใจให้${d.n}แล้ว` : `เตือน${d.n}แล้ว`) : r === 'already' ? 'วันนี้ส่งไปแล้ว' : 'ยังไม่ได้เป็นเพื่อนกัน');
   },
   'fq-pick': () => { UI.sheet = { type: 'fq-pick' }; render(); },
+  'feed-kudos': (d) => { SFX.play('reward'); feedKudos(+d.id); },
   'fq-start': async (d) => {
     const r = await friendsCall('friend_quest_start', { p_user: d.id });
     if (!r) return;

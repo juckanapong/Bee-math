@@ -1,7 +1,7 @@
 /* BeeMath — Service Worker: ทำให้ติดตั้งเป็นแอปและเปิดได้แม้ไม่มีอินเทอร์เน็ต
    กลยุทธ์ stale-while-revalidate: เปิดจากแคชทันที แล้วโหลดเวอร์ชันใหม่เก็บไว้ใช้ครั้งถัดไป
    เปลี่ยน VERSION เมื่อเพิ่ม/ลบไฟล์ใน APP_FILES เพื่อล้างแคชเก่า */
-const VERSION = 'beemath-v18';
+const VERSION = 'beemath-v19';
 const APP_FILES = [
   './', './index.html', './privacy.html', './manifest.webmanifest', './css/style.css',
   './js/icons.js', './js/data.js', './js/sounds.js', './js/app.js', './js/extras.js', './js/askbee.js', './js/config.js', './js/cloud.js', './js/friends.js', './js/classroom.js', './js/feedback.js', './js/main.js',
@@ -39,5 +39,22 @@ self.addEventListener('fetch', (e) => {
     // ออฟไลน์และไม่มีในแคช: หน้าเว็บให้ใช้ index.html แทน
     if (req.mode === 'navigate') return cache.match('./index.html');
     return new Response('', { status: 504, statusText: 'offline' });
+  }));
+});
+
+// แจ้งเตือน Push จาก Edge Function push-send (เตือนให้มาเรียน) · แตะแล้วเปิดแอป (หรือสลับไปหน้าต่างที่เปิดอยู่)
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { /* ข้อความไม่ใช่ JSON */ }
+  e.waitUntil(self.registration.showNotification(d.title || 'BeeMath', {
+    body: d.body || 'มาฝึกแก้สมการกับน้องผึ้งกันเถอะ', icon: './icons/icon-192.png', badge: './icons/icon-192.png',
+    tag: 'beemath-remind', data: { url: d.url || './' },
+  }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+    const w = wins.find((c) => c.url.startsWith(self.registration.scope));
+    return w ? w.focus() : self.clients.openWindow(e.notification.data?.url || './');
   }));
 });
