@@ -52,6 +52,7 @@ async function cloudInit() {
     const { data } = await Cloud.client.auth.getSession();
     Cloud.user = data.session?.user || null;
     Cloud.status = 'ready';
+    remoteLoad(); errFlush(); // ค่าตั้งจากเซิร์ฟเวอร์ · error ที่เกิดก่อนระบบพร้อม (js/ops.js)
     Cloud.client.auth.onAuthStateChange((event, session) => {
       const prev = Cloud.user?.id;
       Cloud.user = session?.user || null;
@@ -91,7 +92,7 @@ function applyState(st) {
 
 async function cloudPull() {
   if (!Cloud.client || !Cloud.user) return;
-  if (!navigator.onLine) { Cloud.status = 'offline'; return; }
+  if (!netOK()) { Cloud.status = cloudPaused() ? 'paused' : 'offline'; return; }
   Cloud.status = 'syncing'; cloudRender();
   const uid = Cloud.user.id;
   const { data, error } = await Cloud.client.from('progress').select('state, updated_at').eq('user_id', uid).maybeSingle();
@@ -124,7 +125,7 @@ async function cloudPull() {
 async function cloudPush() {
   clearTimeout(Cloud.timer);
   if (!Cloud.client || !Cloud.user) return;
-  if (!navigator.onLine) { Cloud.status = 'offline'; return; }
+  if (!netOK()) { Cloud.status = cloudPaused() ? 'paused' : 'offline'; return; }
   Cloud.status = 'syncing';
   const uid = Cloud.user.id;
   const { error } = await Cloud.client.from('progress').upsert({
@@ -156,7 +157,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 // ส่ง XP ของสัปดาห์ให้เซิร์ฟเวอร์ แล้วรับตารางอันดับของกลุ่ม ระดับลีก และผลของสัปดาห์ที่แล้ว
 // ถ้ายังไม่ได้รัน supabase/league.sql ฟังก์ชันจะไม่มี → ใช้ลีกจำลองต่อไปตามเดิม
 async function leagueSync(force = false) {
-  if (!Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (!Cloud.client || !Cloud.user || !netOK()) return;
   if (!force && Date.now() - Cloud.leagueAt < 15000) return;
   Cloud.leagueAt = Date.now();
   const { data, error } = await Cloud.client.rpc('league_sync', { p_week: S.week.key, p_xp: S.week.xp });
@@ -188,7 +189,8 @@ async function pushSync() {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return;
     let sub = await reg.pushManager.getSubscription();
-    const want = !!(Cloud.user && S.remind.on && Notification.permission === 'granted');
+    const want = !!(Cloud.user && S.remind.on && Notification.permission === 'granted' && flag('push') && netOK());
+    if (!want && sub && (!flag('push') || !netOK())) { Push.on = false; return; } // ปิดชั่วคราว: ไม่ยกเลิกการสมัครของเครื่อง
     if (want) {
       if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64url(window.BEEMATH_CONFIG.vapidPublicKey) });
       const k = sub.toJSON().keys;
@@ -206,7 +208,7 @@ async function pushSync() {
 // ---------- ฟีดเพื่อน ----------
 const Feed = { data: null, at: 0, gave: {} };
 async function feedSync(force = false) {
-  if (!Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (!Cloud.client || !Cloud.user || !netOK() || !flag('feed')) return;
   if (!force && Date.now() - Feed.at < 30000) return;
   Feed.at = Date.now();
   const { data, error } = await Cloud.client.rpc('friends_feed');
@@ -221,12 +223,12 @@ async function feedKudos(id) {
 }
 // สตรีคถึงก้าวสำคัญ / ครบเป้าหมายสตรีค → แจ้งเพื่อนในฟีด (ไม่รอผล)
 function cloudFeedStreak(kind, days) {
-  if (Cloud.client && Cloud.user && navigator.onLine) Cloud.client.rpc('feed_post_streak', { p_kind: kind, p_days: days }).then(() => {}, () => {});
+  if (Cloud.client && Cloud.user && netOK()) Cloud.client.rpc('feed_post_streak', { p_kind: kind, p_days: days }).then(() => {}, () => {});
 }
 
 // ตั้งไอคอนข้างชื่อในลีก (league_react ใน supabase/league_v3.sql) แล้วดึงตารางใหม่ · คืนค่า true เมื่อสำเร็จ
 async function cloudReact(reaction) {
-  if (!Cloud.client || !Cloud.user || !navigator.onLine) return false;
+  if (!Cloud.client || !Cloud.user || !netOK()) return false;
   const { error } = await Cloud.client.rpc('league_react', { p_reaction: reaction });
   if (error) return false;
   await leagueSync(true);
@@ -254,7 +256,7 @@ function outboxAdd(item) {
 
 // เริ่มรอบ: บันทึกเวลาเริ่มและ seed ไว้ที่เซิร์ฟเวอร์ ถ้าไม่สำเร็จ (ออฟไลน์/ยังไม่ล็อกอิน) รอบนี้ได้ XP เฉพาะในเครื่อง
 function cloudSessionBegin(id, kind, seed) {
-  if (!Cloud.client || !Cloud.user || !navigator.onLine) { Outbox.began[id] = false; return; }
+  if (!Cloud.client || !Cloud.user || !netOK()) { Outbox.began[id] = false; return; }
   Outbox.began[id] = null; // กำลังส่ง
   Cloud.client.rpc('session_begin', { p_id: id, p_kind: kind, p_seed: seed })
     .then(({ error }) => { Outbox.began[id] = !error; })
@@ -270,7 +272,7 @@ const cloudBoost = (source) => outboxAdd({ t: 'boost', source });
 
 // ส่งของในคิวทีละชิ้นตามลำดับ · ผิดพลาดชั่วคราว (เน็ต/เซิร์ฟเวอร์) → หยุดแล้วลองใหม่ภายหลัง · ถูกปฏิเสธถาวร → ทิ้งชิ้นนั้น
 async function outboxFlush() {
-  if (Outbox.busy || !Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (Outbox.busy || !Cloud.client || !Cloud.user || !netOK()) return;
   Outbox.busy = true; clearTimeout(Outbox.timer);
   const uid = Cloud.user.id;
   let sent = 0, retry = false;
@@ -406,7 +408,7 @@ function timeAgo(ts) {
 function syncLabel() {
   if (!Cloud.enabled()) return 'ยังไม่ได้เปิดระบบบัญชี';
   if (!Cloud.user) return Cloud.status === 'error' ? Cloud.error : 'ยังไม่ได้เข้าสู่ระบบ ความคืบหน้าเก็บในเครื่องนี้เท่านั้น';
-  return { syncing: 'กำลังซิงก์…', offline: 'ออฟไลน์ จะซิงก์เมื่อกลับมาออนไลน์', error: Cloud.error || 'ซิงก์ไม่สำเร็จ', loading: 'กำลังเชื่อมต่อ…' }[Cloud.status]
+  return { syncing: 'กำลังซิงก์…', offline: 'ออฟไลน์ จะซิงก์เมื่อกลับมาออนไลน์', paused: 'ระบบออนไลน์ปิดชั่วคราว ความคืบหน้าเก็บในเครื่อง จะซิงก์เมื่อเปิดระบบ', error: Cloud.error || 'ซิงก์ไม่สำเร็จ', loading: 'กำลังเชื่อมต่อ…' }[Cloud.status]
     || (Cloud.lastSync ? `ซิงก์แล้ว ${timeAgo(Cloud.lastSync)}` : 'เชื่อมต่อแล้ว');
 }
 function viewAccount() {
@@ -418,7 +420,7 @@ function viewAccount() {
   } else if (Cloud.user) {
     body = `<div class="card acct-card">
       <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน (ไม่ใช้อีเมล) · ใช้ได้บนเครื่องนี้' : esc(Cloud.user.email || '') + (Cloud.user.app_metadata?.provider === 'google' ? ' · บัญชี Google' : '')}</small></span></div>
-      <p class="sync-line ${Cloud.status}">${icon(Cloud.status === 'error' ? 'x' : Cloud.status === 'offline' ? 'clock' : 'check', 16)} ${esc(syncLabel())}</p>
+      <p class="sync-line ${Cloud.status}">${icon(Cloud.status === 'error' ? 'x' : ['offline', 'paused'].includes(Cloud.status) ? 'clock' : 'check', 16)} ${esc(syncLabel())}</p>
       <button class="btn primary" data-act="cloud-sync" ${Cloud.status === 'syncing' ? 'disabled' : ''}>${icon('refresh', 18)} ซิงก์ตอนนี้</button>
       <button class="btn" data-act="${Cloud.user.is_anonymous ? 'cloud-signout-anon' : 'cloud-signout'}">ออกจากระบบ</button>
     </div>

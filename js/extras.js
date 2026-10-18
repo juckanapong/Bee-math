@@ -66,7 +66,7 @@ function remindCheck() {
 function remindNote() {
   if (!S.remind.on) return 'ปิดอยู่';
   const cloud = typeof Cloud !== 'undefined' && Cloud.enabled();
-  if (!cloud || typeof pushSupported !== 'function' || !pushSupported()) return 'ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์';
+  if (!cloud || typeof pushSupported !== 'function' || !pushSupported() || !flag('push')) return 'ทำงานเมื่อเปิดแอปค้างไว้ในเบราว์เซอร์';
   if (iosNeedsInstall()) return 'บน iPhone/iPad ให้เพิ่มแอปลงหน้าจอโฮมก่อน จึงจะเตือนตอนปิดแอปได้';
   if (!Cloud.user) return 'เข้าสู่ระบบเพื่อรับแจ้งเตือนแม้ปิดแอป';
   if (Notification.permission === 'denied') return 'เบราว์เซอร์บล็อกการแจ้งเตือนไว้ เปิดได้ที่การตั้งค่าของเบราว์เซอร์';

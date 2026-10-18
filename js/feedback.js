@@ -63,7 +63,7 @@ FORM_HANDLERS.feedback = async () => {
     UI.sheet = null; render();
     return;
   }
-  if (!navigator.onLine) { f.err = 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตแล้วกดส่งอีกครั้ง (ข้อความยังอยู่)'; return render(); }
+  if (!netOK()) { f.err = cloudPaused() ? 'ระบบออนไลน์ปิดชั่วคราว ลองส่งใหม่ภายหลัง (ข้อความยังอยู่)' : 'ออฟไลน์อยู่ ต่ออินเทอร์เน็ตแล้วกดส่งอีกครั้ง (ข้อความยังอยู่)'; return render(); }
   f.busy = true; f.err = null; render();
   const { error } = await Cloud.client.rpc('feedback_send', { p_kind: f.kind, p_message: f.text, p_context: ctx });
   f.busy = false;

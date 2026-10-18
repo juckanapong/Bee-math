@@ -349,8 +349,16 @@ const friendDot = () => typeof friendsAlert === 'function' && friendsAlert() > 0
 function shell(body, opts = {}) {
   const { top = true, sub = null, wide = false } = opts;
   return `<div class="layout${wide ? ' wide' : ''}">${sideNav()}
-    <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}${wide ? ' wide' : ''}">${body}</main></div>
+    <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}${wide ? ' wide' : ''}">${opsBanner()}${body}</main></div>
     ${wide ? '' : rightRail()}</div>${sub ? '' : bottomNav()}${sheetHTML()}`;
+}
+// แถบจากผู้ดูแล (js/ops.js): สวิตช์ฉุกเฉินเปิดอยู่ หรือมีประกาศ
+function opsBanner() {
+  if (typeof cloudPaused !== 'function') return '';
+  const paused = cloudPaused() && typeof Cloud !== 'undefined' && Cloud.enabled();
+  const note = noticeText();
+  return `${paused ? `<div class="banner ops warn" role="status">${icon('clock', 18)}<span>${esc(Remote.kill.message || 'ระบบออนไลน์ปิดปรับปรุงชั่วคราว เรียนต่อได้ตามปกติ ความคืบหน้าเก็บในเครื่องและจะซิงก์เมื่อเปิดระบบ')}</span></div>` : ''}
+    ${note ? `<div class="banner ops" role="status">${icon('bell', 18)}<span>${esc(note)}</span></div>` : ''}`;
 }
 // หัวหน้าจอย่อยที่มีปุ่มย้อนกลับ
 const subHead = (title, extra = '') => `<header class="subhead"><button class="x" data-act="back" aria-label="ย้อนกลับ">${icon('back', 22)}</button><h1>${title}</h1>${extra}</header>`;
@@ -985,12 +993,12 @@ function settleLeague() {
   S.leagueResult = { from, to, rank };
 }
 // แถวในตารางลีก · ลีกจริง: จุด "เพิ่งเรียน" (ได้ XP ลีกใน 15 นาที) และรีแอ็กชัน (แถวของตัวเองแตะเพื่อเลือก)
-const reactionIcon = (r) => (r.reaction ? `<span class="react" role="img" aria-label="${REACTIONS.find((x) => x.id === r.reaction).name}">${icon(r.reaction, 16)}</span>` : '');
+const reactionIcon = (r) => (r.reaction && flag('reactions') ? `<span class="react" role="img" aria-label="${REACTIONS.find((x) => x.id === r.reaction).name}">${icon(r.reaction, 16)}</span>` : '');
 const rowHTML = (r, z = leagueZones(20)) => `<li class="${r.me ? 'me' : ''} ${r.rank <= z.up && r.xp > 0 ? 'promo' : r.rank >= z.down ? 'demo' : ''}">
   <span class="rank r${r.rank}">${r.rank}</span>
   <span class="av" style="${r.me ? 'background:#FFC21A' : `background:${r.c[0]};color:${r.c[1]}`}">${r.me ? 'คุณ' : initial(r.n)}${r.active ? '<i class="live" title="เพิ่งเรียน"></i>' : ''}</span>
   <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}${r.active ? '<span class="sr-only"> · เพิ่งเรียน</span>' : ''}</span>
-  ${r.me && r.real ? `<button class="react-btn ${r.reaction ? 'set' : ''}" data-act="react-sheet" aria-label="เลือกไอคอนข้างชื่อ"><span>${r.reaction ? icon(r.reaction, 16) : icon('plus', 14)}</span></button>` : reactionIcon(r)}
+  ${r.me && r.real && flag('reactions') ? `<button class="react-btn ${r.reaction ? 'set' : ''}" data-act="react-sheet" aria-label="เลือกไอคอนข้างชื่อ"><span>${r.reaction ? icon(r.reaction, 16) : icon('plus', 14)}</span></button>` : reactionIcon(r)}
   <span class="pts">${r.xp} XP</span></li>`;
 function tierRow() {
   return `<div class="tiers" role="list" aria-label="ระดับลีก">${leagueTiers().map((t, i) => {

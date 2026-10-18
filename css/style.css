@@ -808,6 +808,9 @@ button.chip { min-height: 36px; }
 .banner { display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 16px; padding: 12px 14px; border-radius: 18px; text-align: left; font-weight: 600; font-size: 14px; }
 .banner span { flex: 1; }
 .banner.warn { background: #FFE3D1; color: #8A3700; }
+/* แถบจากผู้ดูแล (ประกาศ · สวิตช์ฉุกเฉิน) */
+.banner.ops { background: var(--blue-soft); color: var(--blue-dark); }
+.banner.ops.warn { background: #FFE3D1; color: #8A3700; }
 .banner.col { flex-direction: column; align-items: flex-start; gap: 4px; }
 .banner.col .btn { margin-top: 6px; }
 .boost-note { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--honey-text); }

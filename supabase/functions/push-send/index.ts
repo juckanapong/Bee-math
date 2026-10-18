@@ -19,6 +19,10 @@ const message = (streak: number) => streak > 0
 Deno.serve(async (req) => {
   const secret = Deno.env.get('CRON_SECRET');
   if (!secret || req.headers.get('x-cron-secret') !== secret) return json({ error: 'forbidden' }, 403);
+  // ผู้ดูแลปิดแจ้งเตือนไว้ (app_config.flags.push = false ใน supabase/ops.sql) หรือเปิดสวิตช์ฉุกเฉิน → ไม่ส่ง
+  const { data: cfg } = await admin.from('app_config').select('key, value').in('key', ['flags', 'kill']);
+  const conf = Object.fromEntries((cfg ?? []).map((r: { key: string; value: Record<string, unknown> }) => [r.key, r.value]));
+  if (conf.flags?.push === false || conf.kill?.offline === true) return json({ disabled: true });
   const vapid = { subject: Deno.env.get('VAPID_SUBJECT')!, publicKey: Deno.env.get('VAPID_PUBLIC_KEY')!, privateKey: Deno.env.get('VAPID_PRIVATE_KEY')! };
   const { data: due, error } = await admin.rpc('push_due');
   if (error) { console.error(error); return json({ error: 'push_due failed' }, 500); }

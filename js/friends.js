@@ -9,7 +9,7 @@ const msgText = (m) => (m.kind === 'cheer' ? `${m.name} ส่งกำลัง
 const friendsAlert = () => (Friends.data ? Friends.data.incoming.length + Friends.data.inbox.filter((m) => !m.seen).length : 0);
 
 async function friendsSync(force = false) {
-  if (!Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (!Cloud.client || !Cloud.user || !netOK()) return;
   if (!force && Date.now() - Friends.at < 60000) return;
   Friends.at = Date.now();
   const { data, error } = await Cloud.client.rpc('friends_overview');
@@ -49,7 +49,7 @@ function feedText(e) {
   return `${who}ทำเป้าหมายสตรีค ${d.days} วันสำเร็จ`;
 }
 function feedHTML() {
-  const list = (typeof Feed !== 'undefined' && Feed.data) || [];
+  const list = (flag('feed') && typeof Feed !== 'undefined' && Feed.data) || [];
   if (!list.length) return '';
   return `<section><h3 class="shop-sec">ความเคลื่อนไหว</h3><div class="list-card">${list.slice(0, 12).map((e) => `<div class="friend-row feed-row">
     ${e.me ? `<span class="av" style="background:#FFC21A">คุณ</span>` : friendAv(e.name, e.avatar)}

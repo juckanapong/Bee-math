@@ -6,7 +6,7 @@ const Classroom = { mine: null, at: 0, teach: null, dash: {}, sel: null, error: 
 
 // ---------- ข้อมูล ----------
 async function classroomSync(force = false) {
-  if (!Cloud.client || !Cloud.user || !navigator.onLine) return;
+  if (!Cloud.client || !Cloud.user || !netOK()) return;
   if (!force && Date.now() - Classroom.at < 60000) return;
   Classroom.at = Date.now();
   const { data, error } = await Cloud.client.rpc('my_classes');
