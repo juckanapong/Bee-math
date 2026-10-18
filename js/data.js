@@ -1,7 +1,23 @@
 /* BeeMath — เนื้อหาบทเรียนและตัวสร้างโจทย์ (สุ่มตัวเลขใหม่ทุกครั้ง) */
 
 // ---------- utilities ----------
-const R = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+// ตัวสุ่มของตัวสร้างโจทย์: ปกติคือ Math.random · makeQuestion() สลับเป็นตัวสุ่มจาก seed ชั่วคราว
+// เพื่อให้เซิร์ฟเวอร์ (supabase/functions/session-submit) สร้างโจทย์ชุดเดิมซ้ำแล้วตรวจคำตอบได้
+// ห้ามเรียก Math.random ตรง ๆ ในไฟล์นี้ ใช้ rand() / R() / pick() / shuffle() เท่านั้น
+let rand = Math.random;
+// mulberry32: ตัวสุ่ม 32 บิตที่ให้ลำดับเดิมทุกครั้งเมื่อ seed เท่ากัน (ทั้งในเบราว์เซอร์และ Deno)
+function seededRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), a | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// seed ของข้อที่ n ในรอบ (ข้อเดียวกันได้โจทย์เดิมเสมอ ไม่ขึ้นกับลำดับที่แสดง)
+const subSeed = (seed, n) => (Math.imul((seed ^ Math.imul(n + 1, 0x9e3779b1)) >>> 0, 0x85ebca6b) ^ n) >>> 0;
+const R = (a, b) => Math.floor(rand() * (b - a + 1)) + a;
 // ระดับความยากของโจทย์ที่กำลังสร้าง: 0 ง่าย · 1 ปกติ · 2 ท้าทาย (ตั้งโดย materialize() ใน js/app.js)
 let LEVEL = 1;
 // สุ่ม "ขนาดตัวเลข" ตามระดับความยาก: ง่าย = 60% ล่างของช่วง · ท้าทาย = เลื่อนขึ้น 30% และขยายช่วงบนอีก 60%
@@ -11,11 +27,11 @@ function RV(a, b) {
   if (LEVEL >= 2) return R(a + Math.floor((b - a) * 0.3), b + Math.ceil((b - a) * 0.6));
   return R(a, b);
 }
-const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const pick = (arr) => arr[Math.floor(rand() * arr.length)];
 const shuffle = (arr) => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -147,7 +163,7 @@ const G = {
   },
   checkSolution() {
     const a = R(2, 6), x = RV(1, 9), b = RV(1, 12), c = a * x + b;
-    const yes = Math.random() < 0.5;
+    const yes = rand() < 0.5;
     const t = yes ? x : x + pick([-1, 1, 2]);
     const val = a * t + b;
     return choiceQ({
@@ -169,7 +185,7 @@ const G = {
   },
   balance() {
     const x = R(2, 9);
-    if (Math.random() < 0.6) {
+    if (rand() < 0.6) {
       const a = R(1, 9), b = x + a;
       return choiceQ({
         prompt: `ตาชั่งสมดุลแทนสมการ ${M(`x + ${a} = ${b}`)} ถ้าหยิบ <b>${a}</b> ออกจากจานซ้าย ต้องทำอย่างไรกับจานขวาจึงจะยังสมดุล?`,
@@ -388,7 +404,7 @@ const G = {
   },
   orderSteps() {
     let start, stepsList, notes, decoy;
-    if (Math.random() < 0.5) {
+    if (rand() < 0.5) {
       const a = R(4, 8), c = R(1, a - 2), x = RV(1, 9), b = RV(1, 9), d = (a - c) * x + b;
       start = `${lin(a, b)} = ${lin(c, d)}`;
       stepsList = [`${lin(a - c, b)} = ${d}`, `${a - c}x = ${d - b}`, `x = ${x}`];
@@ -438,7 +454,7 @@ const G = {
   // ----- บทที่ 5: วงเล็บและเศษส่วน -----
   distribute() {
     const a = RV(2, 9), b = RV(1, 9);
-    if (Math.random() < 0.5) {
+    if (rand() < 0.5) {
       return choiceQ({
         prompt: `${M(`${a}(x + ${b})`)} เท่ากับข้อใด?`,
         correct: `${a}x + ${a * b}`, wrongs: [`${a}x + ${b}`, `x + ${a * b}`, `${a + b}x`, `${a}x + ${a + b}`],
@@ -545,6 +561,32 @@ const G = {
 };
 
 // ---------- curriculum ----------
+// สร้างโจทย์ 1 ข้อจากตัวสร้าง gen ที่ระดับความยาก lvl ด้วย seed (seed เดียวกัน = โจทย์เดียวกันทุกตัวเลขและลำดับตัวเลือก)
+function makeQuestion(gen, lvl, seed) {
+  const prevRand = rand, prevLevel = LEVEL;
+  rand = seededRandom(seed); LEVEL = lvl;
+  try { return G[gen](); } finally { rand = prevRand; LEVEL = prevLevel; }
+}
+
+// เกมผึ้งเร่งรีบ: โจทย์แก้สมการแบบเลือกตอบ 4 ตัวเลือก · lvlOf(gen) = ระดับความยากของทักษะนั้น
+const TIMED_GENS = ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep'];
+function makeTimedQuestion(seed, lvlOf) {
+  const prevRand = rand;
+  rand = seededRandom(seed);
+  try {
+    const g = pick(TIMED_GENS), lvl = lvlOf(g);
+    const q = makeQuestion(g, lvl, Math.floor(rand() * 4294967296));
+    const a = q.answer;
+    const opts = new Set([a]);
+    for (const c of shuffle([a + 1, a - 1, a + 2, a - 2, a * 2, a + 10, a + 3])) {
+      if (opts.size >= 4) break;
+      if (c >= 0) opts.add(c);
+    }
+    for (let k = 4; opts.size < 4; k++) opts.add(a + k);
+    return { g, lvl, visual: q.visual, answer: a, choices: shuffle([...opts]) };
+  } finally { rand = prevRand; }
+}
+
 const UNITS = [
   {
     id: 'u1', title: 'รู้จักสมการตัวแปรเดียว', desc: 'สมการ ตัวแปร และคำตอบของสมการ',

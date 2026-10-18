@@ -140,12 +140,32 @@ function addXP(n) {
 const LEVEL_UP_AFTER = 4, LEVEL_DOWN_AFTER = 2;
 const skillLevel = (gen) => (S.settings.adaptive === false ? 1 : S.skills[gen]?.lvl ?? 1);
 // สร้างโจทย์จริงของช่องที่ i ตอนจะแสดง (ความยากจึงปรับตามคำตอบระหว่างบทเรียนได้)
+// ใช้ seed ของรอบ + uid ของข้อ → เซิร์ฟเวอร์สร้างโจทย์ข้อเดียวกันซ้ำเพื่อตรวจคำตอบได้
 function materialize(L, i) {
   const slot = L.queue[i];
   if (!slot || slot.type) return;
   const lvl = L.kind === 'placement' ? 1 : skillLevel(slot.gen);
-  LEVEL = lvl;
-  try { L.queue[i] = { ...G[slot.gen](), uid: slot.uid, gen: slot.gen, pu: slot.pu, lvl }; } finally { LEVEL = 1; }
+  L.queue[i] = { ...makeQuestion(slot.gen, lvl, subSeed(L.seed, slot.uid)), uid: slot.uid, gen: slot.gen, pu: slot.pu, lvl };
+}
+
+// ---------- รอบที่เซิร์ฟเวอร์ตรวจ (XP ลีก) ----------
+// ทุกรอบ (บทเรียน เกมผึ้งเร่งรีบ เรื่องเล่า) มี id และ seed ของตัวเอง และเก็บคำตอบทุกข้อใน log
+// ล็อกอินอยู่ → js/cloud.js แจ้งเซิร์ฟเวอร์ตอนเริ่ม แล้วส่ง log ไปตรวจตอนจบ เซิร์ฟเวอร์คิด XP ลีกเอง
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+function newRun(kind) {
+  const run = { sid: uuid(), seed: crypto.getRandomValues(new Uint32Array(1))[0], log: [] };
+  if (typeof cloudSessionBegin === 'function') cloudSessionBegin(run.sid, kind, run.seed);
+  return run;
+}
+// ส่งผลของรอบไปให้เซิร์ฟเวอร์ (ทั้งรอบที่จบและรอบที่ออกกลางทาง เพราะภารกิจนับคำตอบทุกข้อ)
+function submitRun(kind, run, meta, completed) {
+  if (typeof cloudSessionSubmit === 'function' && run.log.length) cloudSessionSubmit({ id: run.sid, kind, meta, completed, answers: run.log });
 }
 
 // บันทึกผลรายตัวสร้างโจทย์ ใช้คำนวณความแข็งแรงของทักษะ คลังข้อที่ผิด และระดับความยาก
@@ -516,7 +536,7 @@ function startSession(kind, gens, meta = {}, n = kind === 'lesson' ? 6 : kind ==
   const base = [];
   for (let i = 0; i < n; i++) base.push(gens[i % gens.length]);
   const queue = (ordered ? base : shuffle(base)).map((g, uid) => ({ uid, gen: g, pu: meta.units?.[uid] })); // สร้างโจทย์จริงทีละข้อด้วย materialize()
-  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, hard: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', note: '', wrong: [], unitOk: {}, ...freshMatch() };
+  UI.L = { uid: Date.now(), kind, meta, queue, idx: 0, total: n, firstTry: 0, mistakes: 0, run: 0, hard: 0, sel: null, input: '', built: [], checked: false, ok: false, msg: '', note: '', wrong: [], unitOk: {}, ...freshMatch(), ...newRun(kind) };
   materialize(UI.L, 0);
   UI.view = 'lesson'; UI.sheet = null;
   render();
@@ -616,7 +636,7 @@ function viewLesson() {
 }
 
 // สถานะของโจทย์จับคู่ (ล้างใหม่ทุกข้อ)
-const freshMatch = () => ({ mL: null, mR: null, mDone: [], mMiss: 0, mFlash: null });
+const freshMatch = () => ({ mL: null, mR: null, mDone: [], mMiss: 0, mFlash: null, mTries: [] });
 
 // ช่องคำตอบตัวเลข + แป้นกด (act = ชื่อ action ของปุ่ม)
 function answerPad(input, checked, ok, act, label = 'x =') {
@@ -669,6 +689,9 @@ function check() {
   else if (q.type === 'match') ok = L.mMiss < 2; // จับคู่ผิดได้ 1 ครั้ง
   else if (q.type === 'order') ok = L.built.length === q.steps.length && L.built.every((k, i) => q.palette[k] === q.steps[i]);
   L.checked = true; L.ok = ok;
+  // คำตอบดิบสำหรับเซิร์ฟเวอร์ (u = ข้อ · g = ตัวสร้าง · l = ระดับ · r = ทวนข้อที่ผิด · a = คำตอบ)
+  const a = q.type === 'choice' ? L.sel : q.type === 'input' ? Number(L.input.replace('−', '-')) : q.type === 'match' ? L.mTries : [...L.built];
+  L.log.push({ u: q.uid, g: q.gen, l: q.lvl, r: q.retry ? 1 : 0, a });
   SFX.play(ok ? 'correct' : 'wrong');
   S.stats.answered++;
   const lvlChange = trackSkill(q.gen, ok);
@@ -747,6 +770,7 @@ function finish(completed) {
   }
   const badges = checkBadges();
   save();
+  submitRun(L.kind, L, L.meta, completed);
   SFX.play(L.kind === 'placement' || passed ? 'complete' : 'fail');
   const n = L.meta.i !== undefined ? NODES[L.meta.i] : null;
   const sub = n ? `${n.kind === 'test' ? 'ด่านทดสอบ' : n.title} · บทที่ ${n.ui + 1}`
@@ -1092,6 +1116,7 @@ const ACT = {
     L.mFlash = null;
     if (d.side === 'l') L.mL = L.mL === id ? null : id; else L.mR = L.mR === id ? null : id;
     if (L.mL !== null && L.mR !== null) {
+      L.mTries.push([L.mL, L.mR]);
       if (L.mL === L.mR) { L.mDone.push(L.mL); SFX.play('reward'); }
       else { L.mMiss++; L.mFlash = { l: L.mL, r: L.mR }; SFX.play('wrong'); }
       L.mL = L.mR = null;
@@ -1106,7 +1131,7 @@ const ACT = {
     S.chests[d.id] = true;
     const nectar = R(15, 30), boost = Math.random() < 0.25 && !boostLeft();
     S.nectar += nectar;
-    if (boost) S.boostUntil = Date.now() + BOOST_MS;
+    if (boost) { S.boostUntil = Date.now() + BOOST_MS; if (typeof cloudBoost === 'function') cloudBoost('chest'); }
     save();
     SFX.play('levelup');
     UI.sheet = { type: 'chest', nectar, boost };
@@ -1128,6 +1153,7 @@ const ACT = {
   quit: () => { UI.sheet = { type: 'quit' }; render(); },
   'quit-yes': () => {
     const k = UI.L?.kind, fromPath = UI.L?.meta.unitReview !== undefined;
+    if (UI.L) submitRun(k, UI.L, UI.L.meta, false);
     UI.L = null; UI.sheet = null;
     UI.view = k === 'placement' ? 'onboarding' : (k === 'practice' && !fromPath) || k === 'legend' ? 'practice' : 'learn';
     render(); scrollToCurrent();
@@ -1135,6 +1161,7 @@ const ACT = {
   claim: (d) => {
     const q = QUESTS.find((x) => x.id === d.id);
     S.quests.claimed[q.id] = true; S.xp += q.reward; S.week.xp += q.reward; S.nectar += NECTAR.quest;
+    if (typeof cloudQuestClaim === 'function') cloudQuestClaim(q.id, today()); // เซิร์ฟเวอร์ตรวจว่าทำภารกิจครบจริงก่อนให้ XP ลีก
     S.month.points++;
     const monthDone = S.month.points >= MONTH_GOAL && !S.monthBadges[S.month.key];
     if (monthDone) S.monthBadges[S.month.key] = true;

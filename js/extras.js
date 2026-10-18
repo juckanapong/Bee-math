@@ -127,7 +127,7 @@ const SHOP = [
     buy: () => repairStreak() },
   { sec: 'เร่งความเร็ว', id: 'boost', name: 'XP สองเท่า 15 นาที', icon: 'bolt', color: '#FFC21A', ink: '#2A1F14', price: 100,
     desc: () => 'ทุกอย่างที่ทำในช่วงนี้ได้ XP ×2', blocked: () => boostLeft() > 0 && `เหลือ ${Math.ceil(boostLeft() / 60000)} นาที`,
-    buy: () => { S.boostUntil = Date.now() + BOOST_MS; return 'XP สองเท่าเริ่มแล้ว!'; } },
+    buy: () => { S.boostUntil = Date.now() + BOOST_MS; if (typeof cloudBoost === 'function') cloudBoost('shop'); return 'XP สองเท่าเริ่มแล้ว!'; } },
   { sec: 'แต่งตัวน้องผึ้ง', id: 'cap', outfit: true, name: 'หมวกบัณฑิต', icon: 'cap', color: '#2A1F14', ink: '#FFC21A', price: 500, desc: () => 'ใส่ให้น้องผึ้งทุกหน้าจอ' },
   { sec: 'แต่งตัวน้องผึ้ง', id: 'bow', outfit: true, name: 'โบว์สีแดง', icon: 'bow', color: '#FFE5E5', ink: '#A3262B', price: 300, desc: () => 'ใส่ให้น้องผึ้งทุกหน้าจอ' },
   { sec: 'แต่งตัวน้องผึ้ง', id: 'flower', outfit: true, name: 'ดอกไม้ประดับ', icon: 'flower', color: '#DDF3D3', ink: '#2B6A17', desc: () => 'ได้ฟรีเมื่อสตรีคครบ 30 วัน' },
@@ -238,24 +238,13 @@ Object.assign(SHEETS, {
 });
 
 // ---------- เกมผึ้งเร่งรีบ (60 วินาที) ----------
-const TIMED_GENS = ['addEq', 'subEq', 'mulEq', 'divEq', 'twoStep'];
+// โจทย์ข้อที่ n สร้างจาก seed ของรอบ (makeTimedQuestion ใน js/data.js) เซิร์ฟเวอร์จึงตรวจคะแนนซ้ำได้
 const RING = 352; // เส้นรอบวงของวงเวลา (r = 56)
-function timedQuestion() {
-  const g = pick(TIMED_GENS);
-  LEVEL = skillLevel(g);
-  let q;
-  try { q = G[g](); } finally { LEVEL = 1; }
-  const a = q.answer;
-  const opts = new Set([a]);
-  for (const c of shuffle([a + 1, a - 1, a + 2, a - 2, a * 2, a + 10, a + 3])) {
-    if (opts.size >= 4) break;
-    if (c >= 0) opts.add(c);
-  }
-  for (let k = 4; opts.size < 4; k++) opts.add(a + k);
-  return { g, visual: q.visual, answer: a, choices: shuffle([...opts]) };
-}
+const timedQuestion = (T) => makeTimedQuestion(subSeed(T.seed, T.n), skillLevel);
 function startTimed() {
-  UI.T = { n: 0, end: Date.now() + 60000, score: 0, combo: 0, bestCombo: 0, q: timedQuestion(), last: null };
+  const now = Date.now();
+  UI.T = { n: 0, start: now, end: now + 60000, score: 0, combo: 0, bestCombo: 0, last: null, ...newRun('timed') };
+  UI.T.q = timedQuestion(UI.T);
   UI.view = 'timed'; UI.sheet = null;
   clearInterval(timedTick.id);
   timedTick.id = setInterval(timedTick, 200);
@@ -278,6 +267,7 @@ function answerTimed(k) {
   const T = UI.T;
   const ok = T.q.choices[k] === T.q.answer;
   SFX.play(ok ? 'correct' : 'wrong');
+  T.log.push({ g: T.q.g, l: T.q.lvl, k, t: Date.now() - T.start }); // t = เวลาที่ตอบ นับจากเริ่มเกม (มิลลิวินาที)
   T.n++;
   trackSkill(T.q.g, ok);
   S.stats.answered++;
@@ -289,7 +279,7 @@ function answerTimed(k) {
     T.combo = 0; T.end -= 5000;
     T.last = { ok: false, answer: T.q.answer };
   }
-  T.q = timedQuestion();
+  T.q = timedQuestion(T);
   if (T.end <= Date.now()) return finishTimed();
   render();
 }
@@ -306,6 +296,7 @@ function finishTimed() {
   const streak = T.score ? learnToday() : null;
   const badges = checkBadges();
   save();
+  submitRun('timed', T, {}, true);
   SFX.play(T.score ? 'complete' : 'fail');
   UI.result = { kind: 'timed', score: T.score, xp, nectar, newBest, bestCombo: T.bestCombo, milestone: streak?.milestone, badges, wrong: [] };
   UI.view = 'result';
@@ -344,7 +335,7 @@ RESULT_VIEWS.timed = (r) => `<div class="result win">${HONEYCOMB}${r.newBest ? c
 
 // ---------- เรื่องเล่าโจทย์ ----------
 function startStory(id) {
-  UI.st = { id, step: 0, sel: null, input: '', checked: false, ok: false, correct: 0 };
+  UI.st = { id, step: 0, sel: null, input: '', checked: false, ok: false, correct: 0, ...newRun('story') };
   UI.view = 'story'; UI.sheet = null;
   render();
   window.scrollTo(0, 0);
@@ -385,8 +376,10 @@ function viewStory() {
 }
 function checkStory() {
   const st = UI.st, cur = STORIES.find((x) => x.id === st.id).steps[st.step];
-  st.ok = cur.q === 'choice' ? st.sel === cur.answer : Number(st.input.replace('−', '-')) === cur.answer;
+  const a = cur.q === 'choice' ? st.sel : Number(st.input.replace('−', '-'));
+  st.ok = a === cur.answer;
   st.checked = true;
+  st.log.push({ s: st.step, a });
   SFX.play(st.ok ? 'correct' : 'wrong');
   if (st.ok) st.correct++;
   render();
@@ -402,6 +395,7 @@ function nextStory() {
   const streak = learnToday();
   const badges = checkBadges();
   save();
+  submitRun('story', st, { story: story.id }, true);
   SFX.play('complete');
   UI.result = { kind: 'story', title: story.title, xp, nectar: 5, correct: st.correct, total: story.steps.filter((s) => s.q).length, milestone: streak?.milestone, badges, wrong: [] };
   UI.st = null; UI.view = 'result';
@@ -611,5 +605,5 @@ Object.assign(ACT, {
   'quit-story': () => { UI.st = null; UI.view = 'practice'; render(); },
   'timed-start': () => startTimed(),
   'timed-ans': (d) => answerTimed(+d.k),
-  'timed-quit': () => { clearInterval(timedTick.id); UI.T = null; UI.view = 'practice'; render(); },
+  'timed-quit': () => { clearInterval(timedTick.id); if (UI.T) submitRun('timed', UI.T, {}, false); UI.T = null; UI.view = 'practice'; render(); },
 });

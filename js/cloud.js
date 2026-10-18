@@ -115,6 +115,7 @@ async function cloudPull() {
   if (typeof friendsSync === 'function') friendsSync(true);
   if (typeof classroomSync === 'function') classroomSync(true);
   if (merged) showToast('รวมความคืบหน้าในเครื่องนี้เข้ากับบัญชีแล้ว');
+  outboxFlush(); // ผลของรอบที่ค้างส่งจากครั้งก่อน
   consentCheck();
   cloudRender();
 }
@@ -171,6 +172,79 @@ async function leagueSync(force = false) {
 function leagueRefresh() {
   if (Cloud.user && Date.now() - Cloud.leagueAt > 30000) setTimeout(() => leagueSync(true), 0);
 }
+
+// ---------- XP ลีกที่เซิร์ฟเวอร์ตรวจ (supabase/sessions.sql · supabase/functions/session-submit) ----------
+// เริ่มรอบ → แจ้งเซิร์ฟเวอร์ (ไม่รอผล) · จบรอบ → ใส่คิว outbox แล้วส่งคำตอบไปตรวจ เซิร์ฟเวอร์คิด XP แล้วบวกเข้าลีกเอง
+// คิวเก็บใน localStorage แยกตามบัญชี ส่งตามลำดับ ส่งซ้ำได้เมื่อเน็ตหลุด (เซิร์ฟเวอร์ไม่นับซ้ำเพราะใช้ id ของรอบ)
+const OUTBOX_KEY = (uid) => 'beemath-outbox:' + uid;
+const Outbox = { busy: false, timer: null, wait: 0, began: {} };
+const outboxLoad = (uid) => { try { return JSON.parse(localStorage.getItem(OUTBOX_KEY(uid))) || []; } catch (e) { return []; } };
+const outboxSave = (uid, items) => { try { localStorage.setItem(OUTBOX_KEY(uid), JSON.stringify(items.slice(-200))); } catch (e) { /* ignore */ } };
+const outboxCount = () => (Cloud.user ? outboxLoad(Cloud.user.id).length : 0);
+function outboxAdd(item) {
+  if (!Cloud.user) return;
+  const uid = Cloud.user.id;
+  outboxSave(uid, [...outboxLoad(uid), { ...item, at: Date.now() }]);
+  outboxFlush();
+}
+
+// เริ่มรอบ: บันทึกเวลาเริ่มและ seed ไว้ที่เซิร์ฟเวอร์ ถ้าไม่สำเร็จ (ออฟไลน์/ยังไม่ล็อกอิน) รอบนี้ได้ XP เฉพาะในเครื่อง
+function cloudSessionBegin(id, kind, seed) {
+  if (!Cloud.client || !Cloud.user || !navigator.onLine) { Outbox.began[id] = false; return; }
+  Outbox.began[id] = null; // กำลังส่ง
+  Cloud.client.rpc('session_begin', { p_id: id, p_kind: kind, p_seed: seed })
+    .then(({ error }) => { Outbox.began[id] = !error; })
+    .catch(() => { Outbox.began[id] = false; });
+}
+function cloudSessionSubmit(s) {
+  if (Outbox.began[s.id] === false || Outbox.began[s.id] === undefined) return; // เซิร์ฟเวอร์ไม่รู้จักรอบนี้
+  delete Outbox.began[s.id];
+  outboxAdd({ t: 'session', ...s });
+}
+const cloudQuestClaim = (quest, day) => outboxAdd({ t: 'claim', quest, day });
+const cloudBoost = (source) => outboxAdd({ t: 'boost', source });
+
+// ส่งของในคิวทีละชิ้นตามลำดับ · ผิดพลาดชั่วคราว (เน็ต/เซิร์ฟเวอร์) → หยุดแล้วลองใหม่ภายหลัง · ถูกปฏิเสธถาวร → ทิ้งชิ้นนั้น
+async function outboxFlush() {
+  if (Outbox.busy || !Cloud.client || !Cloud.user || !navigator.onLine) return;
+  Outbox.busy = true; clearTimeout(Outbox.timer);
+  const uid = Cloud.user.id;
+  let sent = 0, retry = false;
+  try {
+    for (;;) {
+      const [item] = outboxLoad(uid);
+      if (!item || Cloud.user?.id !== uid) break;
+      const res = await outboxSend(item);
+      if (res === 'retry') { retry = true; break; }
+      outboxSave(uid, outboxLoad(uid).slice(1));
+      if (res === 'ok') sent++;
+    }
+  } finally { Outbox.busy = false; }
+  if (retry) {
+    Outbox.wait = Math.min(300000, Outbox.wait ? Outbox.wait * 2 : 5000);
+    Outbox.timer = setTimeout(outboxFlush, Outbox.wait);
+  } else Outbox.wait = 0;
+  if (sent) leagueSync(true);
+}
+// คืนค่า 'ok' · 'drop' (ปฏิเสธถาวร) · 'retry'
+async function outboxSend(item) {
+  try {
+    if (item.t === 'boost') {
+      const { error } = await Cloud.client.rpc('boost_begin', { p_source: item.source });
+      if (!error) return 'ok';
+      return /boost limit|does not exist/i.test(error.message) ? 'drop' : 'retry';
+    }
+    const body = item.t === 'claim' ? { type: 'claim', quest: item.quest, day: item.day }
+      : { type: 'session', id: item.id, kind: item.kind, meta: item.meta, completed: item.completed, answers: item.answers };
+    const { error } = await Cloud.client.functions.invoke('session-submit', { body });
+    if (!error) return 'ok';
+    const status = error.context?.status;
+    // 4xx ที่ไม่ใช่ปัญหาชั่วคราว = คำตอบไม่ผ่านการตรวจ/รอบหมดอายุ → ไม่ส่งซ้ำ · 404 = ยังไม่ได้ deploy ฟังก์ชัน → รอ
+    if (status >= 400 && status < 500 && ![401, 404, 408, 429].includes(status)) return 'drop';
+    return Date.now() - item.at > 3 * 864e5 ? 'drop' : 'retry';
+  } catch (e) { return 'retry'; }
+}
+window.addEventListener('online', () => outboxFlush());
 
 // โลโก้ Google แบบสี่สี (ตามแนวทางปุ่ม "Sign in with Google")
 const GOOGLE_G = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
@@ -238,6 +312,7 @@ async function cloudSignIn(email, password) {
 // ออกจากระบบ: ส่งข้อมูลล่าสุดขึ้นก่อน แล้วล้างข้อมูลในเครื่อง (กันข้อมูลรั่วบนเครื่องที่ใช้ร่วมกัน)
 async function cloudSignOut() {
   if (syncMeta().dirty) await cloudPush();
+  await outboxFlush(); // ส่งไม่หมดก็ไม่หาย: คิวผูกกับบัญชี ส่งต่อเมื่อเข้าสู่ระบบครั้งหน้า
   await Cloud.client.auth.signOut();
   Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null; Cloud.league = null;
   if (typeof Friends !== 'undefined') { Friends.data = null; Friends.at = 0; Friends.sent = {}; }
@@ -249,6 +324,7 @@ async function cloudSignOut() {
 async function cloudDeleteAccount() {
   const { error } = await Cloud.client.rpc('delete_my_account');
   if (error) throw error;
+  try { localStorage.removeItem(OUTBOX_KEY(Cloud.user.id)); } catch (e) { /* ignore */ }
   await Cloud.client.auth.signOut();
   Cloud.user = null; Cloud.status = 'ready'; Cloud.league = null;
   setSyncMeta({});
