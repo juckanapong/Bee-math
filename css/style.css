@@ -663,6 +663,14 @@ html.text-xl .eq-big { font-size: min(40px, 8.4vw); }
 .acct-msg { margin: 0; padding: 10px 14px; border-radius: var(--r-md); font-size: 14px; font-weight: 600; }
 .acct-msg.err { background: var(--red-soft); color: var(--red-text); }
 .acct-msg.ok { background: var(--green-soft); color: var(--green-text); }
+.acct-msg.warn { background: var(--honey-soft); color: var(--honey-text); font-weight: 500; }
+.acct-msg.warn a { color: inherit; font-weight: 700; }
+.ob-signed { font-weight: 500; line-height: 1.6; }
+.ob-signed svg { display: inline-block; vertical-align: -3px; margin-right: 4px; }
+.ob-signed b { font-weight: 700; overflow-wrap: anywhere; }
+.oauth-who { display: grid; gap: 2px; }
+.oauth-who b { color: var(--ink); font-size: 18px; overflow-wrap: anywhere; }
+.oauth-who small { font-size: 14px; }
 .sync-line { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; font-weight: 600; color: var(--green-text); }
 .sync-line.error { color: var(--red-text); }
 .sync-line.offline, .sync-line.syncing { color: var(--ink-2); }

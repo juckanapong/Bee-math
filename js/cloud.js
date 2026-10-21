@@ -60,11 +60,11 @@ async function cloudInit() {
       if (Cloud.user && Cloud.user.id !== prev) setTimeout(() => cloudPull(), 0); // ล็อกอินจากแท็บอื่น/ลิงก์ยืนยันอีเมล
     });
     if (Cloud.user) await cloudPull();
-    oauthReturn();
   } catch (e) {
     Cloud.status = 'error';
     Cloud.error = 'โหลดระบบบัญชีไม่สำเร็จ (ยังเล่นแบบไม่มีบัญชีได้ตามปกติ)';
   }
+  oauthReturn(); // ทำเสมอ ไม่งั้นหน้า "กำลังเข้าสู่ระบบ…" จะค้างเมื่อโหลดไม่สำเร็จ
   cloudRender();
 }
 
@@ -101,6 +101,7 @@ async function cloudPull() {
   if (error) { Cloud.status = 'error'; Cloud.error = cloudError(error); return cloudRender(); }
   const meta = syncMeta();
   let merged = false;
+  Cloud.fresh = !data; // บัญชีใหม่ที่ยังไม่มีความคืบหน้าในคลาวด์ (ใช้เลือกข้อความต้อนรับหลังกลับจาก Google)
   if (!data) {
     // บัญชีใหม่: อัปโหลดความคืบหน้าในเครื่องขึ้นไป (ยกเว้นเป็นของบัญชีอื่น)
     if (meta.userId && meta.userId !== uid) applyState(defaultState());
@@ -355,22 +356,55 @@ async function cloudGoogle() {
     S.name = name.slice(0, 20);
     giveConsent('google');
   }
-  try { sessionStorage.setItem('bm-oauth', '1'); } catch (e) { /* ignore */ }
+  // จำหน้าที่จากมา (หน้าก่อนหน้าบัญชี) ไว้กลับไปหลังเข้าสู่ระบบ · sessionStorage อยู่รอดข้ามการไปหน้า Google ในแท็บเดียวกัน
+  try { sessionStorage.setItem(OAUTH_KEY, JSON.stringify({ back: UI.back, ob: UI.view === 'account' && UI.back === 'onboarding' ? UI.ob : null, at: Date.now() })); } catch (e) { /* ignore */ }
   a.err = null; a.busy = true; render();
   const { error } = await Cloud.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: siteUrl(), queryParams: { prompt: 'select_account' } } });
   if (error) { a.busy = false; a.err = cloudError(error); render(); }
 }
-// กลับจากหน้า Google: แจ้งผล (สำเร็จ / ยกเลิก / ผิดพลาด) แล้วล้างพารามิเตอร์ออกจาก URL
+// กลับจากหน้า Google: ตั๋วที่ cloudGoogle() เก็บไว้ (หมดอายุใน 15 นาที กันเปิดแท็บเดิมทีหลังแล้วเจอหน้ารอ)
+const OAUTH_KEY = 'bm-oauth';
+function oauthTicket() {
+  try { const t = JSON.parse(sessionStorage.getItem(OAUTH_KEY)); return t && Date.now() - (t.at || 0) < 15 * 60000 ? t : null; } catch (e) { return null; }
+}
+// เปิดแอปครั้งแรกหลังกลับจาก Google (js/main.js เรียกก่อนวาดหน้าแรก): กลับไปหน้าเดิม แล้วแสดง "กำลังเข้าสู่ระบบ…" จนกว่าระบบบัญชีจะโหลดเสร็จ
+function oauthResume() {
+  const t = oauthTicket();
+  if (!t || !Cloud.enabled()) return false;
+  const back = ['learn', 'board', 'quests', 'profile', 'friends', 'classes', 'teacher', 'onboarding'].includes(t.back) ? t.back : 'learn';
+  UI.back = back; UI.view = back;
+  if (back === 'onboarding' && t.ob) UI.ob = t.ob;
+  UI.sheet = { type: 'oauth-wait' };
+  return true;
+}
+// แจ้งผล (สำเร็จ / ยกเลิก / ผิดพลาด) แล้วล้างพารามิเตอร์ออกจาก URL
 function oauthReturn() {
-  let pending = false;
-  try { pending = sessionStorage.getItem('bm-oauth') === '1'; sessionStorage.removeItem('bm-oauth'); } catch (e) { /* ignore */ }
+  const t = oauthTicket();
+  try { sessionStorage.removeItem(OAUTH_KEY); } catch (e) { /* ignore */ }
   const p = new URLSearchParams(location.search + '&' + location.hash.slice(1));
   const code = p.get('error'), err = p.get('error_description') || code;
   if (err) {
     history.replaceState(null, '', siteUrl());
+    UI.sheet = null;
     UI.view = 'account'; UI.acct = { tab: 'signin', err: code === 'access_denied' ? 'ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว' : cloudError(err) };
-  } else if (pending && Cloud.user) showToast('เข้าสู่ระบบด้วย Google แล้ว');
+  } else if (t && Cloud.user) {
+    // บัญชีมีความคืบหน้าอยู่แล้ว = ผ่านหน้าเริ่มต้นไปแล้ว ไม่ต้องตอบคำถามเริ่มต้นซ้ำ
+    if (S.onboarded && UI.view === 'onboarding') { UI.view = 'learn'; UI.ob = null; }
+    UI.sheet = { type: 'oauth-ok' };
+  } else if (t) {
+    // กลับมาแล้วแต่ไม่มี session: มักเกิดในเบราว์เซอร์ของแอป (LINE, Facebook) ที่ Google ไม่อนุญาต
+    UI.sheet = null;
+    UI.view = 'account';
+    UI.acct = { tab: 'signin', err: Cloud.status === 'error' ? Cloud.error : inAppBrowser() ? 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ เพราะเปิดอยู่ในแอป ' + inAppBrowser() + ' ลองเปิดหน้านี้ใน Safari หรือ Chrome แล้วเข้าสู่ระบบอีกครั้ง' : 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ลองอีกครั้งนะ' };
+  }
 }
+// เบราว์เซอร์ที่ฝังอยู่ในแอปแชต/โซเชียล: Google มักบล็อกการเข้าสู่ระบบ (คืนชื่อแอป หรือ '' ถ้าไม่ใช่)
+function inAppBrowser() {
+  const ua = navigator.userAgent || '';
+  return / Line\//i.test(ua) ? 'LINE' : /FBAN|FBAV|FB_IAB/.test(ua) ? 'Facebook' : /Instagram/.test(ua) ? 'Instagram' : /MicroMessenger/.test(ua) ? 'WeChat' : /musical_ly|TikTok/i.test(ua) ? 'TikTok' : '';
+}
+// ชื่อที่ใช้บอกว่าเข้าสู่ระบบเป็นใคร: ชื่อที่แสดงในแอป (ไม่ใช้ชื่อจริงจาก Google) หรืออีเมลถ้ายังไม่ได้ตั้งชื่อ
+const acctLabel = () => isDefaultName(S.name) ? (Cloud.user?.email || 'บัญชีของคุณ') : S.name;
 async function cloudSignIn(email, password) {
   const { data, error } = await Cloud.client.auth.signInWithPassword({ email, password });
   if (error) throw error;
@@ -454,6 +488,7 @@ function viewAccount() {
         </form>
         <div class="or-line"><span>หรือ</span></div>
         <button class="btn google-btn" type="button" data-act="acct-google" ${a.busy ? 'disabled' : ''}>${GOOGLE_G}${a.tab === 'signup' ? 'สมัครด้วย Google' : 'เข้าสู่ระบบด้วย Google'}</button>
+        ${inAppBrowser() ? `<p class="acct-msg warn">เปิดอยู่ในแอป ${inAppBrowser()} Google อาจไม่ยอมให้เข้าสู่ระบบในหน้านี้ ${inAppBrowser() === 'LINE' ? `<a href="${siteUrl()}?openExternalBrowser=1" target="_blank" rel="noopener">เปิดใน Safari/Chrome</a>` : 'กดเมนู ⋯ แล้วเลือกเปิดในเบราว์เซอร์'}</p>` : ''}
         ${a.tab === 'signup' ? '<p class="muted small">สมัครด้วย Google ก็ต้องติ๊กยอมรับนโยบายด้านบนก่อน แอปจะใช้ชื่อที่คุณตั้งเอง ไม่ดึงชื่อจริงหรือรูปจาก Google</p>' : ''}`;
     body = `<div class="card acct-card">
       <div class="acct-intro">${bee(64, 'happy')}<p>สมัครแล้วเรียนต่อได้ทุกเครื่อง ความคืบหน้าไม่หายแม้ล้างเบราว์เซอร์</p></div>
@@ -466,6 +501,17 @@ function viewAccount() {
   return shell(`<div class="sub-body">${body}</div>`, { sub: { title: 'บัญชี' } });
 }
 Object.assign(SHEETS, {
+  'oauth-wait'() {
+    return `<div class="sheet-card center" aria-busy="true">${bee(72, 'happy')}<h2>กำลังเข้าสู่ระบบ…</h2><p>รอสักครู่ กำลังเชื่อมบัญชี Google</p></div>`;
+  },
+  'oauth-ok'() {
+    const email = Cloud.user?.email || '', label = acctLabel();
+    return `<div class="sheet-card center">${hex(bee(56, 'happy'), 'acct-av', `background:${S.avatar}`)}
+      <h2>เข้าสู่ระบบแล้ว</h2>
+      <p class="oauth-who"><b>${esc(label)}</b>${label !== email && email ? `<small>${esc(email)}</small>` : ''}</p>
+      <p>${Cloud.fresh ? 'ความคืบหน้าจากนี้จะบันทึกลงบัญชีนี้ เรียนต่อได้ทุกเครื่อง' : 'โหลดความคืบหน้าจากบัญชีแล้ว เรียนต่อจากเดิมได้เลย'}</p>
+      <button class="btn primary" data-act="oauth-ok">${UI.view === 'onboarding' ? 'ไปต่อ' : 'เรียนต่อ'}</button></div>`;
+  },
   'set-name'() {
     return `<div class="sheet-card"><h2>ตั้งชื่อที่แสดง</h2>
       <p>ชื่อนี้จะแสดงในลีก รายชื่อเพื่อน และห้องเรียน เพื่อนและครูจะได้รู้ว่าเป็นคุณ</p>
@@ -532,6 +578,7 @@ async function submitAccount(kind) {
 }
 Object.assign(ACT, {
   'acct-google': () => cloudGoogle(),
+  'oauth-ok': () => { UI.sheet = null; render(); consentCheck(); },
   'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); consentCheck(); },
   'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },
   'acct-tab': (d) => { UI.acct = { tab: d.t }; render(); },

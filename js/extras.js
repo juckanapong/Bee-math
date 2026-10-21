@@ -15,8 +15,10 @@ function viewOnboarding() {
         <span class="setting-main"><b>เตือนให้มาเรียน</b><small>ทุกวัน เวลา ${S.remind.time} น. (เปลี่ยนได้ในตั้งค่า)</small></span>
         ${switchHTML('ob-remind', o.remind, 'เปิดการเตือน')}
       </div>
-      ${typeof Cloud !== 'undefined' && Cloud.enabled() ? '<button class="btn link" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}
-      <p class="muted small center">ไม่ต้องสมัครก็เรียนได้ ความคืบหน้าจะเก็บไว้ในเครื่องนี้ <a class="pp-link" href="privacy.html" target="_blank" rel="noopener">อ่านนโยบายความเป็นส่วนตัว</a></p>`
+      ${typeof Cloud !== 'undefined' && Cloud.user
+        ? `<p class="acct-msg ok ob-signed">${icon('check', 16)} เข้าสู่ระบบเป็น <b>${esc(acctLabel())}</b> แล้ว ความคืบหน้าจะบันทึกลงบัญชีนี้</p>`
+        : `${typeof Cloud !== 'undefined' && Cloud.enabled() ? '<button class="btn link" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}
+      <p class="muted small center">ไม่ต้องสมัครก็เรียนได้ ความคืบหน้าจะเก็บไว้ในเครื่องนี้ <a class="pp-link" href="privacy.html" target="_blank" rel="noopener">อ่านนโยบายความเป็นส่วนตัว</a></p>`}`
     : `<h1 class="ob-title">เคยเรียนสมการมาก่อนไหม?</h1>
       <p class="muted">เลือกจุดเริ่มต้นที่เหมาะกับตัวเอง</p>
       <button class="big-pick ${o.level === 'basic' ? 'sel' : ''}" data-act="ob-level" data-l="basic">
@@ -34,7 +36,7 @@ function viewOnboarding() {
       <span class="step-label">${isGoal ? '1/2' : '2/2'}</span></header>
     <main class="lesson-body">${body}</main>
     <footer class="lesson-foot"><button class="btn primary wide" data-act="ob-next">${cta}</button></footer>
-  </div>`;
+  </div>${sheetHTML()}`;
 }
 // ทดสอบวัดระดับ: 5 ข้อจากบทที่ 1 แล้ว 5 ข้อจากบทที่ 2 (ถูก 4/5 ถือว่าผ่านบทนั้น)
 function startPlacement() {
@@ -609,6 +611,7 @@ Object.assign(ACT, {
     if (o.level === 'test') return startPlacement();
     S.onboarded = true; save();
     UI.view = 'learn'; render(); scrollToCurrent();
+    if (typeof consentCheck === 'function') consentCheck(); // เข้าสู่ระบบระหว่างหน้าเริ่มต้น → ถามนโยบาย/ชื่อตอนนี้
   },
   'toggle-sound': () => { S.settings.sound = !S.settings.sound; save(); render(); SFX.play('tap'); },
   'toggle-adaptive': () => { S.settings.adaptive = S.settings.adaptive === false; save(); render(); },

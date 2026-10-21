@@ -23,7 +23,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('keydown', (e) => {
   // หน้าต่างป๊อปอัป: Esc ปิด (ยกเว้นหน้าที่ต้องตอบก่อน) · Tab วนอยู่ในหน้าต่าง
   if (UI.sheet) {
-    if (e.key === 'Escape' && !['consent', 'set-name'].includes(UI.sheet.type)) { e.preventDefault(); (UI.sheet.type === 'league' ? ACT['league-ok'] : ACT.close)(); }
+    if (e.key === 'Escape' && !['consent', 'set-name', 'oauth-wait'].includes(UI.sheet.type)) { e.preventDefault(); (UI.sheet.type === 'league' ? ACT['league-ok'] : ACT.close)(); }
     else if (e.key === 'Tab') trapTab(e);
     return;
   }
@@ -90,12 +90,13 @@ window.addEventListener('appinstalled', () => { UI.installPrompt = null; showToa
 window.addEventListener('online', () => { if (UI.view !== 'lesson') render(); });
 window.addEventListener('offline', () => showToast('ไม่มีอินเทอร์เน็ต ยังเรียนต่อได้ตามปกติ'));
 
+const oauthBack = oauthResume(); // เพิ่งกลับจากหน้า Google → กลับหน้าเดิม + แสดงหน้ารอ (js/cloud.js)
 render();
 scrollToCurrent();
 remindCheck();
 // ระบบบัญชี (ทำงานเมื่อตั้งค่า js/config.js แล้วเท่านั้น)
 // เคยเข้าสู่ระบบ หรือเพิ่งกลับจากหน้า Google/ลิงก์ในอีเมล → โหลดทันที · ผู้เล่นที่ไม่มีบัญชี → รอให้เครื่องว่างก่อน หน้าแรกจะได้เร็วขึ้น
 const hadSession = (() => { try { return Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k)); } catch (e) { return true; } })();
-if (hadSession || /[?#&](code|access_token|error)=/.test(location.href)) cloudInit();
+if (hadSession || oauthBack || /[?#&](code|access_token|error)=/.test(location.href)) cloudInit();
 else if ('requestIdleCallback' in window) requestIdleCallback(() => cloudInit(), { timeout: 3000 });
 else setTimeout(cloudInit, 1500);
