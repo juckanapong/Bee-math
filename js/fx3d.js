@@ -1,16 +1,15 @@
-/* BeeMath — ฉาก 3 มิติสำหรับช่วงฉลอง (three.js · โหลดเมื่อจะใช้เท่านั้น ผ่าน fx3dPreload() ใน js/app.js)
-   ใช้ยังไง: ใส่ data-fx3d="win|league|chest" + data-fx-id บนองค์ประกอบในหน้า แล้ว render() เรียก sync() ทุกครั้ง
-   ฉากเล่นครั้งเดียวต่อ data-fx-id · เล่นจบแล้วหยุดวาด (ค้างภาพสุดท้าย ไม่กินเครื่อง) · ตอบถูกใช้ burst() แบบชั่วคราว
+/* BeeMath — ฉาก 3 มิติ (three.js · โหลดเมื่อใกล้จะใช้ ผ่าน fx3dPreload() ใน js/app.js) · render() เรียก sync() ทุกครั้ง
+   มีตัววาด 2 ชุด ไม่แย่งกัน:
+   - ฉากฉลอง (data-fx3d="win|league|chest" + data-fx-id): เล่นครั้งเดียวต่อ id · ตอบถูกใช้ burst() แบบชั่วคราว
+   - ฉากประจำหน้า (data-fx3d-amb="path|avatar|flame"): เล่นช่วงเปิดหน้าแล้วหยุดนิ่ง · วาดหน้าใหม่ = ย้ายภาพนิ่งตามไป · แตะน้องผึ้ง = poke()
+   ทุกฉากเล่นจบแล้วหยุดวาด (ค้างภาพสุดท้าย ไม่กินเครื่อง)
    หน้าตา: แสงแบบการ์ตูน (MeshToonMaterial) + เส้นขอบเข้ม ให้เข้ากับน้องผึ้งและหกเหลี่ยม 2 มิติของแอป */
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.min.js';
 
 const INK = 0x2a1f14;
 const PALETTE = [0xffc21a, 0x58c23a, 0x2f6fed, 0xff7a1a, 0xffe08a];
 
-// ---------- renderer เดียว ย้ายไปมาระหว่างเวที ----------
-let renderer = null, scene = null, camera = null, raf = 0, last = 0;
-let active = null;          // { id, kind, host, stage, fixed, items, t, done, keep }
-const played = new Set();   // data-fx-id ที่เล่นไปแล้ว
+const played = new Set();   // data-fx-id ของฉากฉลองที่เล่นไปแล้ว
 const toon = (() => {       // แสงเงา 3 ระดับแบบการ์ตูน
   const tex = new THREE.DataTexture(new Uint8Array([90, 90, 90, 255, 180, 180, 180, 255, 255, 255, 255, 255]), 3, 1);
   tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true;
@@ -18,25 +17,6 @@ const toon = (() => {       // แสงเงา 3 ระดับแบบก�
 })();
 const mat = (color, extra = {}) => new THREE.MeshToonMaterial({ color, gradientMap: toon, ...extra });
 const outlineMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide });
-
-function init() {
-  if (renderer) return true;
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.setAttribute('aria-hidden', 'true');
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
-  } catch (e) { renderer = null; return false; }
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.setClearColor(0x000000, 0);
-  scene = new THREE.Scene();
-  camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -2000, 2000);
-  camera.position.set(0, 0, 1000);
-  scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
-  sun.position.set(-0.6, 1, 1.2);
-  scene.add(sun);
-  return true;
-}
 
 // ---------- ชิ้นส่วน ----------
 const geoCache = {};
@@ -153,6 +133,8 @@ function sceneWin(sc, rect) {
   const r = Math.min(p.w, p.h) * 0.37;
   bee.scale.setScalar(r);
   sc.items.push({ obj: bee, kind: 'bee' }, ...burstItems(p.x, p.y, { n: 34, delay: 1.15 }));
+  // สตรีคถึงก้าวสำคัญ/เป้าหมาย: เศษสีไฟพุ่งอีกระลอก
+  if (hero.dataset.streak === '1') sc.items.push(...burstItems(p.x, p.y, { n: 26, delay: 1.9, colors: [0xff7a1a, 0xffc21a, 0xffe08a], up: 420 }));
   const from = { x: -rect.width / 2 - r * 2, y: p.y + rect.height * 0.18 };
   sc.update = (t) => {
     const k = clamp01(t / 1.2), e = ease.inOut(k);
@@ -204,94 +186,272 @@ function sceneCorrect(sc, rect) {
   sc.items.push(...burstItems(p.x, p.y, { n: 16, colors: [0x58c23a, 0xffc21a, 0x8ee06a], speed: [200, 460], size: [5, 9], life: [0.75, 1.15], up: 340 }));
   sc.update = (t) => t < 0.2;
 }
-const SCENES = { win: sceneWin, league: sceneLeague, chest: sceneChest, correct: sceneCorrect };
-// ฉากชั่วคราวบนเวทีลอยเต็มจอ (ไม่ค้างภาพ · ไม่ถูกกรอบหน้าต่างตัด) · ฉากอื่นอยู่ในหน้า/การ์ด และค้างภาพสุดท้าย
-const FLOATING = new Set(['correct', 'chest']);
+
+// ---------- ตัววาด (View): renderer + ฉาก + กล้องตั้งฉาก 1 หน่วย = 1 พิกเซล ----------
+function View() {
+  const v = { renderer: null, scene: null, camera: null, raf: 0, last: 0, active: null };
+  v.init = () => {
+    if (v.renderer) return true;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-hidden', 'true');
+      v.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'low-power' });
+    } catch (e) { v.renderer = null; return false; }
+    v.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    v.renderer.setClearColor(0x000000, 0);
+    v.scene = new THREE.Scene();
+    v.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -2000, 2000);
+    v.camera.position.set(0, 0, 1000);
+    v.scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+    sun.position.set(-0.6, 1, 1.2);
+    v.scene.add(sun);
+    return true;
+  };
+  v.fit = (stage) => {
+    const r = stage.getBoundingClientRect();
+    if (!r.width || !r.height) return r;
+    v.renderer.setSize(r.width, r.height, false);
+    Object.assign(v.renderer.domElement.style, { width: r.width + 'px', height: r.height + 'px' });
+    Object.assign(v.camera, { left: -r.width / 2, right: r.width / 2, top: r.height / 2, bottom: -r.height / 2 });
+    v.camera.updateProjectionMatrix();
+    return r;
+  };
+  v.draw = () => v.renderer.render(v.scene, v.camera);
+  v.stop = () => {
+    cancelAnimationFrame(v.raf); v.raf = 0;
+    const a = v.active;
+    if (!a) return;
+    for (const it of a.items) {
+      v.scene.remove(it.obj);
+      it.obj.traverse((o) => {
+        if (o.material && o.material !== outlineMat) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+        if (o.geometry && !Object.values(geoCache).includes(o.geometry)) o.geometry.dispose();
+      });
+    }
+    a.host?.classList.remove('fx-on');
+    if (a.floating) a.stage.remove(); else v.renderer.domElement.remove();
+    v.active = null;
+  };
+  v.start = (sc, stage) => {
+    if (!v.init()) return false;
+    v.stop();
+    stage.appendChild(v.renderer.domElement);
+    const rect = v.fit(stage);
+    Object.assign(sc, { stage, items: [], t: 0 });
+    SCENES[sc.kind](sc, rect);
+    for (const it of sc.items) v.scene.add(it.obj);
+    v.active = sc;
+    sc.host.classList.add('fx-on');
+    v.run();
+    return true;
+  };
+  v.run = () => { if (!v.raf) { v.last = performance.now(); v.raf = requestAnimationFrame(v.frame); } };
+  v.frame = (now) => {
+    v.raf = 0;
+    const a = v.active;
+    if (!a) return;
+    const dt = Math.max(0, Math.min(0.05, (now - v.last) / 1000)); v.last = Math.max(v.last, now); // เวลาเฟรมแรกอาจมาก่อนเวลาเริ่ม
+    a.t += dt;
+    const bits = stepBits(a.items, a.t, dt);
+    const more = a.update(a.t, dt);
+    v.draw();
+    if (more || bits) v.raf = requestAnimationFrame(v.frame);
+    else if (a.floating) v.stop();
+    else a.done = true; // ค้างภาพสุดท้ายไว้ ไม่วาดต่อ
+  };
+  // วาดหน้าใหม่แล้ว: ย้ายแคนวาสเข้าเวทีในองค์ประกอบใหม่ แล้ววาดภาพปัจจุบันซ้ำ
+  v.reattach = (host, stage) => {
+    const a = v.active;
+    a.host = host; a.stage = stage; host.classList.add('fx-on');
+    stage.appendChild(v.renderer.domElement);
+    v.fit(stage);
+    if (a.relayout) a.relayout(stage.getBoundingClientRect());
+    v.draw();
+  };
+  return v;
+}
+const party = View();   // ฉากฉลอง
+const amb = View();     // ฉากประจำหน้า
 
 // ---------- เวที ----------
-// win: เต็มส่วนบนของหน้าผลลัพธ์ · league/chest: เต็มการ์ดในหน้าต่าง · correct: เต็มจอแบบลอย (ชั่วคราว)
+// win: ส่วนบนของหน้าผลลัพธ์ · league: การ์ดในหน้าต่าง · correct/chest: เต็มจอแบบลอย (ชั่วคราว) · ฉากประจำหน้า: ในองค์ประกอบนั้นเอง
+const FLOATING = new Set(['correct', 'chest']);
 function stageFor(kind, host) {
   if (FLOATING.has(kind)) { const s = document.createElement('div'); s.className = 'fx-stage fixed'; document.body.appendChild(s); return s; }
-  const box = kind === 'win' ? host.closest('.result') : host.closest('.sheet-card');
+  const box = kind === 'win' ? host.closest('.result') : kind === 'league' ? host.closest('.sheet-card') : host;
   if (!box) return null;
   let s = box.querySelector(':scope > .fx-stage');
-  if (!s) { s = document.createElement('div'); s.className = 'fx-stage ' + kind; box.prepend(s); }
+  if (!s) {
+    s = document.createElement('div'); s.className = 'fx-stage fx-k-' + kind; // คำนำหน้า กันชนกับ class ของแอป (เช่น .path)
+    // ด่านปัจจุบัน: วางเวทีหลังวงรอบด่าน (ให้วงรอบอยู่ใต้หกเหลี่ยม 3 มิติ)
+    const before = kind === 'path' ? box.querySelector(':scope > .node') : box.firstChild;
+    box.insertBefore(s, before);
+  }
   return s;
 }
-function fit(stage) {
-  const r = stage.getBoundingClientRect();
-  if (!r.width || !r.height) return r;
-  renderer.setSize(r.width, r.height, false);
-  Object.assign(renderer.domElement.style, { width: r.width + 'px', height: r.height + 'px' });
-  camera.left = -r.width / 2; camera.right = r.width / 2; camera.top = r.height / 2; camera.bottom = -r.height / 2;
-  camera.updateProjectionMatrix();
-  return r;
+
+// ---------- ฉากประจำหน้า ----------
+// หน้าหลัก: ด่านปัจจุบันเป็นหกเหลี่ยม 3 มิติ (ไอคอนเดิมอยู่บน) + น้องผึ้ง 3 มิติข้างด่าน
+function scenePath(sc, rect) {
+  const hx = hexPrism(0x58c23a, { depth: 0.5 });
+  const bee = makeBee();
+  sc.items.push({ obj: hx, kind: 'hex' }, { obj: bee, kind: 'bee' });
+  let np, bp, size, r, side;
+  sc.relayout = (rc) => {
+    // หาองค์ประกอบใหม่ทุกครั้ง: วาดหน้าใหม่แล้วของเดิมถูกแทนที่
+    const node = sc.host.querySelector('.node'), beeEl = sc.host.querySelector('.path-bee .bee');
+    np = toWorld(rc, node.querySelector('.face') || node); bp = beeEl ? toWorld(rc, beeEl) : null;
+    size = Math.min(np.w, np.h) / 2; r = bp ? bp.w * 0.32 : 0;
+    side = bp && bp.x < np.x ? -1 : 1;
+    sc.pose(sc.t);
+  };
+  sc.pokeT = -1;
+  sc.pose = (t) => {
+    // หกเหลี่ยม: เด้งขึ้นพร้อมหมุนหนึ่งรอบ แล้วเอียงให้เห็นความหนาเหมือนปุ่มเกม
+    const k = clamp01(t / 1.1);
+    hx.position.set(np.x, np.y, -50);
+    hx.scale.setScalar(size * Math.max(0.001, ease.back(k)));
+    hx.rotation.y = (1 - ease.out(k)) * Math.PI * 2;
+    hx.rotation.x = -0.42 * ease.out(k);
+    if (!bp) { bee.visible = false; return t < 1.2; }
+    // ผึ้ง: บินเข้ามาจากด้านนอก ลอยขึ้นลงช่วงหนึ่ง แล้วหยุดหันเฉียงเข้าหาด่าน
+    const f = ease.out(clamp01((t - 0.2) / 1));
+    bee.scale.setScalar(r);
+    bee.position.set(bp.x + side * (1 - f) * 120, bp.y - bp.h * 0.06 + (1 - f) * 60 + Math.sin(t * 4) * r * 0.1 * clamp01(2.6 - t), 120);
+    bee.rotation.y = (1 - f) * -0.8 * side + -0.3 * side * f;
+    bee.rotation.z = (1 - f) * 0.3 * side;
+    let flapOn = t < 2.6;
+    // แตะน้องผึ้ง: ตีลังกาหนึ่งรอบ + กระโดด
+    if (sc.pokeT >= 0) {
+      const q = clamp01(sc.pokeT / 0.9);
+      bee.rotation.z += ease.inOut(q) * Math.PI * 2 * side;
+      bee.position.y += Math.sin(q * Math.PI) * r * 0.9;
+      flapOn = flapOn || q < 1;
+      if (q >= 1) sc.pokeT = -1;
+    }
+    flap(bee, t, flapOn ? 38 : 0);
+    if (!flapOn) for (const w of bee.userData.wings) w.rotation.y = 0.2 * w.userData.sx;
+    return t < 2.8 || sc.pokeT >= 0;
+  };
+  sc.update = (t, dt) => { if (sc.pokeT >= 0) sc.pokeT += dt; return sc.pose(t); };
+  sc.relayout(rect);
 }
-function stop(dispose = true) {
-  cancelAnimationFrame(raf); raf = 0;
-  if (!active) return;
-  for (const it of active.items) scene.remove(it.obj);
-  if (dispose) active.items.forEach((it) => it.obj.traverse((o) => { if (o.material && o.material !== outlineMat) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry && !Object.values(geoCache).includes(o.geometry)) o.geometry.dispose(); }));
-  active.host?.classList.remove('fx-on');
-  if (FLOATING.has(active.kind)) active.stage.remove();
-  else renderer.domElement.remove();
-  active = null;
+// โปรไฟล์: น้องผึ้ง 3 มิติลอยขึ้นในกรอบอวตาร โบกปีก แล้วหยุดหันเฉียง
+function sceneAvatar(sc, rect) {
+  const bee = makeBee();
+  sc.items.push({ obj: bee, kind: 'bee' });
+  let p;
+  sc.relayout = (rc) => { p = { x: 0, y: -rc.height * 0.05, r: Math.min(rc.width, rc.height) * 0.27 }; sc.update(sc.t); };
+  sc.update = (t) => {
+    const f = ease.back(clamp01(t / 0.9));
+    bee.scale.setScalar(p.r);
+    bee.position.set(p.x, p.y - (1 - f) * p.r * 3 + Math.sin(t * 4) * p.r * 0.08 * clamp01(2.4 - t), 100);
+    const turn = ease.out(clamp01((t - 0.9) / 0.8));
+    bee.rotation.z = Math.sin(t * 7) * 0.12 * clamp01(2 - t);
+    bee.rotation.y = -0.35 * turn; bee.rotation.x = 0.08 * turn;
+    flap(bee, t, t < 2.4 ? 38 : 0);
+    if (t >= 2.4) for (const w of bee.userData.wings) w.rotation.y = 0.2 * w.userData.sx;
+    return t < 2.5;
+  };
+  sc.relayout(rect);
 }
-function start(kind, host, id) {
-  if (!init()) return;
-  stop();
-  const stage = stageFor(kind, host);
-  if (!stage) return;
-  stage.appendChild(renderer.domElement);
-  const rect = fit(stage);
-  const sc = { id, kind, host, stage, items: [], t: 0 };
-  SCENES[kind](sc, rect);
-  for (const it of sc.items) scene.add(it.obj);
-  active = sc;
-  host.classList.add('fx-on');
-  last = performance.now();
-  raf = requestAnimationFrame(frame);
+// หน้าสตรีค: เปลวไฟ 3 มิติ (รูปไฟแบบไอคอนของแอป ปลายพลิ้ว + แกนไฟสีอ่อน) โตขึ้นพร้อมหมุน แล้วไหววูบ 3 ครั้งก่อนนิ่ง
+function flameGeo(draw, depth) {
+  const sh = new THREE.Shape(); draw(sh);
+  const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.06, bevelSegments: 3, curveSegments: 16 });
+  g.translate(0, 0, -depth / 2);
+  return g;
 }
-function frame(now) {
-  if (!active) return;
-  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now); // เวลาเฟรมแรกอาจมาก่อนเวลาเริ่ม
-  active.t += dt;
-  const bits = stepBits(active.items, active.t, dt);
-  const more = active.update(active.t, dt);
-  renderer.render(scene, camera);
-  if (more || bits) raf = requestAnimationFrame(frame);
-  else if (FLOATING.has(active.kind)) stop();
-  else { raf = 0; active.done = true; } // ค้างภาพสุดท้ายไว้ ไม่วาดต่อ
+function makeFlame() {
+  const g = new THREE.Group();
+  const outerGeo = flameGeo((s) => {
+    s.moveTo(0, -1);
+    s.bezierCurveTo(0.6, -1, 0.85, -0.5, 0.72, 0);
+    s.bezierCurveTo(0.6, 0.38, 0.32, 0.58, 0.16, 1.12);   // ปลายไฟหลัก
+    s.bezierCurveTo(0.04, 0.72, -0.22, 0.62, -0.42, 0.78); // ปลายไฟเล็กด้านซ้าย
+    s.bezierCurveTo(-0.38, 0.46, -0.76, 0.26, -0.76, -0.15);
+    s.bezierCurveTo(-0.76, -0.66, -0.44, -1, 0, -1);
+  }, 0.42);
+  const outer = new THREE.Mesh(outerGeo, mat(0xffc21a));
+  const hull = new THREE.Mesh(outerGeo, outlineMat); hull.scale.set(1.07, 1.05, 1.25);
+  const inner = new THREE.Mesh(flameGeo((s) => {
+    s.moveTo(0, -0.84);
+    s.bezierCurveTo(0.36, -0.84, 0.44, -0.46, 0.3, -0.16);
+    s.bezierCurveTo(0.2, 0.04, 0.1, 0.14, 0.05, 0.3);
+    s.bezierCurveTo(-0.1, 0.1, -0.4, -0.06, -0.4, -0.4);
+    s.bezierCurveTo(-0.4, -0.7, -0.24, -0.84, 0, -0.84);
+  }, 0.2), mat(0xfff0c2));
+  inner.position.z = 0.26;
+  g.add(hull, outer, inner);
+  return g;
+}
+function sceneFlame(sc, rect) {
+  const fl = makeFlame();
+  sc.items.push({ obj: fl, kind: 'flame' });
+  let s;
+  sc.relayout = (rc) => { s = Math.min(rc.width, rc.height) * 0.3; sc.update(sc.t); }; // สูงราว 2 หน่วย ≈ 60% ของเวที
+  sc.update = (t) => {
+    const k = ease.back(clamp01(t / 0.8));
+    const fk = clamp01((t - 0.8) / 2.1), fl3 = Math.sin(fk * Math.PI * 6) * (1 - fk);
+    fl.scale.set(s * k * (1 - fl3 * 0.06), s * k * (1 + fl3 * 0.09), s * k);
+    fl.position.set(0, -s * 0.05, 0);
+    fl.rotation.y = (1 - ease.out(clamp01(t / 0.9))) * Math.PI * 2 + 0.3;
+    fl.rotation.z = fl3 * 0.08;
+    return t < 3;
+  };
+  sc.relayout(rect);
 }
 
 // ---------- เรียกจากแอป ----------
-// หลัง render() ทุกครั้ง: ย้ายแคนวาสกลับเข้าเวทีใหม่ (innerHTML ถูกแทนที่) · เริ่มฉากใหม่ที่ยังไม่เคยเล่น · หยุดฉากที่องค์ประกอบหายไปแล้ว
+// หลัง render() ทุกครั้ง: ย้ายแคนวาสกลับเข้าเวทีใหม่ (innerHTML ถูกแทนที่) · เริ่มฉากที่ยังไม่เคยเล่น · หยุดฉากที่องค์ประกอบหายไปแล้ว
 export function sync() {
-  if (active && !FLOATING.has(active.kind)) {
-    const host = document.querySelector(`[data-fx-id="${active.id}"]`);
-    if (!host) stop();
-    else if (host !== active.host) {
-      active.host = host; host.classList.add('fx-on');
-      const stage = stageFor(active.kind, host);
-      if (stage) { active.stage = stage; stage.appendChild(renderer.domElement); fit(stage); renderer.render(scene, camera); }
-      else stop();
-    }
+  // ฉากฉลอง
+  const pa = party.active;
+  if (pa && !pa.floating) {
+    const host = document.querySelector(`[data-fx-id="${pa.id}"]`);
+    const stage = host && stageFor(pa.kind, host);
+    if (!stage) party.stop();
+    else if (host !== pa.host) party.reattach(host, stage);
   }
   for (const host of document.querySelectorAll('[data-fx3d][data-fx-id]')) {
     const id = host.dataset.fxId;
     if (played.has(id)) continue;
     played.add(id);
-    start(host.dataset.fx3d, host, id);
+    const kind = host.dataset.fx3d, stage = stageFor(kind, host);
+    if (stage) party.start({ id, kind, host, floating: FLOATING.has(kind) }, stage);
   }
+  // ฉากประจำหน้า (หน้าละ 1 ฉาก): ฉากเดิม = ย้ายตาม · ฉากใหม่ = เล่นช่วงเปิดหน้า
+  const host = document.querySelector('[data-fx3d-amb]');
+  const key = host && host.dataset.fx3dAmb + '|' + (host.dataset.fxKey || '');
+  const aa = amb.active;
+  if (!host) { if (aa) amb.stop(); return; }
+  const stage = stageFor(host.dataset.fx3dAmb, host);
+  if (!stage) return;
+  if (aa && aa.key === key) { if (host !== aa.host) amb.reattach(host, stage); }
+  else amb.start({ key, kind: host.dataset.fx3dAmb, host }, stage);
 }
 export function burst(el) {
-  if (!el || (active && active.kind !== 'correct' && !active.done)) return; // ไม่แย่งฉากใหญ่ที่กำลังเล่น
-  if (active && active.kind !== 'correct') stop();
-  start('correct', el, 'correct-' + Date.now());
+  const pa = party.active;
+  if (!el || (pa && !pa.floating && !pa.done)) return; // ไม่แย่งฉากใหญ่ที่กำลังเล่น
+  const stage = stageFor('correct', el);
+  party.start({ id: 'correct-' + Date.now(), kind: 'correct', host: el, floating: true }, stage);
 }
-export function reset() { stop(); }
+// แตะน้องผึ้งบนหน้าหลัก: ตีลังกา (เล่นต่อจากภาพนิ่ง)
+export function poke() {
+  const a = amb.active;
+  if (!a || a.kind !== 'path' || a.pokeT >= 0) return false;
+  a.pokeT = 0; a.done = false; amb.run();
+  return true;
+}
+export function reset() { party.stop(); amb.stop(); }
 addEventListener('resize', () => {
-  if (!active || !renderer) return;
-  fit(active.stage);
-  renderer.render(scene, camera);
+  for (const v of [party, amb]) {
+    const a = v.active;
+    if (!a || !v.renderer) continue;
+    v.fit(a.stage);
+    if (a.relayout) a.relayout(a.stage.getBoundingClientRect());
+    v.draw();
+  }
 });
+const SCENES = { win: sceneWin, league: sceneLeague, chest: sceneChest, correct: sceneCorrect, path: scenePath, avatar: sceneAvatar, flame: sceneFlame };

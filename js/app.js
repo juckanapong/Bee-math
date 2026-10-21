@@ -458,10 +458,10 @@ function viewLearn() {
         + (n.id === UI.justDone ? ' just-done' : '') + (isCur && UI.justDone ? ' just-open' : '');
       const ic = n.kind === 'test' ? icon('trophy', 30) : done ? icon(legend ? 'crown' : 'check', 30) : open ? icon('star', 34) : icon('lock', 26);
       const label = (n.kind === 'test' ? 'ด่านทดสอบ: ' + u.title : n.title) + (done ? ' ผ่านแล้ว' : isCur ? ' ด่านปัจจุบัน' : open ? '' : ' ล็อกอยู่');
-      html += `<div class="node-row k-${n.kind}${isCur ? ' is-cur' : ''}" style="--dx:${dx}px">
+      html += `<div class="node-row k-${n.kind}${isCur ? ' is-cur' : ''}" style="--dx:${dx}px" ${isCur ? fxAmb('path', i) : ''}>
         ${isCur ? '<span class="halo hex"></span>' : ''}
         <button class="node ${state}" data-act="node" data-i="${i}" aria-label="${esc(label)}"><span class="hex face">${ic}</span></button>
-        ${isCur ? `<div class="path-bee" style="--side:${dx >= 0 ? -1 : 1}"><p class="say">${nudge(i)}</p>${bee(96)}</div>` : ''}
+        ${isCur ? `<div class="path-bee" style="--side:${dx >= 0 ? -1 : 1}" data-act="bee-poke"><p class="say">${nudge(i)}</p>${bee(96)}</div>` : ''}
       </div>`;
       // หีบสมบัติหลังบทเรียนที่ 2 ของแต่ละบท
       if (n.kind === 'lesson' && n.id === u.lessons[1]?.id) html += chestRow(u, OFFSETS[k++ % OFFSETS.length]);
@@ -972,7 +972,7 @@ function viewResult() {
   const title = { test: 'ผ่านด่านทดสอบแล้ว!', practice: 'ฝึกฝนเสร็จแล้ว!', legend: 'ถึงระดับตำนานแล้ว!', jump: 'ข้ามบทสำเร็จ!' }[r.kind] || 'จบบทเรียนแล้ว!';
   const nextTab = (r.kind === 'practice' && r.meta.unitReview === undefined) || r.kind === 'legend' ? 'practice' : 'learn';
   return `<div class="result win">${HONEYCOMB}${confetti()}
-    <div class="hero hex" ${fxTag(r, 'win')}>${bee(170, 'cheer')}</div>
+    <div class="hero hex" ${fxTag(r, 'win', `data-streak="${r.milestone || r.goal ? 1 : 0}"`)}>${bee(170, 'cheer')}</div>
     <h1>${title}</h1><p>${esc(r.sub)}</p>
     ${r.best ? `<div class="solved"><small>สมการที่ยากที่สุดที่คุณแก้ได้</small><div class="solved-eq">${M(r.best.eq)}</div>
       <span class="solved-x">${icon('check', 18)}${M('x = ' + r.best.x)}</span></div>` : ''}
@@ -1179,7 +1179,7 @@ function viewProfile() {
   }).join('');
   return shell(`<h1 class="sr-only">โปรไฟล์ของ ${esc(S.name)}</h1><div class="profile-hero">${PROFILE_PATTERN}
       <button class="gear" data-act="settings" aria-label="ตั้งค่า">${icon('gear', 22)}</button>
-      <button class="avatar-hex hex" data-act="pick-avatar" aria-label="เปลี่ยนสีกรอบอวตาร">${hex(bee(84), 'inner', `background:${S.avatar}`)}</button>
+      <button class="avatar-hex hex" data-act="pick-avatar" aria-label="เปลี่ยนสีกรอบอวตาร"><span class="hex inner" style="background:${S.avatar}" ${fxAmb('avatar', S.avatar)}>${bee(84)}</span></button>
     </div>
     <div class="profile-id">
       <input class="name-input" id="name" value="${esc(S.name)}" maxlength="20" aria-label="ชื่อ">
@@ -1217,6 +1217,8 @@ function fx3dPreload() {
   FX.loading = import(new URL('js/fx3d.js', document.baseURI).href).then((m) => { FX.mod = m; if (fx3dOn()) m.sync(); }).catch(() => { FX.loading = null; });
 }
 // แท็กจุดที่จะเล่นฉาก 3 มิติ: เก็บ id ไว้ในวัตถุของฉากนั้น ให้เล่นครั้งเดียวแม้วาดหน้าใหม่หลายรอบ
+// ฉากประจำหน้า (หน้าละ 1 ฉาก): key เปลี่ยน = เล่นช่วงเปิดใหม่ เช่น ด่านปัจจุบันเปลี่ยน
+const fxAmb = (kind, key = '') => (fx3dOn() ? `data-fx3d-amb="${kind}" data-fx-key="${esc(String(key))}"` : '');
 const fxTag = (o, kind, extra = '') => (fx3dOn() ? `data-fx3d="${kind}" data-fx-id="${o.fx || (o.fx = kind + Math.random().toString(36).slice(2, 9))}" ${extra}` : '');
 function fx3dAfterRender() {
   const pending = FX.pending; FX.pending = null;
@@ -1334,6 +1336,7 @@ const ACT = {
   back: () => { UI.view = UI.back || 'learn'; render(); window.scrollTo(0, 0); },
   node: (d) => { UI.sheet = { type: 'node', i: +d.i }; render(); },
   close: () => { UI.sheet = null; render(); },
+  'bee-poke': () => { if (FX.mod?.poke()) SFX.play('tap'); }, // แตะน้องผึ้ง 3 มิติบนเส้นทาง: ตีลังกา
   'close-bg': (d, el, e) => { if (e.target === el && !['consent', 'set-name', 'oauth-wait'].includes(UI.sheet?.type)) (UI.sheet?.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
   start: (d) => openNode(+d.i),
   cards: (d) => { UI.cards = { i: +d.i, k: 0 }; UI.view = 'cards'; UI.sheet = null; render(); },

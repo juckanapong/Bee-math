@@ -122,7 +122,7 @@ function viewStreak() {
   return shell(`<div class="sub-body">
     <section class="streak-hero">
       <div><b>${S.streak}</b><span>วันติดต่อกัน</span><small>${learnedToday ? 'เรียนวันนี้แล้ว รักษาไว้พรุ่งนี้นะ!' : S.streak ? 'เรียนวันนี้เพื่อรักษาสตรีค' : 'จบ 1 บทเรียนเพื่อเริ่มสตรีค'}</small></div>
-      ${icon('flame', 84)}
+      <span class="flame-3d" ${fxAmb('flame', S.streak)}>${icon('flame', 84)}</span>
     </section>
     ${S.streakLost ? `<section class="banner warn col">
       <b>สตรีค ${S.streakLost.streak} วันเพิ่งขาด</b><span>ซ่อมได้ภายใน 48 ชม. ด้วยน้ำหวาน 400</span>
@@ -527,7 +527,7 @@ function viewSettings() {
     </div></section>
     <section><h2 class="shop-sec">การแสดงผล</h2><div class="list-card">
       ${setRow('ลดการเคลื่อนไหว', sysReduce ? 'เครื่องของคุณตั้งค่าลดการเคลื่อนไหวไว้แล้ว แอปจะลดให้อัตโนมัติ' : 'ปิดแอนิเมชันเกือบทั้งหมด', switchHTML('motion', st.reduceMotion || sysReduce, 'ลดการเคลื่อนไหว'))}
-      ${setRow('เอฟเฟกต์ 3 มิติ', !webglOK() ? 'เครื่องหรือเบราว์เซอร์นี้ไม่รองรับ ใช้แอนิเมชันปกติแทน' : st.reduceMotion || sysReduce ? 'ปิดอยู่เพราะเปิด "ลดการเคลื่อนไหว"' : 'ฉากฉลองตอนตอบถูก จบบท เลื่อนลีก และเปิดหีบ · ปิดได้ถ้าเครื่องช้า',
+      ${setRow('เอฟเฟกต์ 3 มิติ', !webglOK() ? 'เครื่องหรือเบราว์เซอร์นี้ไม่รองรับ ใช้แอนิเมชันปกติแทน' : st.reduceMotion || sysReduce ? 'ปิดอยู่เพราะเปิด "ลดการเคลื่อนไหว"' : 'น้องผึ้งและด่านบนหน้าหลัก โปรไฟล์ หน้าสตรีค และฉากฉลอง (ตอบถูก จบบท เลื่อนลีก เปิดหีบ) · ปิดได้ถ้าเครื่องช้า',
         switchHTML('fx3d', st.fx3d !== false && webglOK() && !(st.reduceMotion || sysReduce), 'เอฟเฟกต์ 3 มิติ'))}
       ${setRow('ขนาดตัวอักษร', 'มีผลกับเนื้อหาและโจทย์', `<span class="seg" role="radiogroup" aria-label="ขนาดตัวอักษร">${TEXT_SIZES.map(([v, t]) =>
         `<button role="radio" aria-checked="${st.textSize === v}" class="${st.textSize === v ? 'on' : ''}" data-act="text-size" data-s="${v}">${t}</button>`).join('')}</span>`)}
