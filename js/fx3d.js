@@ -255,7 +255,10 @@ function View() {
     a.t += dt;
     const bits = stepBits(a.items, a.t, dt);
     const more = a.update(a.t, dt);
-    v.draw();
+    // ฉากที่ขยับตลอด (หลังช่วงเปิดหน้า): วาดไม่เกิน 30 ภาพ/วินาที และไม่วาดเมื่อเลื่อนพ้นจอ (แท็บที่ซ่อนอยู่ เบราว์เซอร์หยุด rAF ให้เอง)
+    const idle = a.introEnd != null && a.t > a.introEnd && !(a.pokeT >= 0);
+    if (!idle) { v.draw(); a.lastDraw = now; }
+    else if (now - (a.lastDraw || 0) >= 33 && onScreen(a.stage)) { v.draw(); a.lastDraw = now; }
     if (more || bits) v.raf = requestAnimationFrame(v.frame);
     else if (a.floating) v.stop();
     else a.done = true; // ค้างภาพสุดท้ายไว้ ไม่วาดต่อ
@@ -273,6 +276,8 @@ function View() {
 }
 const party = View();   // ฉากฉลอง
 const amb = View();     // ฉากประจำหน้า
+
+const onScreen = (el) => { const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth; };
 
 // ---------- เวที ----------
 // win: ส่วนบนของหน้าผลลัพธ์ · league: การ์ดในหน้าต่าง · correct/chest: เต็มจอแบบลอย (ชั่วคราว) · ฉากประจำหน้า: ในองค์ประกอบนั้นเอง
@@ -318,10 +323,12 @@ function scenePath(sc, rect) {
     // ผึ้ง: บินเข้ามาจากด้านนอก ลอยขึ้นลงช่วงหนึ่ง แล้วหยุดหันเฉียงเข้าหาด่าน
     const f = ease.out(clamp01((t - 0.2) / 1));
     bee.scale.setScalar(r);
-    bee.position.set(bp.x + side * (1 - f) * 120, bp.y - bp.h * 0.06 + (1 - f) * 60 + Math.sin(t * 4) * r * 0.1 * clamp01(2.6 - t), 120);
-    bee.rotation.y = (1 - f) * -0.8 * side + -0.3 * side * f;
-    bee.rotation.z = (1 - f) * 0.3 * side;
-    let flapOn = t < 2.6;
+    // หลังบินเข้ามา: ลอยขึ้นลง โยกตัว และหันมองไปรอบ ๆ ตลอดเวลา (ผู้ใช้ขอให้น้องผึ้งขยับตลอด)
+    bee.position.set(bp.x + side * (1 - f) * 120 + Math.sin(t * 0.9) * r * 0.12 * f, bp.y - bp.h * 0.06 + (1 - f) * 60 + Math.sin(t * 2.6) * r * 0.13, 120);
+    bee.rotation.y = (1 - f) * -0.8 * side + f * (-0.3 * side + Math.sin(t * 0.7) * 0.28);
+    bee.rotation.z = (1 - f) * 0.3 * side + f * Math.sin(t * 1.7) * 0.08;
+    bee.rotation.x = f * Math.sin(t * 1.1) * 0.06;
+    let flapOn = true;
     // แตะน้องผึ้ง: ตีลังกาหนึ่งรอบ + กระโดด
     if (sc.pokeT >= 0) {
       const q = clamp01(sc.pokeT / 0.9);
@@ -330,10 +337,10 @@ function scenePath(sc, rect) {
       flapOn = flapOn || q < 1;
       if (q >= 1) sc.pokeT = -1;
     }
-    flap(bee, t, flapOn ? 38 : 0);
-    if (!flapOn) for (const w of bee.userData.wings) w.rotation.y = 0.2 * w.userData.sx;
-    return t < 2.8 || sc.pokeT >= 0;
+    flap(bee, t, flapOn ? 34 : 0);
+    return true;
   };
+  sc.introEnd = 2.8; // หลังจากนี้วาดแบบประหยัด (ดู View.frame)
   sc.update = (t, dt) => { if (sc.pokeT >= 0) sc.pokeT += dt; return sc.pose(t); };
   sc.relayout(rect);
 }
@@ -346,14 +353,14 @@ function sceneAvatar(sc, rect) {
   sc.update = (t) => {
     const f = ease.back(clamp01(t / 0.9));
     bee.scale.setScalar(p.r);
-    bee.position.set(p.x, p.y - (1 - f) * p.r * 3 + Math.sin(t * 4) * p.r * 0.08 * clamp01(2.4 - t), 100);
+    bee.position.set(p.x, p.y - (1 - f) * p.r * 3 + Math.sin(t * 2.6) * p.r * 0.1, 100);
     const turn = ease.out(clamp01((t - 0.9) / 0.8));
-    bee.rotation.z = Math.sin(t * 7) * 0.12 * clamp01(2 - t);
-    bee.rotation.y = -0.35 * turn; bee.rotation.x = 0.08 * turn;
-    flap(bee, t, t < 2.4 ? 38 : 0);
-    if (t >= 2.4) for (const w of bee.userData.wings) w.rotation.y = 0.2 * w.userData.sx;
-    return t < 2.5;
+    bee.rotation.z = Math.sin(t * 7) * 0.12 * clamp01(2 - t) + Math.sin(t * 1.7) * 0.07 * turn;
+    bee.rotation.y = turn * (-0.35 + Math.sin(t * 0.7) * 0.25); bee.rotation.x = 0.08 * turn;
+    flap(bee, t, 34);
+    return true;
   };
+  sc.introEnd = 2.4;
   sc.relayout(rect);
 }
 // หน้าสตรีค: เปลวไฟ 3 มิติ (รูปไฟแบบไอคอนของแอป ปลายพลิ้ว + แกนไฟสีอ่อน) โตขึ้นพร้อมหมุน แล้วไหววูบ 3 ครั้งก่อนนิ่ง

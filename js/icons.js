@@ -8,6 +8,8 @@ const STROKE_ICONS = {
   target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  'music-off': '<path d="M9 18V9M9 5.5V5l11-2v10"/><circle cx="6.5" cy="18" r="2.5"/><path d="M3 3l18 18"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   book: '<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h7"/>',

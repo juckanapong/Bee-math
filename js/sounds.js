@@ -1,5 +1,6 @@
 /* BeeMath — เสียงประกอบ สังเคราะห์ด้วย Web Audio API (ไม่ใช้ไฟล์เสียง จึงไม่มีปัญหาลิขสิทธิ์และไม่ต้องโหลดเพิ่ม)
-   เรียกใช้: SFX.play('correct') · เคารพการตั้งค่า S.settings.sound / S.settings.volume */
+   เรียกใช้: SFX.play('correct') · เคารพการตั้งค่า S.settings.sound / S.settings.volume
+   เพลงประกอบ (Music): ไฟล์ audio/bgm.m4a วนซ้ำ · เปิด/ปิดที่ปุ่มโน้ตข้างหัวใจ หรือ ตั้งค่า › เพลงประกอบ (S.settings.music) */
 
 const SFX = (() => {
   let ctx = null;
@@ -46,4 +47,39 @@ const SFX = (() => {
       try { SOUNDS[name]?.(); } catch (e) { /* อุปกรณ์ไม่รองรับเสียง */ }
     },
   };
+})();
+
+// ---------- เพลงประกอบ ----------
+// เบราว์เซอร์ให้เล่นเสียงได้หลังผู้ใช้แตะหน้าจอเท่านั้น: เริ่มเล่นที่การแตะครั้งแรก (ถ้าเปิดเพลงไว้)
+// ความดังผ่าน GainNode (iPhone ไม่ยอมให้ตั้ง audio.volume) · เบาลงระหว่างทำโจทย์ · หยุดเมื่อสลับไปแอปอื่น
+const Music = (() => {
+  let el = null, ctx = null, gain = null, unlocked = false;
+  const on = () => S.settings.music !== false;
+  const level = () => 0.35 * (S.settings.volume ?? 0.8) * (typeof UI !== 'undefined' && ['lesson', 'timed', 'story'].includes(UI.view) ? 0.55 : 1);
+  function ensure() {
+    if (el) return;
+    el = new Audio('audio/bgm.m4a');
+    el.loop = true; el.preload = 'auto'; el.setAttribute('playsinline', '');
+    try {
+      const C = window.AudioContext || window.webkitAudioContext;
+      ctx = new C(); gain = ctx.createGain();
+      ctx.createMediaElementSource(el).connect(gain).connect(ctx.destination);
+    } catch (e) { ctx = null; gain = null; }
+  }
+  function apply() {
+    if (!el) return;
+    if (gain) gain.gain.setTargetAtTime(level(), ctx.currentTime, 0.25); else el.volume = Math.min(1, level());
+  }
+  function sync() {
+    if (!on() || document.hidden) { el?.pause(); return; }
+    if (!unlocked) return;
+    ensure(); apply();
+    if (ctx?.state === 'suspended') ctx.resume();
+    if (el.paused) el.play().catch(() => {});
+  }
+  const unlock = () => { unlocked = true; sync(); };
+  addEventListener('pointerdown', unlock, { passive: true });
+  addEventListener('keydown', unlock);
+  document.addEventListener('visibilitychange', sync);
+  return { sync, apply, on, playing: () => !!el && !el.paused };
 })();

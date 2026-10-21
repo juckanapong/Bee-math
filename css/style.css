@@ -149,6 +149,8 @@ html.text-xl .eq-big { font-size: min(40px, 8.4vw); }
 .chip.streak.on .ic { color: var(--orange); }
 .chip.xp { color: var(--honey-text); }
 .chip.hearts { color: var(--red-text); }
+.chip.music { padding: 5px 8px; color: var(--nav-muted); }
+.chip.music.on { color: var(--honey-text); }
 
 .page { padding: 4px 16px 110px; }
 .tabs {
@@ -1436,3 +1438,10 @@ p.card.tl-summary { padding: 14px 16px; font-size: 16px; }
 .flame-3d { position: relative; display: inline-grid; place-items: center; flex: none; width: 84px; height: 84px; }
 .flame-3d.fx-on > svg { opacity: 0; animation: none; }
 .fx-stage.fx-k-flame { inset: -18px; }
+
+/* จอแคบ: ชิปด้านบนมี 4 อัน (รวมปุ่มเพลง) · บีบระยะไม่ให้ชนโลโก้ */
+@media (max-width: 420px) {
+  .topbar .chips { gap: 4px; }
+  .topbar .chip { padding: 4px 8px; gap: 3px; font-size: 14px; }
+  .topbar .chip.music { padding: 4px 7px; }
+}

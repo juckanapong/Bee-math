@@ -522,6 +522,7 @@ function viewSettings() {
     </div></section>
     <section><h2 class="shop-sec">เสียง</h2><div class="list-card">
       ${setRow('เสียงประกอบ', 'ตอบถูก ตอบผิด จบบทเรียน และรับรางวัล', switchHTML('sound', st.sound, 'เปิดเสียงประกอบ'))}
+      ${setRow('เพลงประกอบ', 'เล่นวนระหว่างใช้แอป เบาลงตอนทำโจทย์ · เปิด/ปิดเร็ว ๆ ได้ที่ปุ่มโน้ตข้างหัวใจ', switchHTML('music', S.settings.music !== false, 'เปิดเพลงประกอบ'))}
       ${setRow('ระดับเสียง', '', `<span class="vol"><input type="range" id="volume" min="0" max="100" step="10" value="${Math.round(st.volume * 100)}" aria-label="ระดับเสียง" ${st.sound ? '' : 'disabled'}>
         <button class="price-btn ghost" data-act="sfx-test" ${st.sound ? '' : 'disabled'}>ลองฟัง</button></span>`)}
     </div></section>
@@ -618,6 +619,7 @@ Object.assign(ACT, {
     if (typeof consentCheck === 'function') consentCheck(); // เข้าสู่ระบบระหว่างหน้าเริ่มต้น → ถามนโยบาย/ชื่อตอนนี้
   },
   'toggle-sound': () => { S.settings.sound = !S.settings.sound; save(); render(); SFX.play('tap'); },
+  'toggle-music': () => { S.settings.music = S.settings.music === false; save(); Music.sync(); render(); },
   'toggle-adaptive': () => { S.settings.adaptive = S.settings.adaptive === false; save(); render(); },
   'toggle-motion': () => { S.settings.reduceMotion = !S.settings.reduceMotion; save(); render(); },
   'toggle-fx3d': () => { if (!webglOK() || S.settings.reduceMotion) return; S.settings.fx3d = S.settings.fx3d === false; save(); render(); if (S.settings.fx3d) fx3dPreload(); },

@@ -10,14 +10,14 @@ document.addEventListener('change', (e) => {
   if (t.id === 'name') S.name = t.value.trim() || 'ผู้เรียน';
   else if (t.id === 'goal-select') S.goal = +t.value;
   else if (t.id === 'remind-time') { S.remind.time = t.value; S.remindedDay = null; if (typeof pushSync === 'function') pushSync(); }
-  else if (t.id === 'volume') { S.settings.volume = +t.value / 100; SFX.play('tap'); }
+  else if (t.id === 'volume') { S.settings.volume = +t.value / 100; SFX.play('tap'); Music.apply(); }
   else if (t.id === 'import-file') { if (t.files[0]) readImport(t.files[0]); t.value = ''; return; }
   else return;
   save();
 });
 // ปรับระดับเสียงแบบทันทีระหว่างลากแถบ
 document.addEventListener('input', (e) => {
-  if (e.target.id === 'volume') S.settings.volume = +e.target.value / 100;
+  if (e.target.id === 'volume') { S.settings.volume = +e.target.value / 100; Music.apply(); }
   else if (e.target.id === 'nl-range') nlInput(+e.target.value); // เส้นจำนวนในบทเรียน
 });
 document.addEventListener('keydown', (e) => {

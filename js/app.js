@@ -313,6 +313,7 @@ const chipsHTML = () => `<div class="chips">
     <button class="chip streak ${S.lastDay === today() ? 'on' : ''} ${UI.bump?.streak ? 'bump' : ''}" data-act="go" data-v="streak" aria-label="สตรีค ${S.streak} วัน">${icon('flame', 18)}${S.streak}</button>
     <button class="chip nectar ${UI.bump?.nectar ? 'bump' : ''}" data-act="go" data-v="shop" aria-label="น้ำหวาน ${S.nectar}">${icon('drop', 18)}${num(S.nectar)}</button>
     <button class="chip hearts ${UI.bump?.hearts ? 'bump' : ''}" data-act="go" data-v="shop" aria-label="หัวใจ ${S.hearts} ดวง">${icon('heart', 18)}${S.hearts}</button>
+    <button class="chip music ${Music.on() ? 'on' : ''}" data-act="toggle-music" aria-pressed="${Music.on()}" aria-label="เพลงประกอบ" title="${Music.on() ? 'ปิดเพลง' : 'เปิดเพลง'}">${icon(Music.on() ? 'music' : 'music-off', 18)}</button>
   </div>`;
 function topBar() {
   return `<header class="topbar"><div class="brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>${chipsHTML()}</header>`;
@@ -1285,6 +1286,7 @@ function render() {
   if (UI.view === 'learn') UI.justDone = null;
   if (enter && UI.view === 'result') runCounters();
   fx3dAfterRender();
+  Music.apply(); // เบาลงระหว่างทำโจทย์
 }
 
 // ---------- โฟกัสหลังวาดหน้าใหม่ ----------
