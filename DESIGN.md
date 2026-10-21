@@ -110,4 +110,4 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 
 ## Sound
 - **Sound effects** are synthesised (`js/sounds.js`, no files) and follow Settings › เสียงประกอบ and the volume slider.
-- **Music** (`audio/bgm.m4a`, AAC ~96 kbps, looped) starts on the first tap (browser autoplay rules), plays at 35% of the volume slider, drops to about half that during questions, and pauses when the app is hidden. The music chip next to hearts toggles it; Settings › เพลงประกอบ is the same switch.
+- **Music** (`audio/bgm.m4a`, AAC ~96 kbps, looped) tries to start as soon as the app opens; where the browser blocks that (always on iPhone/iPad, often in Chrome until the site is installed or used a lot) it starts on the first tap, plays at 35% of the volume slider, drops to about half that during questions, and pauses when the app is hidden. The music chip next to hearts toggles it; Settings › เพลงประกอบ is the same switch.

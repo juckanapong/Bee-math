@@ -92,6 +92,7 @@ window.addEventListener('offline', () => showToast('ไม่มีอินเ�
 
 const oauthBack = oauthResume(); // เพิ่งกลับจากหน้า Google → กลับหน้าเดิม + แสดงหน้ารอ (js/cloud.js)
 render();
+Music.autoplay(); // เพลงประกอบ: ลองเล่นเองทันที (ถ้าเบราว์เซอร์ไม่ยอม จะเริ่มที่การแตะครั้งแรก)
 scrollToCurrent();
 remindCheck();
 // ระบบบัญชี (ทำงานเมื่อตั้งค่า js/config.js แล้วเท่านั้น)

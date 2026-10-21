@@ -50,7 +50,8 @@ const SFX = (() => {
 })();
 
 // ---------- เพลงประกอบ ----------
-// เบราว์เซอร์ให้เล่นเสียงได้หลังผู้ใช้แตะหน้าจอเท่านั้น: เริ่มเล่นที่การแตะครั้งแรก (ถ้าเปิดเพลงไว้)
+// เปิดแอปแล้วลองเล่นเองทันที (autoplay()) · ถ้าเบราว์เซอร์ไม่ยอม (iPhone/iPad ไม่ยอมเสมอ · Chrome ยอมเมื่อติดตั้งเป็นแอปหรือเข้าบ่อย)
+// จะเริ่มที่การแตะ/กดปุ่มครั้งแรกแทน
 // ความดังผ่าน GainNode (iPhone ไม่ยอมให้ตั้ง audio.volume) · เบาลงระหว่างทำโจทย์ · หยุดเมื่อสลับไปแอปอื่น
 const Music = (() => {
   let el = null, ctx = null, gain = null, unlocked = false;
@@ -78,8 +79,19 @@ const Music = (() => {
     if (el.paused) el.play().catch(() => {});
   }
   const unlock = () => { unlocked = true; sync(); };
-  addEventListener('pointerdown', unlock, { passive: true });
-  addEventListener('keydown', unlock);
+  // iPhone นับ touchend/click เป็นการแตะที่อนุญาตเสียง (pointerdown อาจไม่นับ) จึงฟังทุกแบบ
+  for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) addEventListener(ev, unlock, { passive: true });
+  // ลองเล่นเองตอนเปิดแอป: เล่นได้จริงก็ถือว่าปลดล็อกแล้ว · ไม่ได้ก็หยุดไว้รอการแตะ (resume ของ AudioContext อาจค้างจนกว่าจะแตะ จึงรอแค่ 400ms)
+  async function autoplay() {
+    if (!on() || document.hidden || unlocked) return;
+    ensure(); apply();
+    try {
+      if (ctx) await Promise.race([ctx.resume(), new Promise((ok) => setTimeout(ok, 400))]);
+      await el.play();
+      if (ctx && ctx.state !== 'running') throw new Error('blocked');
+      unlocked = true;
+    } catch (e) { if (!unlocked) el.pause(); }
+  }
   document.addEventListener('visibilitychange', sync);
-  return { sync, apply, on, playing: () => !!el && !el.paused };
+  return { sync, apply, on, autoplay, playing: () => !!el && !el.paused };
 })();
