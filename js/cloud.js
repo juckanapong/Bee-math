@@ -46,10 +46,18 @@ async function cloudInit() {
   try {
     if (!window.supabase) await loadScript(SUPABASE_CDN);
     const cfg = window.BEEMATH_CONFIG;
+    const urlTok = oauthTokens(); // อ่านก่อนสร้าง client เพราะ supabase-js จะล้าง hash ทิ้งเมื่อสำเร็จ
     Cloud.client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
     });
-    const { data } = await Cloud.client.auth.getSession();
+    const init = await Cloud.client.auth.initialize();
+    let { data } = await Cloud.client.auth.getSession();
+    // supabase-js ทิ้ง session จาก URL เงียบ ๆ เมื่อตรวจกับเซิร์ฟเวอร์ไม่ผ่าน (เช่น เน็ตมือถือสะดุดตอนกลับจาก Google) → ลองอีกครั้งเอง
+    if (!data.session && urlTok) {
+      const r = await Cloud.client.auth.setSession(urlTok);
+      if (r.data?.session) data = r.data;
+      else Cloud.oauthErr = r.error?.message || init.error?.message || 'no session';
+    }
     Cloud.user = data.session?.user || null;
     Cloud.status = 'ready';
     remoteLoad(); errFlush(); // ค่าตั้งจากเซิร์ฟเวอร์ · error ที่เกิดก่อนระบบพร้อม (js/ops.js)
@@ -377,6 +385,11 @@ function oauthResume() {
   UI.sheet = { type: 'oauth-wait' };
   return true;
 }
+// token ที่ Supabase ส่งกลับมาใน URL หลังเลือกบัญชี Google (แบบ implicit: อยู่หลัง #)
+function oauthTokens() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  return p.get('access_token') && p.get('refresh_token') ? { access_token: p.get('access_token'), refresh_token: p.get('refresh_token') } : null;
+}
 // แจ้งผล (สำเร็จ / ยกเลิก / ผิดพลาด) แล้วล้างพารามิเตอร์ออกจาก URL
 function oauthReturn() {
   const t = oauthTicket();
@@ -388,14 +401,23 @@ function oauthReturn() {
     UI.sheet = null;
     UI.view = 'account'; UI.acct = { tab: 'signin', err: code === 'access_denied' ? 'ยกเลิกการเข้าสู่ระบบด้วย Google แล้ว' : cloudError(err) };
   } else if (t && Cloud.user) {
+    if (/access_token=/.test(location.hash)) history.replaceState(null, '', siteUrl()); // กรณีลองซ้ำเอง supabase-js ไม่ได้ล้างให้
     // บัญชีมีความคืบหน้าอยู่แล้ว = ผ่านหน้าเริ่มต้นไปแล้ว ไม่ต้องตอบคำถามเริ่มต้นซ้ำ
     if (S.onboarded && UI.view === 'onboarding') { UI.view = 'learn'; UI.ob = null; }
     UI.sheet = { type: 'oauth-ok' };
   } else if (t) {
-    // กลับมาแล้วแต่ไม่มี session: มักเกิดในเบราว์เซอร์ของแอป (LINE, Facebook) ที่ Google ไม่อนุญาต
+    // กลับมาแล้วแต่ไม่มี session: บอกสาเหตุจริงที่รู้ และส่งรายงานให้ผู้ดูแล (ไม่ส่ง token)
+    const gotTokens = /access_token=/.test(location.hash);
+    if (gotTokens) history.replaceState(null, '', siteUrl()); // ไม่ทิ้ง token ค้างไว้ในแถบที่อยู่
+    const nav = performance.getEntriesByType?.('navigation')[0]?.type || '?';
+    const ref = (() => { try { return new URL(document.referrer).hostname; } catch (e) { return '-'; } })();
+    reportError(`oauth: no session (tokens=${gotTokens}, nav=${nav}, ref=${ref}, inapp=${inAppBrowser() || '-'}): ${Cloud.oauthErr || Cloud.error || '-'}`, 'cloud.js oauthReturn');
     UI.sheet = null;
     UI.view = 'account';
-    UI.acct = { tab: 'signin', err: Cloud.status === 'error' ? Cloud.error : inAppBrowser() ? 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ เพราะเปิดอยู่ในแอป ' + inAppBrowser() + ' ลองเปิดหน้านี้ใน Safari หรือ Chrome แล้วเข้าสู่ระบบอีกครั้ง' : 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ ลองอีกครั้งนะ' };
+    UI.acct = { tab: 'signin', err: Cloud.status === 'error' ? Cloud.error
+      : inAppBrowser() ? 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ เพราะเปิดอยู่ในแอป ' + inAppBrowser() + ' ลองเปิดหน้านี้ใน Safari หรือ Chrome แล้วเข้าสู่ระบบอีกครั้ง'
+      : gotTokens ? 'เลือกบัญชี Google แล้ว แต่ยืนยันกับเซิร์ฟเวอร์ไม่สำเร็จ ' + (Cloud.oauthErr ? `(${cloudError(Cloud.oauthErr).replace(/^เกิดข้อผิดพลาด: /, '')}) ` : '') + 'ลองกดเข้าสู่ระบบด้วย Google อีกครั้ง'
+      : 'ยังไม่ได้เข้าสู่ระบบ หน้า Google ไม่ได้ส่งบัญชีกลับมา ลองกดเข้าสู่ระบบด้วย Google อีกครั้ง' };
   }
 }
 // เบราว์เซอร์ที่ฝังอยู่ในแอปแชต/โซเชียล: Google มักบล็อกการเข้าสู่ระบบ (คืนชื่อแอป หรือ '' ถ้าไม่ใช่)
