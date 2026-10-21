@@ -181,6 +181,29 @@ async function leagueSync(force = false) {
   if (changed) { Cloud.applying = true; save(); Cloud.applying = false; }
   if (['board', 'quests', 'learn', 'practice', 'profile'].includes(UI.view)) cloudRender();
 }
+// ---------- ดูผู้เล่นในแต่ละลีก (supabase/league_browse.sql) ----------
+// TierView.data[tier] = { total, hidden, players, at } · โหลดใหม่ได้ทุก 1 นาที · "ดูเพิ่ม" ต่อท้ายทีละ 50 คน
+const TierView = { data: {}, busy: false, err: null };
+async function tierLoad(tier, more = false) {
+  if (!Cloud.client || !Cloud.user || TierView.busy || !netOK()) return;
+  const have = TierView.data[tier];
+  if (!more && have && Date.now() - have.at < 60000) return;
+  TierView.busy = true; TierView.err = null;
+  const { data, error } = await Cloud.client.rpc('league_tier_players', { p_tier: tier, p_offset: more ? have.players.length : 0 });
+  TierView.busy = false;
+  if (error) TierView.err = cloudError(error);
+  else TierView.data[tier] = { ...data, players: more ? [...have.players, ...data.players] : data.players, at: Date.now() };
+  if (UI.sheet?.type === 'tier') render();
+}
+// ซ่อน/แสดงชื่อในรายชื่อลีก (คนในกลุ่มลีกเดียวกันและเพื่อนยังเห็นเหมือนเดิม)
+async function leagueHiddenSet(hidden) {
+  const before = !!S.settings.leagueHidden;
+  S.settings.leagueHidden = hidden; save(); render();
+  const { error } = await Cloud.client.from('profiles').update({ league_hidden: hidden }).eq('id', Cloud.user.id);
+  if (error) { S.settings.leagueHidden = before; save(); render(); showToast(cloudError(error)); }
+  else showToast(hidden ? 'ซ่อนชื่อจากรายชื่อลีกแล้ว' : 'แสดงชื่อในรายชื่อลีกแล้ว');
+}
+
 // ---------- แจ้งเตือน Push (supabase/notify_feed.sql · supabase/functions/push-send) ----------
 // เปิด "เตือนให้มาเรียน" + เข้าสู่ระบบ + อนุญาตแจ้งเตือน → สมัครรับ Push แล้วบันทึกเวลาเตือนไว้ที่เซิร์ฟเวอร์
 // เซิร์ฟเวอร์ส่งเมื่อถึงเวลาและยังไม่ได้เรียนวันนี้ (ไม่เกินวันละครั้ง · เว้นช่วง 21:00–07:00)
@@ -328,7 +351,7 @@ const GOOGLE_G = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="t
 
 // ---------- นโยบายความเป็นส่วนตัว (privacy.html) ----------
 // เปลี่ยน v เมื่อแก้นโยบาย → ผู้มีบัญชีจะถูกขอให้ยอมรับฉบับใหม่
-const PRIVACY = { v: '2026-10-18', url: 'privacy.html' };
+const PRIVACY = { v: '2026-10-21', url: 'privacy.html' };
 const privacyLink = (t = 'นโยบายความเป็นส่วนตัว') => `<a href="${PRIVACY.url}" target="_blank" rel="noopener">${t}</a>`;
 const consentOk = () => S.consent?.v === PRIVACY.v;
 function giveConsent(via) { S.consent = { v: PRIVACY.v, at: Date.now(), via }; save(); }
@@ -523,6 +546,32 @@ function viewAccount() {
   return shell(`<div class="sub-body">${body}</div>`, { sub: { title: 'บัญชี' } });
 }
 Object.assign(SHEETS, {
+  // แตะลีกบนแถบลีก: ผู้เล่นในลีกนั้น (ตัวเอง/เพื่อนก่อน) + ทางไปถึงลีกที่ยังล็อก
+  tier(s) {
+    const t = tierOf(s.i), cur = S.league.tier, st = s.i === cur ? 'cur' : s.i < cur ? 'past' : 'next', d = TierView.data[s.i];
+    const z = leagueZones(leagueRows().length), n = s.i - cur;
+    const sub = [st === 'cur' ? 'ลีกของคุณตอนนี้' : st === 'past' ? 'ผ่านมาแล้ว' : '', d ? `ผู้เล่น ${num(d.total)} คน` : ''].filter(Boolean).join(' · ');
+    let list;
+    if (!Cloud.user) list = `<p class="muted">เข้าสู่ระบบเพื่อดูผู้เล่นจริงในแต่ละลีก</p><button class="btn" data-act="league-join" data-t="signin">เข้าสู่ระบบ</button>`;
+    else if (!d) {
+      if (!TierView.busy && !TierView.err) setTimeout(() => tierLoad(s.i), 0);
+      list = TierView.err ? `<p class="acct-msg err" role="alert">${esc(TierView.err)}</p><button class="btn" data-act="tier-retry" data-i="${s.i}">${icon('refresh', 18)} ลองอีกครั้ง</button>` : '<p class="muted">กำลังโหลดผู้เล่น…</p>';
+    } else if (!d.total) list = `<p class="muted">ยังไม่มีผู้เล่นในลีกนี้ตอนนี้${st === 'next' ? ' ไปให้ถึงเป็นคนแรกเลยไหม' : ''}</p>`;
+    else {
+      const friends = d.players.filter((p) => p.friend).length;
+      list = `<h3 class="tier-sub">ผู้เล่นในลีกนี้${friends ? ` · เพื่อนของคุณ ${friends} คน` : ''}</h3>
+        <ol class="board tier-list">${d.players.map((p) => `<li class="${p.me ? 'me' : ''}"><span class="av" style="background:${p.avatar}">${p.me ? 'คุณ' : esc(initial(p.name))}</span>
+          <span class="nm">${esc(p.name)}${p.me ? ' (คุณ)' : ''}${p.friend ? ' <span class="tag-friend">เพื่อน</span>' : ''}</span><span class="pts">${p.xp} XP</span></li>`).join('')}</ol>
+        ${d.hidden ? `<p class="muted small">อีก ${d.hidden} คนเลือกซ่อนชื่อไว้</p>` : ''}
+        ${d.players.length < d.total - d.hidden ? `<button class="btn link" data-act="tier-more" data-i="${s.i}" ${TierView.busy ? 'disabled' : ''}>${TierView.busy ? 'กำลังโหลด…' : 'ดูเพิ่ม'}</button>` : ''}`;
+    }
+    return `<div class="sheet-card tier-sheet">
+      <div class="tier-head">${hex(icon(t.icon, 26), 'tier-hex', tint(t))}<span class="setting-main"><h2>ลีก${esc(t.name)}</h2>${sub ? `<small>${sub}</small>` : ''}</span>
+        ${st === 'next' ? `<span class="chip-st">${icon('lock', 13)} อีก ${n} ลีก</span>` : ''}</div>
+      ${st === 'next' ? `<div class="tier-path"><b>ทางไปลีกนี้</b><p>${n === 1 ? `จบสัปดาห์นี้ใน ${z.up} อันดับแรกของกลุ่ม ก็ได้เลื่อนขึ้นลีกนี้` : `เลื่อนลีกอีก ${n} ครั้ง · เร็วที่สุด ${n} สัปดาห์ ถ้าติด ${z.up} อันดับแรกทุกสัปดาห์`}</p></div>` : ''}
+      ${list}
+      <button class="btn ghost" data-act="close">ปิด</button></div>`;
+  },
   'oauth-wait'() {
     return `<div class="sheet-card center" aria-busy="true">${bee(72, 'happy')}<h2>กำลังเข้าสู่ระบบ…</h2><p>รอสักครู่ กำลังเชื่อมบัญชี Google</p></div>`;
   },
@@ -600,6 +649,10 @@ async function submitAccount(kind) {
 }
 Object.assign(ACT, {
   'acct-google': () => cloudGoogle(),
+  'tier-open': (d) => { UI.sheet = { type: 'tier', i: +d.i }; render(); },
+  'tier-more': (d) => { tierLoad(+d.i, true); render(); },
+  'tier-retry': (d) => { TierView.err = null; tierLoad(+d.i); render(); },
+  'toggle-leaguepub': () => leagueHiddenSet(!S.settings.leagueHidden),
   'oauth-ok': () => { UI.sheet = null; render(); consentCheck(); },
   'consent-yes': () => { giveConsent('prompt'); UI.sheet = null; render(); showToast('ขอบคุณ! ยอมรับนโยบายแล้ว'); consentCheck(); },
   'consent-no': () => { UI.sheet = null; (Cloud.user?.is_anonymous ? ACT['cloud-signout-anon'] : ACT['cloud-signout'])(); },

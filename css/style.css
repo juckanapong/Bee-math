@@ -1006,7 +1006,8 @@ button.chip::after, .switch::after { content: ''; position: absolute; inset: -4p
 
 /* league */
 .tiers { display: flex; justify-content: space-between; align-items: flex-end; margin: 6px 0 4px; }
-.tier { width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--ink-2); text-align: center; }
+.tier { width: 64px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; border: 0; border-radius: var(--r-md); background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--ink-2); text-align: center; cursor: pointer; }
+@media (hover: hover) { .tier:hover { background: var(--hover); } }
 .tier-hex { width: 44px; height: 48px; background: var(--h, var(--locked)); color: var(--locked-ink); }
 .tier.cur .tier-hex { width: 56px; height: 62px; }
 .tier.cur { color: var(--ink); }
@@ -1399,3 +1400,16 @@ p.card.tl-summary { padding: 14px 16px; font-size: 16px; }
 .tl-xlabels .now { font-weight: 700; color: var(--ink); }
 .st-facts.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tl-note { margin: 0; padding: 10px 12px; background: var(--honey-soft); border-radius: var(--r-md); font-size: 14px; line-height: 1.55; color: var(--honey-text) !important; }
+
+/* แตะลีกบนแถบลีก: ผู้เล่นในลีกนั้น (sheet "tier" ใน js/cloud.js) */
+.tier-sheet { text-align: left; }
+.tier-head { display: flex; align-items: center; gap: 12px; }
+.tier-head .tier-hex { flex: none; width: 52px; height: 58px; }
+.tier-head h2 { margin: 0; }
+.tier-head .chip-st { display: inline-flex; align-items: center; gap: 4px; background: var(--track); color: var(--ink-2); }
+.tier-path { display: grid; gap: 2px; padding: 12px 14px; background: var(--card); border: 2px solid var(--line); border-radius: var(--r-lg); }
+.tier-path p { margin: 0; font-size: 14px; }
+.tier-sheet .tier-sub { margin: 4px 0 0; font-size: 16px; }
+.tier-list { max-height: 46vh; overflow-y: auto; margin: 0; }
+.tier-list .av { color: var(--ink); }
+.tag-friend { display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: var(--r-pill); background: var(--honey-soft); color: var(--honey-text); font-size: 13px; font-weight: 700; vertical-align: 1px; }

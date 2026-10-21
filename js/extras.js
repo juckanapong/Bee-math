@@ -514,6 +514,8 @@ function viewSettings() {
     <section><h2 class="shop-sec">บัญชี</h2><div class="list-card">
       ${setRow(signedIn ? esc(Cloud.user.email || 'บัญชีของฉัน') : 'บัญชี BeeMath', typeof syncLabel === 'function' ? esc(syncLabel()) : '',
         `<button class="price-btn ${signedIn ? 'ghost' : ''}" data-act="go" data-v="account">${signedIn ? 'จัดการ' : 'เข้าสู่ระบบ'}</button>`)}
+      ${signedIn ? setRow('แสดงชื่อในรายชื่อลีก', st.leagueHidden ? 'ซ่อนอยู่ · คนที่แตะดูลีกจะเห็นแค่จำนวน (คนในกลุ่มลีกเดียวกันและเพื่อนยังเห็นชื่อ)' : 'ทุกคนที่แตะดูลีกจะเห็นชื่อที่แสดง สีอวตาร และ XP สัปดาห์นี้ของคุณ',
+        switchHTML('leaguepub', !st.leagueHidden, 'แสดงชื่อในรายชื่อลีก')) : ''}
     </div></section>
     <section><h2 class="shop-sec">ห้องเรียน</h2><div class="list-card">
       ${setRow('ห้องเรียนและงานจากครู', 'ใส่รหัสห้องที่ได้จากครู หรือสร้างห้องถ้าคุณเป็นครู', '<button class="price-btn ghost" data-act="go" data-v="classes">เปิด</button>')}

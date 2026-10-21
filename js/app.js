@@ -1061,10 +1061,11 @@ const rowHTML = (r, z = leagueZones(20)) => `<li class="${r.me ? 'me' : ''} ${r.
   <span class="nm">${esc(r.n)}${r.me ? ' (คุณ)' : ''}${r.active ? '<span class="sr-only"> · เพิ่งเรียน</span>' : ''}</span>
   ${r.me && r.real && flag('reactions') ? `<button class="react-btn ${r.reaction ? 'set' : ''}" data-act="react-sheet" aria-label="เลือกไอคอนข้างชื่อ"><span>${r.reaction ? icon(r.reaction, 16) : icon('plus', 14)}</span></button>` : reactionIcon(r)}
   <span class="pts">${r.xp} XP</span></li>`;
+// แถบระดับลีก: แตะลีกไหนก็ได้เพื่อดูว่าใครอยู่ลีกนั้น (sheet "tier" ใน js/cloud.js)
 function tierRow() {
-  return `<div class="tiers" role="list" aria-label="ระดับลีก">${leagueTiers().map((t, i) => {
+  return `<div class="tiers" role="list" aria-label="ระดับลีก แตะเพื่อดูผู้เล่นในลีก">${leagueTiers().map((t, i) => {
     const st = i === S.league.tier ? 'cur' : i < S.league.tier ? 'past' : 'next';
-    return `<div class="tier ${st}" role="listitem">${hex(icon(st === 'next' ? 'lock' : t.icon, 22), 'tier-hex', st === 'next' ? '' : tint(t))}<span>${t.name}</span></div>`;
+    return `<div role="listitem"><button class="tier ${st}" data-act="tier-open" data-i="${i}" aria-label="ลีก${t.name}${st === 'cur' ? ' (ลีกของคุณ)' : st === 'next' ? ' (ยังล็อก)' : ''} ดูผู้เล่น">${hex(icon(st === 'next' ? 'lock' : t.icon, 22), 'tier-hex', st === 'next' ? '' : tint(t))}<span>${t.name}</span></button></div>`;
   }).join('')}</div>`;
 }
 function weekLeft() {
