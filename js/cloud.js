@@ -443,7 +443,7 @@ async function cloudSignOut() {
   await Cloud.client.auth.signOut();
   Cloud.user = null; Cloud.status = 'ready'; Cloud.lastSync = null; Cloud.league = null;
   if (typeof Friends !== 'undefined') { Friends.data = null; Friends.at = 0; Friends.sent = {}; }
-  if (typeof Classroom !== 'undefined') Object.assign(Classroom, { mine: null, at: 0, teach: null, dash: {}, sel: null });
+  if (typeof Classroom !== 'undefined') Object.assign(Classroom, { mine: null, at: 0, teach: null, dash: {}, sel: null, league: {}, leagueErr: null, teachTried: false });
   setSyncMeta({});
   const fresh = defaultState(); fresh.onboarded = true;
   applyState(fresh);

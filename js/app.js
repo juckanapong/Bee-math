@@ -1074,8 +1074,11 @@ function weekLeft() {
 }
 function viewBoard() {
   if (typeof leagueRefresh === 'function') leagueRefresh(); // ดึงอันดับล่าสุดของเพื่อนในกลุ่ม
+  // ครู: แท็บ "นักเรียนในห้อง" ดูว่านักเรียนแต่ละคนอยู่ลีกไหน (js/classroom.js)
+  const teacher = typeof isTeacher === 'function' && (teachList(), isTeacher());
+  if (teacher && UI.boardMode === 'class') return shell(`${boardTabs()}<div class="tl-board">${boardClassHTML()}</div>`);
   if (guestLeague()) return boardGuest();
-  if (typeof Cloud !== 'undefined' && Cloud.user && !realLeague()) return boardPending();
+  if (typeof Cloud !== 'undefined' && Cloud.user && !realLeague()) return boardPending(teacher);
   const rows = leagueRows(), n = rows.length, z = leagueZones(n), real = realLeague();
   const t = S.league.tier, top = t >= topTier();
   let list = '';
@@ -1087,7 +1090,7 @@ function viewBoard() {
   const rules = top ? 'ลีกสูงสุดแล้ว รักษาอันดับไว้นะ' : `${z.up} อันดับแรกได้เลื่อนลีก`;
   const rewards = leagueRewards();
   const pending = real && typeof outboxCount === 'function' ? outboxCount() : 0;
-  return shell(`${tierRow()}
+  return shell(`${teacher ? boardTabs() : ''}${tierRow()}
     <h1 class="page-title center">ลีก${tierOf(t).name}</h1>
     <p class="muted center">${rules} ${icon('clock', 15)} <span class="nowrap">จบสัปดาห์ในอีก ${weekLeft()}</span></p>
     ${rewards.length ? `<p class="league-prize">${icon('drop', 15)}<span>จบสัปดาห์ ${rewards.map((x) => `<span class="nowrap">อันดับ ${x.rank} ได้ ${x.nectar}</span>`).join(' ')} <span class="nowrap">น้ำหวาน</span></span></p>` : ''}
@@ -1118,9 +1121,9 @@ function boardGuest() {
     </section>`);
 }
 // เข้าสู่ระบบแล้วแต่ยังไม่มีข้อมูลลีกจริง: บอกสาเหตุ (กำลังโหลด / ผิดพลาด) แทนการโชว์ผู้เล่นจำลองที่ทำให้เข้าใจผิด
-function boardPending() {
+function boardPending(teacher = false) {
   const err = Cloud.leagueError || (Cloud.status === 'offline' || !navigator.onLine ? 'ไม่มีอินเทอร์เน็ต ต่อเน็ตแล้วลองใหม่อีกครั้ง' : '');
-  return shell(`${tierRow()}
+  return shell(`${teacher ? boardTabs() : ''}${tierRow()}
     <h1 class="page-title center">ลีก${tierOf(S.league.tier).name}</h1>
     <div class="card center league-wait">${bee(72, err ? 'sad' : 'happy')}
       <p><b>${err ? 'โหลดอันดับลีกไม่สำเร็จ' : 'กำลังโหลดอันดับของผู้เล่นจริง…'}</b></p>

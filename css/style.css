@@ -1327,3 +1327,75 @@ button.lvl-row + button.lvl-row { border-top: 2px solid var(--line-2); }
 
 /* ลิงก์ในข้อความเล็ก: พื้นที่กดสูงพอสำหรับนิ้ว */
 .ob-privacy a, a.pp-link { display: inline-flex; align-items: center; min-height: 44px; }
+
+/* ลีกของนักเรียนในห้อง (js/classroom.js): แท็บลีกในแดชบอร์ดครู · หน้าอันดับ › นักเรียนในห้อง · เส้นทางลีกรายคน */
+.seg.two { display: grid; grid-template-columns: 1fr 1fr; }
+.board-tabs { width: 100%; margin-bottom: 14px; }
+.t-tabs { align-self: flex-start; margin-top: 4px; }
+.tl-board { display: grid; gap: 14px; }
+.tl-summary { margin: 0; font-size: 17px; line-height: 1.6; }
+p.card.tl-summary { padding: 14px 16px; font-size: 16px; }
+.tl-sw { display: inline-block; width: 20px; height: 22px; flex: none; clip-path: var(--hex); }
+.tl-sw.big { width: 26px; height: 30px; }
+.tl-dist { display: grid; gap: 8px; }
+.tl-dist-row { display: grid; grid-template-columns: 22px minmax(84px, auto) minmax(0, 1fr) 28px 40px; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.tl-dist-row b { text-align: right; font-size: 16px; }
+.tl-bars { display: grid; gap: 3px; }
+.tl-bars i { display: block; height: 12px; min-width: 2px; border-radius: var(--r-pill); }
+.tl-bars i.then { height: 5px; background: var(--locked-dark); opacity: .6; }
+.tl-delta { text-align: right; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.tl-delta.up, .tl-trend.up { color: var(--green-text); }
+.tl-delta.down, .tl-trend.down { color: var(--peach-text); }
+.tl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-chips .chip-st { display: inline-flex; align-items: center; gap: 2px; background: var(--track); color: var(--ink-2); }
+.tl-chips .chip-st.ok { background: var(--green-soft); color: var(--green-text); }
+.tl-chips .chip-st.away { background: var(--peach-soft); color: var(--peach-text); }
+.tl-watch { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.tl-watch li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg); border-radius: var(--r-md); }
+.tl-watch .av, .tl-row .av { width: 32px; height: 36px; flex: none; display: grid; place-items: center; clip-path: var(--hex); font-family: var(--head); font-size: 14px; color: var(--ink); }
+.tl-watch .t-name-link { align-self: flex-start; }
+.tl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.tl-tools h2 { flex: 1 1 220px; }
+.tl-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-filter { min-height: 40px; padding: 0 14px; border: 2px solid var(--line); border-radius: var(--r-pill); background: var(--card); font-size: 14px; font-weight: 700; color: var(--ink); }
+.tl-filter.on { background: var(--ink); border-color: var(--ink); color: var(--card); }
+.tl-sort { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.tl-sort select { min-height: 40px; padding: 0 10px; border: 2px solid var(--line); border-radius: var(--r-sm); background: var(--card); color: var(--ink); font: inherit; }
+.tl-table { min-width: 900px; }
+.tl-table th[scope="row"] { font-size: 14px; color: var(--ink); border-bottom: 0; border-top: 1px solid var(--line-2); }
+.tl-table .tl-wk { text-align: center; padding: 8px 2px; }
+.tl-table .num { text-align: right; font-weight: 700; color: var(--ink-2); }
+.tl-td { text-align: center; padding: 6px 2px !important; }
+.tl-cell { display: inline-block; width: 24px; height: 27px; clip-path: var(--hex); vertical-align: middle; }
+.tl-cell.miss { width: 18px; height: 18px; clip-path: none; border-radius: 50%; border: 2px dashed var(--locked-dark); }
+.tl-trend { font-weight: 700; white-space: nowrap; }
+.tl-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 13px; color: var(--ink-2); }
+.tl-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tl-legend .tl-sw { width: 14px; height: 16px; }
+.tl-legend .tl-cell.miss { width: 14px; height: 14px; }
+.tl-legend .btn.link { margin-left: auto; }
+.tl-group { padding: 0; overflow: hidden; }
+.tl-group-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; background: none; border: 0; font: inherit; color: var(--ink); text-align: left; }
+.tl-group-head b { flex: 1; font-size: 16px; }
+.tl-group-head svg { color: var(--ink-2); }
+.tl-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; background: none; border: 0; border-top: 2px solid var(--line-2); font: inherit; color: var(--ink); text-align: left; }
+@media (hover: hover) { .tl-row:hover, .tl-group-head:hover { background: var(--hover); } }
+.tl-row .tl-trend { font-size: 13px; color: var(--ink-2); }
+.tl-row .tl-trend.up { color: var(--green-text); }
+.tl-row .tl-trend.down { color: var(--peach-text); }
+.tl-xp { flex: none; font-size: 14px; font-weight: 700; color: var(--ink-2); }
+.tl-chart { display: flex; gap: 6px; }
+.tl-axis { position: relative; width: 24px; flex: none; }
+.tl-axis .tl-sw { position: absolute; left: 2px; }
+.tl-plot { position: relative; flex: 1; min-width: 0; }
+.tl-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tl-plot line { stroke: var(--honey-dark); stroke-width: 3; stroke-linecap: round; }
+.tl-plot line.gap { stroke: var(--locked-dark); stroke-dasharray: 5 5; }
+.tl-plot line.grid { stroke: var(--line-2); stroke-width: 2; }
+.tl-dot { position: absolute; width: 26px; height: 30px; display: grid; place-items: center; clip-path: var(--hex); font-size: 13px; font-weight: 700; }
+.tl-dot.now { transform: scale(1.2); }
+.tl-dot.miss { width: 20px; height: 20px; clip-path: none; border-radius: 50%; border: 2px dashed var(--locked-dark); background: var(--card); }
+.tl-xlabels { display: grid; grid-template-columns: 30px repeat(8, minmax(0, 1fr)); font-size: 13px; color: var(--ink-2); text-align: center; }
+.tl-xlabels .now { font-weight: 700; color: var(--ink); }
+.st-facts.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tl-note { margin: 0; padding: 10px 12px; background: var(--honey-soft); border-radius: var(--r-md); font-size: 14px; line-height: 1.55; color: var(--honey-text) !important; }
