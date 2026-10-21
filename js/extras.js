@@ -377,7 +377,7 @@ function viewTimed() {
   </div>`;
 }
 RESULT_VIEWS.timed = (r) => `<div class="result win">${HONEYCOMB}${r.newBest ? confetti() : ''}
-  <div class="hero hex">${bee(170, r.score ? 'cheer' : 'sad')}</div>
+  <div class="hero hex" ${r.newBest ? fxTag(r, 'win') : ''}>${bee(170, r.score ? 'cheer' : 'sad')}</div>
   <h1>หมดเวลา!</h1><p>${r.newBest ? 'ทำสถิติใหม่ได้แล้ว!' : `สถิติของคุณคือ ${S.stats.timedBest} ข้อ`}</p>
   <div class="tiles">${statTile('green', 'ข้อที่ถูก', 'target', r.score)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}${statTile('orange', 'คอมโบสูงสุด', 'flame', r.bestCombo)}</div>
   ${rewardsHTML(r)}
@@ -454,7 +454,7 @@ function nextStory() {
   window.scrollTo(0, 0);
 }
 RESULT_VIEWS.story = (r) => `<div class="result win">${HONEYCOMB}${confetti()}
-  <div class="hero hex">${bee(170, 'cheer')}</div>
+  <div class="hero hex" ${fxTag(r, 'win')}>${bee(170, 'cheer')}</div>
   <h1>จบเรื่องแล้ว!</h1><p>${esc(r.title)}</p>
   <div class="tiles">${statTile('green', 'ตอบถูก', 'target', `${r.correct}/${r.total}`)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}${statTile('orange', 'สตรีค', 'flame', S.streak)}</div>
   ${rewardsHTML(r)}
@@ -527,6 +527,8 @@ function viewSettings() {
     </div></section>
     <section><h2 class="shop-sec">การแสดงผล</h2><div class="list-card">
       ${setRow('ลดการเคลื่อนไหว', sysReduce ? 'เครื่องของคุณตั้งค่าลดการเคลื่อนไหวไว้แล้ว แอปจะลดให้อัตโนมัติ' : 'ปิดแอนิเมชันเกือบทั้งหมด', switchHTML('motion', st.reduceMotion || sysReduce, 'ลดการเคลื่อนไหว'))}
+      ${setRow('เอฟเฟกต์ 3 มิติ', !webglOK() ? 'เครื่องหรือเบราว์เซอร์นี้ไม่รองรับ ใช้แอนิเมชันปกติแทน' : st.reduceMotion || sysReduce ? 'ปิดอยู่เพราะเปิด "ลดการเคลื่อนไหว"' : 'ฉากฉลองตอนตอบถูก จบบท เลื่อนลีก และเปิดหีบ · ปิดได้ถ้าเครื่องช้า',
+        switchHTML('fx3d', st.fx3d !== false && webglOK() && !(st.reduceMotion || sysReduce), 'เอฟเฟกต์ 3 มิติ'))}
       ${setRow('ขนาดตัวอักษร', 'มีผลกับเนื้อหาและโจทย์', `<span class="seg" role="radiogroup" aria-label="ขนาดตัวอักษร">${TEXT_SIZES.map(([v, t]) =>
         `<button role="radio" aria-checked="${st.textSize === v}" class="${st.textSize === v ? 'on' : ''}" data-act="text-size" data-s="${v}">${t}</button>`).join('')}</span>`)}
     </div></section>
@@ -618,6 +620,7 @@ Object.assign(ACT, {
   'toggle-sound': () => { S.settings.sound = !S.settings.sound; save(); render(); SFX.play('tap'); },
   'toggle-adaptive': () => { S.settings.adaptive = S.settings.adaptive === false; save(); render(); },
   'toggle-motion': () => { S.settings.reduceMotion = !S.settings.reduceMotion; save(); render(); },
+  'toggle-fx3d': () => { if (!webglOK() || S.settings.reduceMotion) return; S.settings.fx3d = S.settings.fx3d === false; save(); render(); if (S.settings.fx3d) fx3dPreload(); },
   'text-size': (d) => { S.settings.textSize = d.s; save(); render(); },
   'sfx-test': () => SFX.play('complete'),
   export: () => exportProgress(),

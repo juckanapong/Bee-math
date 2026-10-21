@@ -78,6 +78,7 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 - **Entrance animations** run only when the scene changes (`#app[data-enter]`, `sceneKey()`), never on every render.
 - **No endless decoration:** loops are only allowed on things that show live state, such as the glow around the current node, the low-time timer or a chest that can be opened. Decorative effects run a few times and stop (the progress-bar shine runs twice, the streak flame three times).
 - **Respect reduced motion:** both `prefers-reduced-motion` and the in-app setting (`.reduce-motion`).
+- **3D celebrations** (`js/fx3d.js`, three.js loaded on demand): only at moments worth celebrating (a correct answer, finishing a lesson or test, a league result, opening a chest). Each scene plays once for 1–3.5s, then stops drawing (the last frame stays, or the floating stage is removed). Same look as the 2D brand: toon shading with dark outlines, hexagons point-up, the honey palette, the round front-facing bee. Off under reduced motion, without WebGL, on low-memory devices, or when the user turns off "เอฟเฟกต์ 3 มิติ" in Settings; the 2D version stays as the fallback.
 
 ## Layout
 - **Breakpoints:**

@@ -100,3 +100,6 @@ const hadSession = (() => { try { return Object.keys(localStorage).some((k) => /
 if (hadSession || oauthBack || /[?#&](code|access_token|error)=/.test(location.href)) cloudInit();
 else if ('requestIdleCallback' in window) requestIdleCallback(() => cloudInit(), { timeout: 3000 });
 else setTimeout(cloudInit, 1500);
+// เอฟเฟกต์ 3 มิติ: โหลดตอนเครื่องว่าง (หน้าแรกไม่ต้องรอ)
+if ('requestIdleCallback' in window) requestIdleCallback(() => fx3dPreload(), { timeout: 6000 });
+else setTimeout(fx3dPreload, 4000);

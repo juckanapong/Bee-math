@@ -553,7 +553,7 @@ const SHEETS = {
       <button class="btn primary" data-act="close">ตกลง</button></div>`;
   },
   chest(s) {
-    return `<div class="sheet-card center"><div class="chest-big">${CHEST_SVG(true)}</div><h2>เปิดหีบแล้ว!</h2>
+    return `<div class="sheet-card center"><div class="chest-big" ${fxTag(s, 'chest')}>${CHEST_SVG(true)}</div><h2>เปิดหีบแล้ว!</h2>
       <p>ได้รับ <b>${s.nectar} น้ำหวาน</b>${s.boost ? ' และ <b>XP สองเท่า 15 นาที</b>' : ''}</p>
       <button class="btn primary" data-act="close">เยี่ยมเลย</button></div>`;
   },
@@ -565,10 +565,10 @@ const SHEETS = {
       <button class="btn primary" data-act="jump-start" data-u="${s.u}">เริ่มทดสอบ +20 XP</button>
       <button class="btn ghost" data-act="close">ไว้ก่อน</button></div>`;
   },
-  league() {
+  league(s) {
     const r = S.leagueResult, t = tierOf(r.to);
     const msg = r.to > r.from ? `เลื่อนขึ้นสู่ลีก${t.name}!` : r.to < r.from ? `ตกไปอยู่ลีก${t.name}` : `อยู่ลีก${t.name}ต่อ`;
-    return `<div class="sheet-card center">${hex(icon(t.icon, 40), 'tier-hex big', tint(t))}<h2>${msg}</h2>
+    return `<div class="sheet-card center"><span class="hex tier-hex big" style="${tint(t)}" ${fxTag(s, 'league', `data-color="${t.color}" data-up="${r.to > r.from ? 1 : 0}"`)}>${icon(t.icon, 40)}</span><h2>${msg}</h2>
       <p>สัปดาห์ที่แล้วคุณได้อันดับที่ ${r.rank} จาก ${r.n || 20} คน</p>
       ${r.reward ? `<p class="earn">${icon('drop', 16)} รางวัลอันดับ ${r.rank} +${r.reward} น้ำหวาน</p>` : ''}
       <button class="btn primary" data-act="league-ok">${r.reward ? 'รับรางวัล' : 'ตกลง'}</button></div>`;
@@ -612,6 +612,7 @@ function viewCards() {
 // ---------- session (lesson / test / practice / legend / placement) ----------
 // gens: ตัวสร้างโจทย์ · n: จำนวนข้อ · ordered: ไม่สลับลำดับ (ใช้กับทดสอบวัดระดับ)
 function startSession(kind, gens, meta = {}, n = kind === 'lesson' ? 6 : kind === 'legend' || kind === 'placement' ? 10 : 8, ordered = false) {
+  fx3dPreload(); // ให้ฉากฉลองพร้อมก่อนจบบท
   const base = [];
   for (let i = 0; i < n; i++) base.push(gens[i % gens.length]);
   const queue = (ordered ? base : shuffle(base)).map((g, uid) => ({ uid, gen: g, pu: meta.units?.[uid] })); // สร้างโจทย์จริงทีละข้อด้วย materialize()
@@ -819,6 +820,7 @@ function check() {
   L.checked = true; L.ok = ok;
   L.log.push({ u: q.uid, g: q.gen, l: q.lvl, r: q.retry ? 1 : 0, a });
   SFX.play(ok ? 'correct' : 'wrong');
+  if (ok) FX.pending = 'correct';
   S.stats.answered++;
   const lvlChange = trackSkill(q.gen, ok);
   L.note = lvlChange > 0 ? 'เก่งมาก! โจทย์แบบนี้ข้อต่อไปจะท้าทายขึ้น' : lvlChange < 0 ? 'ข้อต่อไปจะง่ายลงหน่อย ค่อย ๆ ไปนะ' : '';
@@ -938,7 +940,7 @@ function viewResult() {
   if (RESULT_VIEWS[r.kind]) return RESULT_VIEWS[r.kind](r);
   if (r.kind === 'placement') {
     const u = UNITS[r.startUnit];
-    return `<div class="result win">${HONEYCOMB}<div class="hero hex">${bee(170, 'cheer')}</div>
+    return `<div class="result win">${HONEYCOMB}<div class="hero hex" ${fxTag(r, 'win')}>${bee(170, 'cheer')}</div>
       <h1>วัดระดับเสร็จแล้ว!</h1><p>เริ่มเรียนที่บทที่ ${r.startUnit + 1} · ${u.title}</p>
       <div class="tiles">${statTile('green', 'ตอบถูก', 'target', `${r.correct}/10`)}${statTile('gold', 'XP ที่ได้', 'bolt', r.xp)}</div>
       <div class="result-actions"><button class="btn primary wide" data-act="tab" data-v="learn">เริ่มเรียน</button></div></div>`;
@@ -970,7 +972,7 @@ function viewResult() {
   const title = { test: 'ผ่านด่านทดสอบแล้ว!', practice: 'ฝึกฝนเสร็จแล้ว!', legend: 'ถึงระดับตำนานแล้ว!', jump: 'ข้ามบทสำเร็จ!' }[r.kind] || 'จบบทเรียนแล้ว!';
   const nextTab = (r.kind === 'practice' && r.meta.unitReview === undefined) || r.kind === 'legend' ? 'practice' : 'learn';
   return `<div class="result win">${HONEYCOMB}${confetti()}
-    <div class="hero hex">${bee(170, 'cheer')}</div>
+    <div class="hero hex" ${fxTag(r, 'win')}>${bee(170, 'cheer')}</div>
     <h1>${title}</h1><p>${esc(r.sub)}</p>
     ${r.best ? `<div class="solved"><small>สมการที่ยากที่สุดที่คุณแก้ได้</small><div class="solved-eq">${M(r.best.eq)}</div>
       <span class="solved-x">${icon('check', 18)}${M('x = ' + r.best.x)}</span></div>` : ''}
@@ -1204,6 +1206,26 @@ function viewProfile() {
       <span class="lvl-wrap">${badgeHex(b, got)}${lvl ? `<span class="lvl-tag">ระดับ ${lvl}</span>` : ''}</span><span>${b.name}</span></button>`).join('')}</div>`, { top: false });
 }
 
+// ---------- เอฟเฟกต์ 3 มิติ (js/fx3d.js · three.js โหลดเมื่อใกล้จะใช้เท่านั้น) ----------
+// ปิดเองเมื่อ: ผู้ใช้ปิดในตั้งค่า · ลดการเคลื่อนไหว · เครื่องไม่รองรับ WebGL หรือหน่วยความจำน้อย → ใช้แอนิเมชัน 2 มิติเดิม
+const FX = { mod: null, loading: null, pending: null };
+let webglCache;
+const webglOK = () => webglCache ?? (webglCache = (() => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } })());
+const fx3dOn = () => S.settings.fx3d !== false && !reduceMotion() && !(navigator.deviceMemory && navigator.deviceMemory < 2) && webglOK();
+function fx3dPreload() {
+  if (FX.loading || !fx3dOn()) return;
+  FX.loading = import(new URL('js/fx3d.js', document.baseURI).href).then((m) => { FX.mod = m; if (fx3dOn()) m.sync(); }).catch(() => { FX.loading = null; });
+}
+// แท็กจุดที่จะเล่นฉาก 3 มิติ: เก็บ id ไว้ในวัตถุของฉากนั้น ให้เล่นครั้งเดียวแม้วาดหน้าใหม่หลายรอบ
+const fxTag = (o, kind, extra = '') => (fx3dOn() ? `data-fx3d="${kind}" data-fx-id="${o.fx || (o.fx = kind + Math.random().toString(36).slice(2, 9))}" ${extra}` : '');
+function fx3dAfterRender() {
+  const pending = FX.pending; FX.pending = null;
+  if (!FX.mod) return;
+  if (!fx3dOn()) return FX.mod.reset();
+  FX.mod.sync();
+  if (pending === 'correct') FX.mod.burst(document.querySelector('.lesson-foot.fb.ok .fb-ic'));
+}
+
 // ---------- render & actions ----------
 const VIEWS = { learn: viewLearn, board: viewBoard, quests: viewQuests, profile: viewProfile, lesson: viewLesson, cards: viewCards, result: viewResult };
 const SUBPAGES = ['streak', 'shop', 'achievements', 'settings'];
@@ -1260,6 +1282,7 @@ function render() {
   if (app.querySelector('.chip')) UI.lastChips = chips; // จำค่าเฉพาะตอนที่ชิปแสดงอยู่ เพื่อให้เด้งเมื่อกลับมาหน้าหลัก
   if (UI.view === 'learn') UI.justDone = null;
   if (enter && UI.view === 'result') runCounters();
+  fx3dAfterRender();
 }
 
 // ---------- โฟกัสหลังวาดหน้าใหม่ ----------
