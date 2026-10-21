@@ -285,7 +285,7 @@ function bee(size = 80, mood = 'happy') {
     ${BEE_OUTFITS[S.outfit] || ''}
   </svg>`;
 }
-const BRAND_BEE = `<svg width="30" height="30" viewBox="0 0 120 120" aria-hidden="true"><ellipse cx="42" cy="34" rx="16" ry="22" transform="rotate(-30 42 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/><ellipse cx="78" cy="34" rx="16" ry="22" transform="rotate(30 78 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/><ellipse cx="60" cy="72" rx="36" ry="32" fill="#FFC21A" stroke="#2A1F14" stroke-width="6"/><circle cx="48" cy="66" r="5" fill="#2A1F14"/><circle cx="72" cy="66" r="5" fill="#2A1F14"/><path d="M50 82 Q60 90 70 82" stroke="#2A1F14" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
+const BRAND_BEE = `<svg class="brand-bee" width="30" height="30" viewBox="0 0 120 120" aria-hidden="true"><g class="wings"><ellipse cx="42" cy="34" rx="16" ry="22" transform="rotate(-30 42 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/><ellipse cx="78" cy="34" rx="16" ry="22" transform="rotate(30 78 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/></g><ellipse cx="60" cy="72" rx="36" ry="32" fill="#FFC21A" stroke="#2A1F14" stroke-width="6"/><circle cx="48" cy="66" r="5" fill="#2A1F14"/><circle cx="72" cy="66" r="5" fill="#2A1F14"/><path d="M50 82 Q60 90 70 82" stroke="#2A1F14" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
 const PRAISE = ['เยี่ยมมาก!', 'ถูกต้อง!', 'เก่งสุด ๆ!', 'ยอดเยี่ยม!', 'สุดยอดเลย!'];
 const COMFORT = ['ยังไม่ใช่ ลองดูวิธีคิดนี้', 'ผิดได้ เรียนรู้ได้'];
 // หัวข้อแผ่นเฉลยตอนตอบผิด: เดาความผิดที่น่าจะเกิดจากตัวเลขที่ตอบจริง (สมการ ax + b = c · ใช้ analyze() ใน js/askbee.js)

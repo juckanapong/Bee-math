@@ -147,15 +147,16 @@ function sceneWin(sc, rect) {
     if (t > 1.2) {
       const s = t - 1.2, bounce = Math.exp(-4 * s) * Math.sin(s * 14);
       bee.scale.set(r * (1 + bounce * 0.12), r * (1 - bounce * 0.12), r);
-      bee.position.y = p.y + Math.sin(s * 5) * r * 0.08 * Math.max(0, 1 - s / 2.2);
-      // หันเฉียงเล็กน้อยตอนหยุด ให้เห็นความเป็น 3 มิติ
+      // ลงจอดแล้วขยับต่อตลอด: ลอยขึ้นลง โยกตัว หันมองไปรอบ ๆ (หันเฉียงให้เห็นความเป็น 3 มิติ)
+      bee.position.y = p.y + Math.sin(s * 2.6) * r * 0.1;
       const turn = ease.out(clamp01(s / 0.9));
-      bee.rotation.y = -0.32 * turn; bee.rotation.x = 0.1 * turn;
+      bee.rotation.y = turn * (-0.32 + Math.sin(t * 0.7) * 0.25); bee.rotation.x = 0.1 * turn;
+      bee.rotation.z = Math.sin(t * 1.7) * 0.07 * turn;
     }
-    flap(bee, t, t < 3.2 ? 38 : 0);
-    if (t >= 3.4) { for (const w of bee.userData.wings) w.rotation.y = 0.2 * w.userData.sx; return false; }
+    flap(bee, t, t < 3.2 ? 38 : 34);
     return true;
   };
+  sc.introEnd = 3.4; // หลังจากนี้วาดแบบประหยัด (ดู View.frame)
 }
 // เลื่อนลีก/ผลลีก: หกเหลี่ยมสีลีกหมุนเข้ามาแทนพื้นหลังไอคอน + เศษหกเหลี่ยม
 function sceneLeague(sc, rect) {

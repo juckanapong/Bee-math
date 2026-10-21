@@ -1445,3 +1445,12 @@ p.card.tl-summary { padding: 14px 16px; font-size: 16px; }
   .topbar .chip { padding: 4px 8px; gap: 3px; font-size: 14px; }
   .topbar .chip.music { padding: 4px 7px; }
 }
+
+/* น้องผึ้ง 2 มิติขยับตลอดทุกหน้า (เจ้าของแอปขอ · ดู DESIGN.md) · ท่าพิเศษเล่นก่อน แล้วต่อด้วยท่าวน · ปิดเองเมื่อลดการเคลื่อนไหว */
+.bee { animation: float 2.4s ease-in-out infinite; }
+.bee.cheer { animation: jump .9s ease-out 2, float 2.4s 1.8s ease-in-out infinite; }
+.bee.wow { animation: hop .45s ease-out, float 2.4s .45s ease-in-out infinite; }
+.bee.sad { animation: shake .35s, droop 1.6s .35s ease-in-out infinite; }
+.brand-bee { flex: none; animation: float-sm 3s ease-in-out infinite; }
+.brand-bee .wings { transform-box: fill-box; transform-origin: 50% 90%; animation: buzz .18s ease-in-out infinite alternate; }
+@keyframes float-sm { 50% { transform: translateY(-3px) rotate(-3deg); } }
