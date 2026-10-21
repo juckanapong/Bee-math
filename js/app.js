@@ -286,6 +286,10 @@ function bee(size = 80, mood = 'happy') {
   </svg>`;
 }
 const BRAND_BEE = `<svg class="brand-bee" width="30" height="30" viewBox="0 0 120 120" aria-hidden="true"><g class="wings"><ellipse cx="42" cy="34" rx="16" ry="22" transform="rotate(-30 42 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/><ellipse cx="78" cy="34" rx="16" ry="22" transform="rotate(30 78 34)" fill="#DDF1FF" stroke="#2A1F14" stroke-width="6"/></g><ellipse cx="60" cy="72" rx="36" ry="32" fill="#FFC21A" stroke="#2A1F14" stroke-width="6"/><circle cx="48" cy="66" r="5" fill="#2A1F14"/><circle cx="72" cy="66" r="5" fill="#2A1F14"/><path d="M50 82 Q60 90 70 82" stroke="#2A1F14" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;
+// โลโก้ BeeMath (แถบบนมือถือ + แถบข้างคอมพิวเตอร์): น้องผึ้งในหกเหลี่ยมขอบเข้ม · กดแล้วกลับหน้าเรียนรู้ (อยู่แล้ว = เลื่อนไปด่านปัจจุบัน)
+// ใช้ <i> ข้างใน ไม่ใช้ <span> เพราะแถบข้างแบบแคบซ่อน span ทุกตัวไว้เหลือแต่ไอคอน
+const brandHTML = (cls) => `<button class="brand-btn ${cls}" data-act="tab" data-v="learn" aria-label="BeeMath กลับหน้าเรียนรู้">
+  <i class="brand-badge hex" aria-hidden="true"><i class="brand-badge-in hex">${BRAND_BEE}</i></i><span class="brand-word">Bee<em>Math</em></span></button>`;
 const PRAISE = ['เยี่ยมมาก!', 'ถูกต้อง!', 'เก่งสุด ๆ!', 'ยอดเยี่ยม!', 'สุดยอดเลย!'];
 const COMFORT = ['ยังไม่ใช่ ลองดูวิธีคิดนี้', 'ผิดได้ เรียนรู้ได้'];
 // หัวข้อแผ่นเฉลยตอนตอบผิด: เดาความผิดที่น่าจะเกิดจากตัวเลขที่ตอบจริง (สมการ ax + b = c · ใช้ analyze() ใน js/askbee.js)
@@ -316,7 +320,7 @@ const chipsHTML = () => `<div class="chips">
     <button class="chip music ${Music.on() ? 'on' : ''}" data-act="toggle-music" aria-pressed="${Music.on()}" aria-label="เพลงประกอบ" title="${Music.on() ? 'ปิดเพลง' : 'เปิดเพลง'}">${icon(Music.on() ? 'music' : 'music-off', 18)}</button>
   </div>`;
 function topBar() {
-  return `<header class="topbar"><div class="brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>${chipsHTML()}</header>`;
+  return `<header class="topbar">${brandHTML('brand')}${chipsHTML()}</header>`;
 }
 const TABS = [
   ['learn', 'home', 'เรียนรู้'], ['practice', 'dumbbell', 'ฝึกฝน'], ['board', 'trophy', 'อันดับ'], ['quests', 'target', 'ภารกิจ'], ['profile', 'user', 'โปรไฟล์'],
@@ -332,7 +336,7 @@ const SIDE = [['learn', 'home', 'เรียนรู้', 'tab'], ['practice',
 function sideNav() {
   const dot = QUESTS.some((q) => (S.quests.p[q.id] || 0) >= q.goal && !S.quests.claimed[q.id]);
   return `<nav class="sidenav" aria-label="เมนูหลัก">
-    <div class="side-brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>
+    ${brandHTML('side-brand')}
     ${SIDE.map(([v, i, t, act]) => `<button class="side-item ${UI.view === v ? 'active' : ''}" data-act="${act}" data-v="${v}" ${UI.view === v ? 'aria-current="page"' : ''}>
       ${icon(i, 26)}<span>${t}</span>${(v === 'quests' && dot) || (v === 'friends' && friendDot()) ? '<i class="dot" aria-label="มีเรื่องรอดู"></i>' : ''}</button>`).join('')}
     <button class="side-item side-bottom ${UI.view === 'settings' ? 'active' : ''}" data-act="go" data-v="settings" ${UI.view === 'settings' ? 'aria-current="page"' : ''}>${icon('gear', 26)}<span>ตั้งค่า</span></button>
@@ -382,7 +386,7 @@ const friendDot = () => typeof friendsAlert === 'function' && friendsAlert() > 0
 // เมนูข้างของครู: แยกจากเมนูนักเรียน (ไม่มีร้านค้า ลีก เพื่อน)
 function teacherNav() {
   return `<nav class="sidenav" aria-label="เมนูครู">
-    <div class="side-brand">${BRAND_BEE}<span>Bee<em>Math</em></span></div>
+    ${brandHTML('side-brand')}
     <button class="side-item active" aria-current="page">${icon('cap', 26)}<span>แดชบอร์ดครู</span></button>
     <button class="side-item" data-act="go" data-v="classes">${icon('users', 26)}<span>ห้องเรียน</span></button>
     <button class="side-item side-bottom" data-act="tab" data-v="learn">${icon('back', 26)}<span>กลับไปโหมดเรียน</span></button>

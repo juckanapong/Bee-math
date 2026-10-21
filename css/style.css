@@ -1454,3 +1454,21 @@ p.card.tl-summary { padding: 14px 16px; font-size: 16px; }
 .brand-bee { flex: none; animation: float-sm 3s ease-in-out infinite; }
 .brand-bee .wings { transform-box: fill-box; transform-origin: 50% 90%; animation: buzz .18s ease-in-out infinite alternate; }
 @keyframes float-sm { 50% { transform: translateY(-3px) rotate(-3deg); } }
+
+/* โลโก้ BeeMath เป็นปุ่ม: น้องผึ้งในหกเหลี่ยม (ขอบหมึก + พื้นน้ำผึ้งอ่อน) + ชื่อแอป · ชี้แล้วเอียง กดแล้วยุบ */
+.brand-btn { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; margin-left: -4px; border: 0; border-radius: var(--r-md); background: none; color: var(--ink); font-family: var(--head); font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s; }
+.brand-btn .brand-word { letter-spacing: -0.01em; line-height: 1; }
+.brand-btn em { font-style: normal; color: var(--honey-dark); }
+.brand-badge { flex: none; display: grid; place-items: center; width: 38px; height: 42px; background: var(--ink); transition: transform .25s cubic-bezier(.34, 1.56, .64, 1); }
+.brand-badge-in { display: grid; place-items: center; width: 32px; height: 36px; background: var(--honey-soft); }
+.brand-badge .brand-bee { width: 27px; height: 27px; margin-top: 1px; }
+@media (hover: hover) {
+  .brand-btn:hover { background: var(--hover); }
+  .brand-btn:hover .brand-badge { transform: rotate(-10deg) scale(1.06); }
+}
+.brand-btn:active .brand-badge { transform: scale(.92); transition-duration: .08s; }
+.brand-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.side-brand.brand-btn { margin: 0 0 14px; }
+.side-brand .brand-badge { width: 46px; height: 50px; }
+.side-brand .brand-badge-in { width: 39px; height: 43px; }
+.side-brand .brand-badge .brand-bee { width: 32px; height: 32px; }
