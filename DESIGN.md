@@ -109,5 +109,5 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 - Supabase loads immediately only for people who have signed in before or are returning from sign-in. Guests load it when the browser is idle, or as soon as they open a page that needs an account.
 
 ## Sound
-- **Sound effects** are synthesised (`js/sounds.js`, no files) and follow Settings › เสียงประกอบ and the volume slider.
+- **Sound effects** are synthesised (`js/sounds.js`) and follow Settings › เสียงประกอบ and the volume slider. The one exception is the **tap sound** (`audio/click.mp3`, 0.16s, the owner's file), decoded up front and played on press-down of any button, link, switch, tab or select, and on Enter/Space on a focused button; taps within 90ms of each other play once, so actions that already call `SFX.play('tap')` never double up.
 - **Music** (`audio/bgm.m4a`, AAC ~96 kbps, looped) tries to start as soon as the app opens; where the browser blocks that (always on iPhone/iPad, often in Chrome until the site is installed or used a lot) it starts on the first tap, plays at 35% of the volume slider, drops to about half that during questions, and pauses when the app is hidden. The music chip next to hearts toggles it; Settings › เพลงประกอบ is the same switch.

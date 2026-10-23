@@ -1,5 +1,6 @@
 /* BeeMath — เสียงประกอบ สังเคราะห์ด้วย Web Audio API (ไม่ใช้ไฟล์เสียง จึงไม่มีปัญหาลิขสิทธิ์และไม่ต้องโหลดเพิ่ม)
    เรียกใช้: SFX.play('correct') · เคารพการตั้งค่า S.settings.sound / S.settings.volume
+   เสียงกด (tap) ใช้ไฟล์ audio/click.mp3 · ดังทุกครั้งที่กดปุ่ม/ลิงก์/สวิตช์ (ตัวฟังอยู่ท้ายไฟล์)
    เพลงประกอบ (Music): ไฟล์ audio/bgm.m4a วนซ้ำ · เปิด/ปิดที่ปุ่มโน้ตข้างหัวใจ หรือ ตั้งค่า › เพลงประกอบ (S.settings.music) */
 
 const SFX = (() => {
@@ -31,8 +32,27 @@ const SFX = (() => {
     osc.start(t0);
     osc.stop(t0 + dur + 0.05);
   }
+  // เสียงกดจากไฟล์: ถอดรหัสล่วงหน้าด้วย OfflineAudioContext (ไม่ต้องรอผู้ใช้แตะ) แล้วเล่นทันทีเมื่อกด
+  let clickBuf = null;
+  (async () => {
+    try {
+      const O = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const data = await (await fetch('audio/click.mp3')).arrayBuffer();
+      clickBuf = await new O(2, 1, 44100).decodeAudioData(data);
+    } catch (e) { /* โหลดไม่ได้: ใช้เสียงสังเคราะห์แทน */ }
+  })();
+  function sample(buf, gain) {
+    const c = audio();
+    if (!c) return;
+    const src = c.createBufferSource(), amp = c.createGain();
+    src.buffer = buf;
+    amp.gain.value = gain * S.settings.volume;
+    src.connect(amp).connect(c.destination);
+    src.start();
+  }
+  let lastTap = 0;
   const SOUNDS = {
-    tap: () => tone(620, 0, 0.05, 'triangle', 0.1),
+    tap: () => (clickBuf ? sample(clickBuf, 0.9) : tone(620, 0, 0.05, 'triangle', 0.1)),
     correct: () => { tone(784, 0, 0.12, 'triangle', 0.3); tone(1175, 0.09, 0.24, 'triangle', 0.3); },
     wrong: () => { tone(233, 0, 0.16, 'square', 0.1, 196); tone(196, 0.13, 0.26, 'square', 0.09, 147); },
     complete: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.11, i === 3 ? 0.5 : 0.25, 'triangle', 0.26)),
@@ -44,6 +64,8 @@ const SFX = (() => {
   return {
     play(name) {
       if (!S.settings.sound || S.settings.volume <= 0) return;
+      // ปุ่มที่เล่นเสียงกดเองอยู่แล้ว + ตัวฟังกดทั้งแอป: ดังครั้งเดียว
+      if (name === 'tap') { const now = performance.now(); if (now - lastTap < 90) return; lastTap = now; }
       try { SOUNDS[name]?.(); } catch (e) { /* อุปกรณ์ไม่รองรับเสียง */ }
     },
   };
@@ -95,3 +117,14 @@ const Music = (() => {
   document.addEventListener('visibilitychange', sync);
   return { sync, apply, on, autoplay, playing: () => !!el && !el.paused };
 })();
+
+// ---------- เสียงกดทั้งแอป ----------
+// แตะ/คลิกปุ่ม ลิงก์ สวิตช์ ช่องเลือก → เสียงกด (ตอนกดลง ให้รู้สึกตอบสนองทันที) · Enter/Space บนปุ่มที่โฟกัสอยู่ก็ดัง
+const TAPPABLE = 'button, a[href], [data-act], [role="switch"], [role="tab"], select, input[type="checkbox"], input[type="radio"], summary';
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest?.(TAPPABLE);
+  if (el && !el.disabled && el.getAttribute('aria-disabled') !== 'true') SFX.play('tap');
+}, { passive: true });
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('button, a[href], [role="switch"], [role="tab"]') && !e.target.disabled) SFX.play('tap');
+});
