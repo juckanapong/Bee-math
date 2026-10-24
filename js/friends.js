@@ -13,7 +13,7 @@ async function friendsSync(force = false) {
   if (!force && Date.now() - Friends.at < 60000) return;
   Friends.at = Date.now();
   const { data, error } = await Cloud.client.rpc('friends_overview');
-  if (error || !data) { Friends.error = cloudError(error); return; }
+  if (error || !data) { Friends.error = cloudError(error || 'no data'); if (UI.view === 'friends') cloudRender(); return; }
   Friends.data = data; Friends.error = null;
   const fresh = data.inbox.filter((m) => !m.seen && !Friends.notified[m.id]);
   fresh.forEach((m) => { Friends.notified[m.id] = true; });
@@ -32,9 +32,9 @@ function friendsRefresh() {
     Cloud.client.rpc('inbox_seen');
   }
 }
-async function friendsCall(fn, args) {
+async function friendsCall(fn, args, form) {
   const { data, error } = await Cloud.client.rpc(fn, args);
-  if (error) { showToast(cloudError(error)); return null; }
+  if (error) { form ? formError(form, cloudError(error)) : showToast(cloudError(error)); return null; }
   return data ?? true;
 }
 
@@ -85,12 +85,13 @@ function questCard(d) {
 }
 function viewFriends() {
   let body;
-  if (typeof Cloud === 'undefined' || !Cloud.enabled() || !Cloud.user) {
+  if (acctPending()) body = acctWaitCard();
+  else if (typeof Cloud === 'undefined' || !Cloud.enabled() || !Cloud.user) {
     body = `<div class="card acct-card"><div class="acct-intro">${bee(64)}<p>เพิ่มเพื่อน ส่งกำลังใจ และทำภารกิจคู่หูได้เมื่อเข้าสู่ระบบ</p></div>
       ${Cloud?.enabled?.() ? '<button class="btn primary" data-act="go" data-v="account">เข้าสู่ระบบ / สมัครบัญชี</button>' : '<p class="muted">ยังไม่ได้เปิดระบบบัญชี</p>'}</div>`;
   } else if (!Friends.data) {
     friendsRefresh();
-    body = `<div class="card acct-card"><p class="muted">${Friends.error ? esc(Friends.error) : 'กำลังโหลดรายชื่อเพื่อน…'}</p></div>`;
+    body = Friends.error ? retryCard(Friends.error, 'friends-retry') : '<div class="card acct-card"><p class="muted">กำลังโหลดรายชื่อเพื่อน…</p></div>';
   } else {
     friendsRefresh();
     const d = Friends.data;
@@ -155,14 +156,17 @@ const REQUEST_MSG = {
 FORM_HANDLERS['friend-add'] = async () => {
   let code = (document.getElementById('friend-code')?.value || '').trim().toUpperCase().replace(/\s/g, '');
   if (code && !code.startsWith('BEE-')) code = 'BEE-' + code.replace(/^BEE/, '');
-  const r = await friendsCall('friend_request', { p_code: code });
+  const r = await friendsCall('friend_request', { p_code: code }, 'friend-add');
   if (!r) return;
+  // รหัสผิด/ของตัวเอง/เพื่อนเต็ม: คงหน้าต่างไว้ แสดงข้อความใต้ช่อง ให้แก้รหัสได้เลย
+  if (['not_found', 'self', 'limit'].includes(r)) return formError('friend-add', REQUEST_MSG[r]);
   UI.sheet = null;
   if (r === 'accepted' || r === 'sent') SFX.play('reward');
   showToast(REQUEST_MSG[r] || r);
   friendsSync(true);
 };
 Object.assign(ACT, {
+  'friends-retry': () => { Friends.error = null; Friends.at = 0; render(); friendsSync(true); },
   'friend-add': () => { UI.sheet = { type: 'friend-add' }; render(); document.getElementById('friend-code')?.focus(); },
   'friend-copy': async () => {
     try { await navigator.clipboard.writeText(Friends.data.code); showToast('คัดลอกรหัสแล้ว ส่งให้เพื่อนได้เลย'); }

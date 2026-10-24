@@ -29,6 +29,8 @@ const keyOfDay = (n) => { const d = new Date(n * 864e5); return `${d.getUTCFullY
 const thaiDate = (k) => new Date(k + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const num = (n) => n.toLocaleString('en-US');
+// ตัวเลขย่อสำหรับชิปด้านบน (1.2k · 15k) ให้แถบบนพอดีจอมือถือ · aria-label ยังใช้ตัวเลขเต็ม
+const compact = (n) => (n >= 10000 ? Math.floor(n / 1000) + 'k' : n >= 1000 ? Math.floor(n / 100) / 10 + 'k' : String(n));
 
 // ---------- state ----------
 function defaultState() {
@@ -315,7 +317,7 @@ function wrongNote(q, given) {
 // ---------- shell ----------
 const chipsHTML = () => `<div class="chips">
     <button class="chip streak ${S.lastDay === today() ? 'on' : ''} ${UI.bump?.streak ? 'bump' : ''}" data-act="go" data-v="streak" aria-label="สตรีค ${S.streak} วัน">${icon('flame', 18)}${S.streak}</button>
-    <button class="chip nectar ${UI.bump?.nectar ? 'bump' : ''}" data-act="go" data-v="shop" aria-label="น้ำหวาน ${S.nectar}">${icon('drop', 18)}${num(S.nectar)}</button>
+    <button class="chip nectar ${UI.bump?.nectar ? 'bump' : ''}" data-act="go" data-v="shop" aria-label="น้ำหวาน ${num(S.nectar)}">${icon('drop', 18)}${compact(S.nectar)}</button>
     <button class="chip hearts ${UI.bump?.hearts ? 'bump' : ''}" data-act="go" data-v="shop" aria-label="หัวใจ ${S.hearts} ดวง">${icon('heart', 18)}${S.hearts}</button>
     <button class="chip music ${Music.on() ? 'on' : ''}" data-act="toggle-music" aria-pressed="${Music.on()}" aria-label="เพลงประกอบ" title="${Music.on() ? 'ปิดเพลง' : 'เปิดเพลง'}">${icon(Music.on() ? 'music' : 'music-off', 18)}</button>
   </div>`;
@@ -357,7 +359,7 @@ function rightRail() {
   const mp = Math.min(MONTH_GOAL, S.month.points);
   return `<aside class="rail" aria-label="สรุปวันนี้">
     ${chipsHTML()}
-    ${guestLeague() ? leagueGuestCard() : `<section class="rail-card">
+    ${acctPending() ? `<section class="rail-card"><p class="muted">กำลังเชื่อมต่อบัญชี…</p></section>` : guestLeague() ? leagueGuestCard() : `<section class="rail-card">
       <div class="rail-head"><h2>ลีก${t.name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูลีก</button></div>
       <div class="rail-row">${hex(icon(t.icon, 22), 'ico', tint(t))}
         <span class="setting-main"><b>อันดับที่ ${me.rank} · ${me.xp} XP</b><small>${top ? 'ลีกสูงสุดแล้ว' : need ? `อีก ${need} XP จะเข้าเขตเลื่อนลีก` : 'อยู่ในเขตเลื่อนลีก!'} · เหลือ ${weekLeft()}</small></span></div>
@@ -395,9 +397,12 @@ function teacherNav() {
 function shell(body, opts = {}) {
   const { top = true, sub = null, wide = false, teacher = false } = opts;
   return `<div class="layout${wide ? ' wide' : ''}">${teacher ? teacherNav() : sideNav()}
-    <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}${wide ? ' wide' : ''}">${opsBanner()}${body}</main></div>
+    <div class="main-col">${sub ? subHead(sub.title, sub.extra) : top ? topBar() : ''}<main class="page${sub ? ' sub' : ''}${wide ? ' wide' : ''}">${opsBanner()}${offlineBar()}${body}</main></div>
     ${wide ? '' : rightRail()}</div>${sub ? '' : bottomNav()}${sheetHTML()}`;
 }
+// ไม่มีอินเทอร์เน็ต (ผู้ที่เข้าสู่ระบบ): บอกว่าข้อมูลออนไลน์ เช่น ลีก เพื่อน อาจไม่ใช่ล่าสุด และความคืบหน้าจะซิงก์ทีหลัง
+const offlineBar = () => (!navigator.onLine && typeof Cloud !== 'undefined' && Cloud.user
+  ? `<p class="offline-bar" role="status">${icon('clock', 16)} ออฟไลน์อยู่ · ความคืบหน้าเก็บในเครื่องก่อน จะบันทึกลงบัญชีเมื่อต่อเน็ต</p>` : '');
 // แถบจากผู้ดูแล (js/ops.js): สวิตช์ฉุกเฉินเปิดอยู่ หรือมีประกาศ
 function opsBanner() {
   if (typeof cloudPaused !== 'function') return '';
@@ -591,7 +596,25 @@ function sheetHTML() {
   const s = UI.sheet;
   if (!s || !SHEETS[s.type]) return '';
   if (s.type === 'league' && !S.leagueResult) { UI.sheet = null; return ''; } // ข้อมูลถูกแทนที่ระหว่างซิงก์/เปลี่ยนบัญชี
-  return `<div class="overlay" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true">${SHEETS[s.type](s)}</div></div>`;
+  // ทุกหน้าต่างที่ปิดได้มีปุ่ม X (หน้าต่างถามน้องผึ้งมีของตัวเอง) · แตะพื้นหลังเพื่อปิด: js/main.js (pointerdown/up ใช้ได้ทั้ง Safari)
+  const x = SHEET_LOCKED.includes(s.type) || s.type === 'ask' ? '' : `<button class="sheet-x" data-act="close-sheet" aria-label="ปิด">${icon('x', 20)}</button>`;
+  return `<div class="overlay"><div class="sheet" role="dialog" aria-modal="true">${x}${SHEETS[s.type](s)}</div></div>`;
+}
+// หน้าต่างที่ต้องตอบก่อน ปิดเองไม่ได้
+const SHEET_LOCKED = ['consent', 'set-name', 'oauth-wait'];
+const PAGE_TITLES = { learn: 'เรียนรู้', practice: 'ฝึกฝน', board: 'อันดับ', quests: 'ภารกิจ', profile: 'โปรไฟล์', shop: 'ร้านค้า', streak: 'สตรีค', achievements: 'ความสำเร็จ',
+  settings: 'ตั้งค่า', account: 'บัญชี', friends: 'เพื่อน', classes: 'ห้องเรียน', teacher: 'แดชบอร์ดครู', lesson: 'บทเรียน', timed: 'ผึ้งเร่งรีบ', story: 'เรื่องเล่า', result: 'ผลลัพธ์', cards: 'เนื้อหาบทเรียน' };
+// หน้าที่ไม่ควรย้อนกลับไปหา (บทเรียน/เกมที่จบแล้ว)
+const NO_RETURN = ['lesson', 'timed', 'story', 'cards', 'onboarding'];
+// ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์ (js/main.js): ปิดหน้าต่าง → ปุ่มออก/ย้อนกลับของหน้านั้น (บทเรียนจะถามก่อนออก) → กลับหน้าเรียนรู้
+// คืน false = อยู่หน้าแรกแล้ว ให้เบราว์เซอร์ออกจากแอปตามปกติ
+function appBack() {
+  if (UI.sheet) { if (!SHEET_LOCKED.includes(UI.sheet.type)) ACT['close-sheet'](); return true; }
+  const x = document.querySelector('#app .lesson-top button.x, #app .subhead button.x');
+  if (x) { x.click(); return true; }
+  if (UI.view === 'onboarding') return false;
+  if (UI.view !== 'learn') { ACT.tab({ v: 'learn' }); return true; }
+  return false;
 }
 
 // ---------- learn cards ----------
@@ -1085,6 +1108,7 @@ function viewBoard() {
   // ครู: แท็บ "นักเรียนในห้อง" ดูว่านักเรียนแต่ละคนอยู่ลีกไหน (js/classroom.js)
   const teacher = typeof isTeacher === 'function' && (teachList(), isTeacher());
   if (teacher && UI.boardMode === 'class') return shell(`${boardTabs()}<div class="tl-board">${boardClassHTML()}</div>`);
+  if (acctPending()) return shell(`${tierRow()}<h1 class="page-title center">ลีก${tierOf(S.league.tier).name}</h1>${acctWaitCard()}`);
   if (guestLeague()) return boardGuest();
   if (typeof Cloud !== 'undefined' && Cloud.user && !realLeague()) return boardPending(teacher);
   const rows = leagueRows(), n = rows.length, z = leagueZones(n), real = realLeague();
@@ -1165,7 +1189,7 @@ function viewQuests() {
         <span class="meter labeled"><span class="fill" style="width:${(mp / MONTH_GOAL) * 100}%"></span><span>${mp} / ${MONTH_GOAL}</span></span></span>
       ${icon('chevron', 20)}
     </button>
-    ${guestLeague() ? leagueGuestCard() : `<div class="league-head"><h2>ลีก${tierOf(S.league.tier).name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
+    ${acctPending() ? '<p class="muted">กำลังเชื่อมต่อบัญชี…</p>' : guestLeague() ? leagueGuestCard() : `<div class="league-head"><h2>ลีก${tierOf(S.league.tier).name}</h2><button class="linkbtn" data-act="tab" data-v="board">ดูทั้งหมด</button></div>
     <ol class="board">${preview.map((r) => rowHTML(r, leagueZones(rows.length))).join('')}</ol>`}`);
 }
 
@@ -1282,7 +1306,24 @@ function render() {
   UI.lastScene = key;
   const app = document.getElementById('app');
   const focusKey = focusKeyOf(document.activeElement, app), hadSheet = !!app.querySelector('.sheet');
+  // ค่าที่ผู้ใช้พิมพ์ไว้ (data-dirty ตั้งใน js/main.js) ไม่หายเมื่อวาดหน้าใหม่ เช่น ตอนแจ้ง error หรือข้อความเด้ง · จับคู่ด้วยชนิดฟอร์ม + id
+  const kept = [...app.querySelectorAll('input[data-dirty], textarea[data-dirty], select[data-dirty]')].filter((el) => el.id && el.type !== 'file')
+    .map((el) => [el.form?.dataset.form || '', el.id, el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value]);
   app.innerHTML = VIEWS[UI.view]() + (UI.toast ? `<div class="toast" role="status">${UI.toast}</div>` : '');
+  for (const [form, id, v] of kept) {
+    const el = document.getElementById(id);
+    if (!el || (el.form?.dataset.form || '') !== form) continue;
+    if (typeof v === 'boolean') el.checked = v; else el.value = v;
+    el.dataset.dirty = '1';
+  }
+  // error ของฟอร์ม (formError ใน js/cloud.js): วางเหนือปุ่มส่งของฟอร์มนั้น
+  const ferr = UI.formErr && app.querySelector(`form[data-form="${UI.formErr.form}"]`);
+  if (ferr) {
+    const p = document.createElement('p');
+    p.className = 'acct-msg err'; p.setAttribute('role', 'alert'); p.textContent = UI.formErr.msg;
+    const sub = ferr.querySelector('[type="submit"]');
+    sub ? sub.before(p) : ferr.append(p);
+  } else if (UI.formErr) UI.formErr = null; // ฟอร์มปิดไปแล้ว
   restoreFocus(app, focusKey, hadSheet);
   app.className = 'view-' + UI.view;
   app.toggleAttribute('data-enter', enter);
@@ -1291,6 +1332,7 @@ function render() {
   if (enter && UI.view === 'result') runCounters();
   fx3dAfterRender();
   Music.apply(); // เบาลงระหว่างทำโจทย์
+  document.title = PAGE_TITLES[UI.view] ? `${PAGE_TITLES[UI.view]} · BeeMath` : 'BeeMath · ฝึกแก้สมการตัวแปรเดียว'; // ชื่อแท็บ/ประวัติตามหน้า
 }
 
 // ---------- โฟกัสหลังวาดหน้าใหม่ ----------
@@ -1309,12 +1351,24 @@ function restoreFocus(app, focusKey, hadSheet) {
   if (sheet) {
     const h = sheet.querySelector('h2, h3');
     if (h) { h.id = 'sheet-title'; h.tabIndex = -1; sheet.setAttribute('aria-labelledby', 'sheet-title'); }
+    const changed = UI.sheetShown !== UI.sheet?.type; // เปลี่ยนชนิดหน้าต่าง (เช่น รอเข้าสู่ระบบ → เข้าสู่ระบบแล้ว): ย้ายโฟกัสไปหัวข้อใหม่ ให้โปรแกรมอ่านจอประกาศ
     if (!hadSheet) { UI.sheetReturn = focusKey; (h || sheet).focus({ preventScroll: true }); }
+    else if (changed) (h || sheet).focus({ preventScroll: true });
     else find(sheet, focusKey)?.focus({ preventScroll: true });
   } else if (hadSheet && UI.sheetReturn) {
     find(app, UI.sheetReturn)?.focus({ preventScroll: true });
     UI.sheetReturn = null;
-  } else find(app, focusKey)?.focus({ preventScroll: true });
+  } else {
+    // ปุ่มเดิมถูกปิดใช้หลังกด (เช่น ชิ้นส่วนที่วางแล้ว คู่ที่จับถูก): ย้ายไปปุ่มถัดไปชนิดเดียวกัน หรือปุ่มตรวจคำตอบ ไม่ให้โฟกัสหลุดไปบนสุดของหน้า
+    const el = find(app, focusKey);
+    if (el && !el.disabled) el.focus({ preventScroll: true });
+    else if (focusKey) {
+      const act = /data-act="([^"]+)"/.exec(focusKey)?.[1];
+      const next = (act && app.querySelector(`[data-act="${CSS.escape(act)}"]:not([disabled])`)) || app.querySelector('[data-act="check"]:not([disabled]), [data-act="next"]');
+      next?.focus({ preventScroll: true });
+    }
+  }
+  UI.sheetShown = UI.sheet?.type;
 }
 // กด Tab ในหน้าต่างป๊อปอัป: วนอยู่ภายในหน้าต่าง
 function trapTab(e) {
@@ -1336,14 +1390,23 @@ function openNode(i) {
 }
 
 const ACT = {
-  tab: (d) => { UI.view = d.v; UI.sheet = null; render(); if (d.v === 'learn') scrollToCurrent(); else window.scrollTo(0, 0); },
+  tab: (d) => { UI.stack = []; UI.view = d.v; UI.sheet = null; render(); if (d.v === 'learn') scrollToCurrent(); else window.scrollTo(0, 0); },
   // เปิดหน้าจอย่อย และจำหน้าที่มาไว้สำหรับปุ่มย้อนกลับ
-  go: (d) => { if (!SUBPAGES.includes(UI.view)) UI.back = UI.view; UI.view = d.v; UI.sheet = null; render(); window.scrollTo(0, 0); },
-  back: () => { UI.view = UI.back || 'learn'; render(); window.scrollTo(0, 0); },
+  // หน้าย่อยซ้อนกันได้หลายชั้น (เช่น โปรไฟล์ › ตั้งค่า › บัญชี): จำเป็นลำดับ ย้อนกลับได้ทีละหน้า
+  go: (d) => {
+    if (UI.view !== d.v && !NO_RETURN.includes(UI.view)) UI.stack = [...(UI.stack || []), UI.view].slice(-12);
+    if (!SUBPAGES.includes(UI.view)) UI.back = UI.view;
+    UI.view = d.v; UI.sheet = null; render(); window.scrollTo(0, 0);
+  },
+  back: () => {
+    let prev = UI.stack?.pop();
+    while (prev === UI.view) prev = UI.stack.pop();
+    UI.view = prev || UI.back || 'learn'; render(); window.scrollTo(0, 0);
+  },
   node: (d) => { UI.sheet = { type: 'node', i: +d.i }; render(); },
   close: () => { UI.sheet = null; render(); },
   'bee-poke': () => { if (FX.mod?.poke()) SFX.play('tap'); }, // แตะน้องผึ้ง 3 มิติบนเส้นทาง: ตีลังกา
-  'close-bg': (d, el, e) => { if (e.target === el && !['consent', 'set-name', 'oauth-wait'].includes(UI.sheet?.type)) (UI.sheet?.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
+  'close-sheet': () => { if (UI.sheet && !SHEET_LOCKED.includes(UI.sheet.type)) (UI.sheet.type === 'league' ? ACT['league-ok'] : ACT.close)(); },
   start: (d) => openNode(+d.i),
   cards: (d) => { UI.cards = { i: +d.i, k: 0 }; UI.view = 'cards'; UI.sheet = null; render(); },
   'cards-next': () => { UI.cards.k++; render(); },

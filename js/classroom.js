@@ -2,7 +2,7 @@
    นักเรียน: เข้าห้องด้วยรหัส (บัญชีอีเมล หรือบัญชีห้องเรียนแบบไม่ใช้อีเมล) · เห็นงานที่ครูมอบหมายบนหน้าหลัก
    ครู: สร้างห้อง แจกรหัส ดูความคืบหน้ารายคนและจุดอ่อนรายทักษะ มอบหมายงานพร้อมวันส่ง */
 
-const Classroom = { mine: null, at: 0, teach: null, dash: {}, sel: null, error: null, loading: false, league: {}, leagueErr: null, leagueBusy: false, teachTried: false };
+const Classroom = { mine: null, mineErr: null, at: 0, teach: null, dash: {}, sel: null, error: null, loading: false, league: {}, leagueErr: null, leagueBusy: false, teachTried: false };
 
 // ---------- ข้อมูล ----------
 async function classroomSync(force = false) {
@@ -10,8 +10,8 @@ async function classroomSync(force = false) {
   if (!force && Date.now() - Classroom.at < 60000) return;
   Classroom.at = Date.now();
   const { data, error } = await Cloud.client.rpc('my_classes');
-  if (error) { Classroom.error = cloudError(error); return; }
-  Classroom.mine = data || [];
+  if (error) { Classroom.mineErr = cloudError(error); if (UI.view === 'classes') cloudRender(); return; }
+  Classroom.mine = data || []; Classroom.mineErr = null;
   if (['learn', 'classes'].includes(UI.view)) cloudRender();
 }
 async function teacherLoad(classId = Classroom.sel) {
@@ -51,9 +51,9 @@ async function classLeagueLoad(classId = Classroom.sel, force = false) {
   else { Classroom.league[classId] = { ...data, at: Date.now() }; Classroom.leagueErr = null; }
   cloudRender();
 }
-async function classCall(fn, args) {
+async function classCall(fn, args, form) {
   const { data, error } = await Cloud.client.rpc(fn, args);
-  if (error) { showToast(cloudError(error)); return null; }
+  if (error) { form ? formError(form, cloudError(error)) : showToast(cloudError(error)); return null; }
   return data ?? true;
 }
 
@@ -92,7 +92,8 @@ function assignmentBanner() {
 // ---------- หน้า "ห้องเรียน" (นักเรียน + ทางเข้าแดชบอร์ดครู) ----------
 function viewClasses() {
   let body;
-  if (typeof Cloud === 'undefined' || !Cloud.enabled() || !Cloud.user) {
+  if (acctPending()) body = acctWaitCard();
+  else if (typeof Cloud === 'undefined' || !Cloud.enabled() || !Cloud.user) {
     body = `<div class="card acct-card"><div class="acct-intro">${bee(64)}<p>เข้าห้องเรียนด้วยรหัสจากครู เพื่อรับงานและให้ครูช่วยดูความคืบหน้า</p></div>
       ${Cloud?.enabled?.() ? `<button class="btn primary" data-act="acct-class">เข้าห้องเรียนด้วยรหัส (ไม่ต้องใช้อีเมล)</button>
         <button class="btn" data-act="go" data-v="account">เข้าสู่ระบบด้วยอีเมล</button>` : '<p class="muted">ยังไม่ได้เปิดระบบบัญชี</p>'}</div>`;
@@ -102,7 +103,7 @@ function viewClasses() {
     const mine = Classroom.mine;
     body = `
       <section><h2 class="shop-sec">ห้องเรียนของฉัน</h2>
-        ${mine === null ? '<p class="muted">กำลังโหลด…</p>' : mine.length ? mine.map((c) => `<div class="card class-card">
+        ${mine === null ? (Classroom.mineErr ? retryCard(Classroom.mineErr, 'classes-retry') : '<p class="muted">กำลังโหลด…</p>') : mine.length ? mine.map((c) => `<div class="card class-card">
           <div class="class-head"><span class="setting-main"><b>${esc(c.name)}</b><small>${esc(/^ครู/.test(c.teacher || '') ? c.teacher : 'ครู' + (c.teacher || ''))}</small></span>
             <button class="x mini" data-act="class-leave-ask" data-id="${c.id}" data-n="${esc(c.name)}" aria-label="ออกจากห้อง ${esc(c.name)}">${icon('x', 16)}</button></div>
           ${c.assignments.length ? c.assignments.map((a) => {
@@ -147,11 +148,13 @@ function classSkills(students) {
 }
 function viewTeacher() {
   let body;
-  if (typeof Cloud === 'undefined' || !Cloud.user || Cloud.user.is_anonymous) {
+  if (acctPending()) body = acctWaitCard();
+  else if (typeof Cloud === 'undefined' || !Cloud.user || Cloud.user.is_anonymous) {
     body = `<div class="card acct-card"><p>แดชบอร์ดครูต้องเข้าสู่ระบบด้วยอีเมล</p><button class="btn primary" data-act="go" data-v="account">เข้าสู่ระบบ</button></div>`;
   } else if (Classroom.teach === null) {
-    if (!Classroom.loading) setTimeout(() => teacherLoad(), 0);
-    body = `<div class="card acct-card"><p class="muted">${Classroom.error ? esc(Classroom.error) : 'กำลังโหลดห้องเรียน…'}</p></div>`;
+    // โหลดไม่สำเร็จ: แสดงปุ่มลองใหม่ ไม่โหลดซ้ำเอง (เดิมวนเรียกเซิร์ฟเวอร์ไม่หยุด)
+    if (!Classroom.loading && !Classroom.error) setTimeout(() => teacherLoad(), 0);
+    body = Classroom.error ? retryCard(Classroom.error, 'teacher-retry') : '<div class="card acct-card"><p class="muted">กำลังโหลดห้องเรียน…</p></div>';
   } else if (!Classroom.teach.length) {
     body = `<div class="card acct-card">${bee(64)}<b>ยังไม่มีห้องเรียน</b><p class="muted">สร้างห้องเรียนแล้วแจกรหัสเข้าห้องให้นักเรียน</p>
       <button class="btn primary" data-act="class-new">${icon('plus', 18)} สร้างห้องเรียน</button></div>`;
@@ -165,7 +168,7 @@ function viewTeacher() {
         <button class="price-btn ghost" data-act="teacher-refresh" ${Classroom.loading ? 'disabled' : ''}>${icon('refresh', 16)} รีเฟรช</button></div></div>
       <div class="seg t-tabs" role="tablist" aria-label="แดชบอร์ด">${[['overview', 'ภาพรวม'], ['league', 'ลีก']].map(([t, l]) => `<button role="tab" aria-selected="${(UI.tTab || 'overview') === t}" class="${(UI.tTab || 'overview') === t ? 'on' : ''}" data-act="t-tab" data-t="${t}">${l}</button>`).join('')}</div>`;
     if (UI.tTab === 'league') body = head + teacherLeagueHTML();
-    else if (!d) body = head + '<p class="muted">กำลังโหลดข้อมูลห้อง…</p>';
+    else if (!d) body = head + (Classroom.error && !Classroom.loading ? retryCard(Classroom.error, 'teacher-retry') : '<p class="muted">กำลังโหลดข้อมูลห้อง…</p>');
     else {
       const sts = d.students.map((st) => ({ ...st, doneSet: new Set(st.done), status: studentStatus(st) }));
       const n = sts.length;
@@ -465,27 +468,29 @@ Object.assign(SHEETS, {
 // ---------- ฟอร์ม ----------
 const JOIN_MSG = { joined: (n) => `เข้าห้อง ${n} แล้ว!`, already: (n) => `อยู่ในห้อง ${n} แล้ว`, own: () => 'นี่คือห้องที่คุณเป็นครู', not_found: () => 'ไม่พบรหัสห้องนี้ ลองตรวจตัวอักษรอีกครั้ง', limit: () => 'เข้าได้สูงสุด 10 ห้อง' };
 const normCode = (raw) => { let c = (raw || '').trim().toUpperCase().replace(/\s/g, ''); if (c && !c.startsWith('HIVE-')) c = 'HIVE-' + c.replace(/^HIVE/, ''); return c; };
-async function joinClass(code) {
-  const r = await classCall('class_join', { p_code: normCode(code) });
+async function joinClass(code, form) {
+  const r = await classCall('class_join', { p_code: normCode(code) }, form);
   if (!r) return false;
-  showToast((JOIN_MSG[r.status] || (() => r.status))(r.name));
+  const msg = (JOIN_MSG[r.status] || (() => r.status))(r.name);
+  if (form && !['joined', 'already'].includes(r.status)) { formError(form, msg); return false; } // รหัสผิด: แจ้งใต้ช่อง ไม่ล้างรหัส
+  showToast(msg);
   if (r.status === 'joined') SFX.play('reward');
   await classroomSync(true);
   return r.status === 'joined' || r.status === 'already';
 }
-FORM_HANDLERS['class-join'] = async () => { if (await joinClass(document.getElementById('class-code')?.value)) render(); };
+FORM_HANDLERS['class-join'] = async () => { if (await joinClass(document.getElementById('class-code')?.value, 'class-join')) render(); };
 FORM_HANDLERS['class-new'] = async () => {
   const name = document.getElementById('class-name')?.value.trim();
-  const r = await classCall('class_create', { p_name: name });
+  const r = await classCall('class_create', { p_name: name }, 'class-new');
   if (!r) return;
   UI.sheet = null; SFX.play('reward'); showToast(`สร้างห้อง ${r.name} แล้ว รหัสเข้าห้อง ${r.code}`);
   Classroom.sel = r.id; teacherLoad(r.id);
 };
 FORM_HANDLERS['assign-new'] = async () => {
   const nodes = [...document.querySelectorAll('input[name="assign-node"]:checked')].map((x) => x.value);
-  if (!nodes.length) return showToast('เลือกอย่างน้อย 1 ด่าน');
+  if (!nodes.length) return formError('assign-new', 'เลือกอย่างน้อย 1 ด่าน');
   const title = document.getElementById('assign-title')?.value.trim(), due = document.getElementById('assign-due')?.value || null;
-  const r = await classCall('assignment_create', { p_class: Classroom.sel, p_title: title, p_nodes: nodes, p_due: due });
+  const r = await classCall('assignment_create', { p_class: Classroom.sel, p_title: title, p_nodes: nodes, p_due: due }, 'assign-new');
   if (!r) return;
   UI.sheet = null; showToast('มอบหมายงานแล้ว'); teacherLoad();
 };
@@ -498,10 +503,22 @@ FORM_HANDLERS['anon-join'] = async () => {
   try {
     const { data, error } = await Cloud.client.auth.signInAnonymously({ options: { data: { display_name: name } } });
     if (error) throw error;
-    Cloud.user = data.user; S.name = name || S.name; giveConsent('class');
-    await cloudPull();
-    await joinClass(code);
-    UI.acct = { tab: 'signin' };
+    Cloud.user = data.user;
+    // เข้าห้องก่อนซิงก์: รหัสผิดแล้วลบบัญชีที่เพิ่งสร้างทิ้ง (เดิมได้บัญชีค้างที่ไม่ได้อยู่ในห้อง และกลับเข้าไม่ได้)
+    const r = await Cloud.client.rpc('class_join', { p_code: normCode(code) });
+    const st = r.data?.status;
+    if (r.error || !['joined', 'already'].includes(st)) {
+      try { await Cloud.client.rpc('delete_my_account'); } catch (e) { /* ignore */ }
+      await Cloud.client.auth.signOut();
+      Cloud.user = null; Cloud.status = 'ready'; setSyncMeta({});
+      a.err = r.error ? cloudError(r.error) : (JOIN_MSG[st] || (() => 'เข้าห้องไม่สำเร็จ ลองตรวจรหัสอีกครั้ง'))(r.data?.name);
+    } else {
+      S.name = name || S.name; giveConsent('class');
+      await cloudPull();
+      await classroomSync(true);
+      SFX.play('reward'); showToast(JOIN_MSG[st](r.data.name));
+      UI.acct = { tab: 'signin' };
+    }
   } catch (e) { a.err = cloudError(e); }
   a.busy = false; render();
 };
@@ -512,6 +529,8 @@ Object.assign(ACT, {
   'class-leave': async (d) => { UI.sheet = null; if (await classCall('class_leave', { p_class: +d.id })) { showToast('ออกจากห้องแล้ว'); classroomSync(true); } },
   'class-new': () => { UI.sheet = { type: 'class-new' }; render(); document.getElementById('class-name')?.focus(); },
   'class-copy': async (d) => { try { await navigator.clipboard.writeText(d.c); showToast('คัดลอกรหัสห้องแล้ว'); } catch (e) { showToast(`รหัสห้อง: ${d.c}`); } },
+  'teacher-retry': () => { Classroom.error = null; render(); teacherLoad(); },
+  'classes-retry': () => { Classroom.mineErr = null; render(); classroomSync(true); },
   'teacher-refresh': () => { teacherLoad(); if (UI.tTab === 'league') classLeagueLoad(Classroom.sel, true); },
   'assign-new': () => { UI.sheet = { type: 'assign-new', u: 0 }; render(); },
   'assign-delete': async (d) => { if (await classCall('assignment_delete', { p_id: +d.id })) { showToast('ลบงานแล้ว'); teacherLoad(); } },

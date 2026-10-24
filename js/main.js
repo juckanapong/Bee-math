@@ -5,6 +5,13 @@ document.addEventListener('click', (e) => {
   if (!el || el.disabled) return;
   ACT[el.dataset.act]?.(el.dataset, el, e);
 });
+// แตะพื้นหลังเพื่อปิดหน้าต่าง: กดลงและยกขึ้นบนพื้นหลังเดียวกัน (Safari ไม่ส่ง click ให้ div ธรรมดา จึงไม่พึ่ง click)
+let downOnOverlay = false;
+document.addEventListener('pointerdown', (e) => { downOnOverlay = e.target.classList?.contains('overlay'); });
+document.addEventListener('pointerup', (e) => {
+  if (downOnOverlay && e.target.classList?.contains('overlay')) ACT['close-sheet']();
+  downOnOverlay = false;
+});
 document.addEventListener('change', (e) => {
   const t = e.target;
   if (t.id === 'name') S.name = t.value.trim() || 'ผู้เรียน';
@@ -17,13 +24,21 @@ document.addEventListener('change', (e) => {
 });
 // ปรับระดับเสียงแบบทันทีระหว่างลากแถบ
 document.addEventListener('input', (e) => {
+  if (e.target.matches?.('input, textarea, select')) e.target.dataset.dirty = '1'; // ให้ render() เก็บค่าที่พิมพ์ไว้
+  // เริ่มแก้ช่องแล้ว: ซ่อน error เก่าของฟอร์มนั้น (ไม่วาดหน้าใหม่ระหว่างพิมพ์)
+  const form = e.target.closest?.('.acct-card, .sheet-card') || e.target.closest?.('form');
+  if (form?.querySelector('.acct-msg.err')) {
+    form.querySelectorAll('.acct-msg.err').forEach((el) => el.remove());
+    if (UI.acct) UI.acct.err = null;
+    UI.formErr = null;
+  }
   if (e.target.id === 'volume') { S.settings.volume = +e.target.value / 100; Music.apply(); }
   else if (e.target.id === 'nl-range') nlInput(+e.target.value); // เส้นจำนวนในบทเรียน
 });
 document.addEventListener('keydown', (e) => {
   // หน้าต่างป๊อปอัป: Esc ปิด (ยกเว้นหน้าที่ต้องตอบก่อน) · Tab วนอยู่ในหน้าต่าง
   if (UI.sheet) {
-    if (e.key === 'Escape' && !['consent', 'set-name', 'oauth-wait'].includes(UI.sheet.type)) { e.preventDefault(); (UI.sheet.type === 'league' ? ACT['league-ok'] : ACT.close)(); }
+    if (e.key === 'Escape' && !SHEET_LOCKED.includes(UI.sheet.type)) { e.preventDefault(); ACT['close-sheet'](); }
     else if (e.key === 'Tab') trapTab(e);
     return;
   }
@@ -91,6 +106,14 @@ window.addEventListener('online', () => { if (UI.view !== 'lesson') render(); })
 window.addEventListener('offline', () => showToast('ไม่มีอินเทอร์เน็ต ยังเรียนต่อได้ตามปกติ'));
 
 const oauthBack = oauthResume(); // เพิ่งกลับจากหน้า Google → กลับหน้าเดิม + แสดงหน้ารอ (js/cloud.js)
+// ปุ่มย้อนกลับของมือถือ/เบราว์เซอร์: ใช้ทำงานในแอป ไม่หลุดออกจากแอป (เดิมกดแล้วออกทันที แม้อยู่กลางบทเรียน)
+// เก็บรายการประวัติไว้ 2 ชั้น: กดย้อนกลับ → ทำ appBack() แล้วเติมชั้นบนกลับ · หน้าแรกสุดแล้วจึงย้อนออกจริง
+history.replaceState({ bm: 0 }, '');
+history.pushState({ bm: 1 }, '');
+addEventListener('popstate', () => {
+  if (appBack()) history.pushState({ bm: 1 }, '');
+  else history.back();
+});
 render();
 Music.autoplay(); // เพลงประกอบ: ลองเล่นเองทันที (ถ้าเบราว์เซอร์ไม่ยอม จะเริ่มที่การแตะครั้งแรก)
 scrollToCurrent();
@@ -98,6 +121,7 @@ remindCheck();
 // ระบบบัญชี (ทำงานเมื่อตั้งค่า js/config.js แล้วเท่านั้น)
 // เคยเข้าสู่ระบบ หรือเพิ่งกลับจากหน้า Google/ลิงก์ในอีเมล → โหลดทันที · ผู้เล่นที่ไม่มีบัญชี → รอให้เครื่องว่างก่อน หน้าแรกจะได้เร็วขึ้น
 const hadSession = (() => { try { return Object.keys(localStorage).some((k) => /^sb-.*-auth-token$/.test(k)); } catch (e) { return true; } })();
+Cloud.expect = hadSession; // ใช้แสดง "กำลังเชื่อมต่อบัญชี…" ระหว่างโหลด (js/cloud.js acctPending)
 if (hadSession || oauthBack || /[?#&](code|access_token|error)=/.test(location.href)) cloudInit();
 else if ('requestIdleCallback' in window) requestIdleCallback(() => cloudInit(), { timeout: 3000 });
 else setTimeout(cloudInit, 1500);

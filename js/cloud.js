@@ -20,6 +20,8 @@ const loadScript = (src) => new Promise((ok, fail) => { const s = document.creat
 const cloudRender = () => { if (!['lesson', 'timed', 'story'].includes(UI.view)) render(); };
 
 // แปลงข้อความผิดพลาดของ Supabase เป็นภาษาไทย
+// ข้อความที่ผู้ใช้ไม่ควรเห็น (เรื่องหลังบ้าน/ข้อความดิบภาษาอังกฤษ): แสดงข้อความกลาง ๆ แล้วส่งรายละเอียดเข้ารายงาน error (js/ops.js)
+const adminNote = (m, msg) => { if (typeof reportError === 'function') reportError('cloud: ' + m.slice(0, 300), 'cloudError'); return msg; };
 function cloudError(err) {
   const m = String(err?.message || err || '');
   if (/invalid login credentials/i.test(m)) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
@@ -29,15 +31,22 @@ function cloudError(err) {
   if (/invalid.*email|email.*invalid/i.test(m)) return 'รูปแบบอีเมลไม่ถูกต้อง';
   if (/rate limit|too many/i.test(m)) return 'ลองบ่อยเกินไป รอสักครู่แล้วลองใหม่';
   if (/fetch|network|failed to load/i.test(m)) return 'เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่';
-  if (/provider is not enabled|unsupported provider/i.test(m)) return 'ยังเข้าสู่ระบบด้วย Google ไม่ได้ (ผู้ดูแลต้องเปิด Google ใน Supabase › Authentication › Providers)';
-  if (/anonymous sign-ins are disabled/i.test(m)) return 'ยังเข้าห้องเรียนแบบไม่ใช้อีเมลไม่ได้ (ผู้ดูแลต้องเปิด Anonymous sign-ins ใน Supabase)';
+  if (/provider is not enabled|unsupported provider/i.test(m)) return adminNote(m, 'ตอนนี้ยังเข้าสู่ระบบด้วย Google ไม่ได้ ลองเข้าสู่ระบบด้วยอีเมลแทนนะ');
+  if (/anonymous sign-ins are disabled/i.test(m)) return adminNote(m, 'ตอนนี้ยังเข้าห้องเรียนแบบไม่ใช้อีเมลไม่ได้ ลองใช้บัญชีอีเมล หรือถามครู');
   if (/not class owner/i.test(m)) return 'คุณไม่ใช่ครูของห้องนี้';
   if (/anonymous users cannot create/i.test(m)) return 'บัญชีห้องเรียนแบบไม่ใช้อีเมลสร้างห้องไม่ได้ ใช้บัญชีอีเมลแทน';
   if (/feedback limit/i.test(m)) return 'วันนี้ส่งครบ 10 ข้อความแล้ว พรุ่งนี้ส่งใหม่ได้นะ';
   if (/class limit|assignment limit/i.test(m)) return 'ถึงจำนวนสูงสุดแล้ว';
-  if (/could not find the function|function .* does not exist/i.test(m)) return 'ระบบนี้ยังไม่พร้อมใช้งาน (ผู้ดูแลต้องรันไฟล์ SQL ใน Supabase ให้ครบ)';
-  return 'เกิดข้อผิดพลาด: ' + m;
+  if (/could not find the function|function .* does not exist/i.test(m)) return adminNote(m, 'ระบบนี้ยังไม่พร้อมใช้งาน ลองใหม่ภายหลังนะ');
+  return adminNote(m || 'empty error', 'มีบางอย่างผิดพลาด ลองใหม่อีกครั้งนะ');
 }
+
+// เคยเข้าสู่ระบบไว้ในเครื่องนี้ (Cloud.expect ตั้งใน js/main.js) แต่ระบบบัญชียังโหลดไม่เสร็จ:
+// แสดง "กำลังเชื่อมต่อบัญชี…" แทนหน้าของคนที่ยังไม่เข้าสู่ระบบ (เดิมเห็นฟอร์มเข้าสู่ระบบ ทำให้คิดว่าบัญชีหลุด)
+const acctPending = () => typeof Cloud !== 'undefined' && Cloud.enabled() && !Cloud.user && Cloud.expect && ['off', 'loading'].includes(Cloud.status);
+const acctWaitCard = () => `<div class="card acct-card center" aria-busy="true">${bee(64)}<p class="muted">กำลังเชื่อมต่อบัญชี…</p></div>`;
+// การ์ดแจ้งโหลดไม่สำเร็จ + ปุ่มลองใหม่ (ใช้ร่วมกันในหน้าเพื่อน ห้องเรียน แดชบอร์ดครู บัญชี)
+const retryCard = (msg, act) => `<div class="card acct-card center" role="alert"><p>${esc(msg)}</p><button class="btn" data-act="${act}">${icon('refresh', 18)} ลองอีกครั้ง</button></div>`;
 
 // ---------- เริ่มต้น ----------
 async function cloudInit() {
@@ -374,7 +383,9 @@ const siteUrl = () => location.origin + location.pathname;
 async function cloudSignUp(email, password, name) {
   const { data, error } = await Cloud.client.auth.signUp({ email, password, options: { data: { display_name: name }, emailRedirectTo: siteUrl() } });
   if (error) throw error;
-  if (data.session) { Cloud.user = data.user; S.name = name || S.name; await cloudPull(); return { confirmed: true }; }
+  // สมัครผ่านแล้วจึงบันทึกชื่อและการยอมรับนโยบาย (เดิมบันทึกก่อน แม้สมัครไม่สำเร็จ)
+  S.name = name || S.name; giveConsent('signup');
+  if (data.session) { Cloud.user = data.user; await cloudPull(); return { confirmed: true }; }
   return { confirmed: false };
 }
 // เข้าสู่ระบบด้วย Google: พาไปหน้า Google แล้วกลับมาที่แอป (supabase-js อ่าน session จาก URL ให้เอง)
@@ -406,6 +417,8 @@ function oauthResume() {
   UI.back = back; UI.view = back;
   if (back === 'onboarding' && t.ob) UI.ob = t.ob;
   UI.sheet = { type: 'oauth-wait' };
+  // ค้างเกิน 15 วินาที (เน็ตช้ามาก/เซิร์ฟเวอร์ไม่ตอบ): ให้ทางออก ไม่ติดหน้ารอตลอดไป
+  setTimeout(() => { if (UI.sheet?.type === 'oauth-wait') { UI.sheet = { type: 'oauth-slow' }; render(); } }, 15000);
   return true;
 }
 // token ที่ Supabase ส่งกลับมาใน URL หลังเลือกบัญชี Google (แบบ implicit: อยู่หลัง #)
@@ -495,9 +508,11 @@ function syncLabel() {
 function viewAccount() {
   const a = UI.acct || (UI.acct = { tab: 'signin' });
   let body;
-  if (!Cloud.enabled()) {
+  if (acctPending()) body = acctWaitCard();
+  else if (Cloud.enabled() && Cloud.status === 'error' && !Cloud.client) body = retryCard(Cloud.error || 'เชื่อมต่อระบบบัญชีไม่ได้', 'cloud-retry');
+  else if (!Cloud.enabled()) {
     body = `<div class="card acct-card"><b>ยังไม่ได้เปิดระบบบัญชี</b>
-      <p class="muted">ผู้ดูแลต้องสร้างโปรเจกต์ Supabase แล้วใส่ค่าใน <code>js/config.js</code> (ดูขั้นตอนใน README) ระหว่างนี้ใช้ "สำรองความคืบหน้า" ในหน้าตั้งค่าเพื่อย้ายเครื่องได้</p></div>`;
+      <p class="muted">ตอนนี้ใช้แบบไม่มีบัญชีได้ตามปกติ ความคืบหน้าเก็บไว้ในเครื่องนี้ ถ้าจะย้ายเครื่อง ใช้ "สำรองความคืบหน้า" ในหน้าตั้งค่า</p></div>`;
   } else if (Cloud.user) {
     body = `<div class="card acct-card">
       <div class="acct-who">${hex(bee(56), 'acct-av', `background:${S.avatar}`)}<span class="setting-main"><b>${esc(S.name)}</b><small>${Cloud.user.is_anonymous ? 'บัญชีห้องเรียน ใช้ได้บนเครื่องนี้เครื่องเดียว' : esc(Cloud.user.email || '') + (Cloud.user.app_metadata?.provider === 'google' ? ' · บัญชี Google' : '')}</small></span></div>
@@ -575,6 +590,11 @@ Object.assign(SHEETS, {
   'oauth-wait'() {
     return `<div class="sheet-card center" aria-busy="true">${bee(72, 'happy')}<h2>กำลังเข้าสู่ระบบ…</h2><p>รอสักครู่ กำลังเชื่อมบัญชี Google</p></div>`;
   },
+  'oauth-slow'() {
+    return `<div class="sheet-card center">${bee(72, 'sad')}<h2>เข้าสู่ระบบนานกว่าปกติ</h2><p>อาจเป็นเพราะอินเทอร์เน็ตช้า ลองโหลดใหม่อีกครั้ง หรือเรียนต่อไปก่อนโดยยังไม่เข้าสู่ระบบ</p>
+      <button class="btn primary" data-act="oauth-reload">${icon('refresh', 18)} ลองอีกครั้ง</button>
+      <button class="btn ghost" data-act="oauth-skip">เรียนต่อโดยไม่เข้าสู่ระบบ</button></div>`;
+  },
   'oauth-ok'() {
     const email = Cloud.user?.email || '', label = acctLabel();
     return `<div class="sheet-card center">${hex(bee(56, 'happy'), 'acct-av', `background:${S.avatar}`)}
@@ -629,9 +649,7 @@ async function submitAccount(kind) {
   try {
     if (kind === 'signin') { await cloudSignIn(email, pw); showToast('เข้าสู่ระบบแล้ว'); }
     else if (kind === 'signup') {
-      S.name = name.slice(0, 20);
-      giveConsent('signup');
-      const r = await cloudSignUp(email, pw, S.name);
+      const r = await cloudSignUp(email, pw, name.slice(0, 20));
       if (r.confirmed) showToast('สร้างบัญชีแล้ว!');
       else { a.tab = 'signin'; a.msg = `ส่งลิงก์ยืนยันไปที่ ${email} แล้ว เปิดลิงก์ในอีเมลแล้วกลับมาเข้าสู่ระบบ`; }
     } else if (kind === 'forgot') {
@@ -649,6 +667,10 @@ async function submitAccount(kind) {
 }
 Object.assign(ACT, {
   'acct-google': () => cloudGoogle(),
+  // ระบบบัญชีโหลดไม่ขึ้น (เช่น เน็ตหลุดตอนเปิดแอป): ลองใหม่โดยไม่ต้องรีโหลดหน้า · ต่อเน็ตได้แล้วลองเองอัตโนมัติ (ดู listener 'online' ด้านล่าง)
+  'cloud-retry': () => { Cloud.status = 'off'; Cloud.error = null; render(); cloudInit(); },
+  'oauth-reload': () => location.reload(),
+  'oauth-skip': () => { try { sessionStorage.removeItem(OAUTH_KEY); } catch (e) { /* ignore */ } UI.sheet = null; render(); },
   'tier-open': (d) => { UI.sheet = { type: 'tier', i: +d.i }; render(); },
   'tier-more': (d) => { tierLoad(+d.i, true); render(); },
   'tier-retry': (d) => { TierView.err = null; tierLoad(+d.i); render(); },
@@ -679,9 +701,29 @@ FORM_HANDLERS['set-name'] = async () => {
   showToast('บันทึกชื่อแล้ว');
   await cloudPush();
 };
-document.addEventListener('submit', (e) => {
+// แจ้ง error ของฟอร์มในฟอร์มนั้นเอง (ใต้ช่อง เหนือปุ่มส่ง · แสดงโดย render() ใน js/app.js) · ฟอร์มไม่อยู่บนจอแล้วใช้ข้อความเด้งแทน
+function formError(kind, msg) {
+  if (document.querySelector(`form[data-form="${kind}"]`)) { UI.formErr = { form: kind, msg }; render(); }
+  else showToast(msg);
+}
+// ส่งฟอร์ม: กันกดซ้ำระหว่างรอ (เดิมกด 3 ครั้ง = ส่ง 3 ครั้ง) และล้าง error เก่าก่อนส่งใหม่
+const FORM_BUSY = new Set();
+document.addEventListener('submit', async (e) => {
   const kind = e.target.dataset?.form;
   if (!kind) return;
   e.preventDefault();
-  (FORM_HANDLERS[kind] || submitAccount)(kind);
+  if (FORM_BUSY.has(kind)) return;
+  FORM_BUSY.add(kind);
+  if (UI.formErr?.form === kind) UI.formErr = null;
+  const btn = e.target.querySelector('[type="submit"]');
+  if (btn) btn.disabled = true;
+  try { await (FORM_HANDLERS[kind] || submitAccount)(kind); }
+  finally {
+    FORM_BUSY.delete(kind);
+    const b = document.querySelector(`form[data-form="${kind}"] [type="submit"]`);
+    if (b && !UI.acct?.busy) b.disabled = false;
+  }
 });
+
+// ต่อเน็ตได้อีกครั้ง: ระบบบัญชีที่โหลดไม่ขึ้นตอนเปิดแอป ลองโหลดใหม่เอง
+addEventListener('online', () => { if (Cloud.status === 'error' && !Cloud.client) ACT['cloud-retry'](); });

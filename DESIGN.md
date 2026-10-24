@@ -66,12 +66,21 @@ Text on a coloured background uses that colour's `-text` / `-ink` token, never n
 - **Hexagons:** path nodes, icons, badges, and every avatar (leaderboard, friends, teacher table, profile). No circular avatars.
 - **Radius scale** (tokens in `:root`, do not write px):
   - `--r-xs` 6px and `--r-sm` 10px: small parts such as slots, calendar cells and tags
-  - `--r-md` 14px: buttons, inputs, small cards
+  - `--r-md` 14px: inputs, small buttons (`.btn.small`), small cards
+  - `--r-lg` 18px: regular buttons (`.btn`)
   - `--r-lg` 18px and `--r-xl` 22px: cards
   - `--r-sheet` 28px: top of sheets and the answer bar
   - `--r-pill`: pills and chips
   - Only 2–4px for tiny details (confetti, speech-bubble tails, kbd)
-- **Buttons:** a thicker bottom border (`border-bottom: 4px`) gives a pressable feel, as in a game.
+- **Buttons:** a thicker bottom border gives a pressable feel, as in a game. `.btn`: at least 52px tall, `--r-lg`, 2px `--line` border with a 5px bottom, Mitr 18px/500. `.btn.small`: 44px, `--r-md`, 4px bottom, 15px. The Google button keeps Google's colours but uses the same font and 5px bottom. Show at most one primary (honey) button in view at a time.
+- **Inputs** (input, select, textarea): 48px tall, 16px text, `--r-md`, 2px `--line` border on `--card`, blue border on focus plus the global 3px blue focus ring.
+- **Cards:** `--r-xl`, 2px `--line` border. Keep the 5px bottom border for cards that can be tapped.
+- **Text on progress bars** must reach 4.5:1 on both the track and the fill; on the dark month card the number sits on a cream pill.
+- **Numbers inside SVG** (bar model, balance) use `var(--head)` so 0 never shows the Mitr slash; never name 'Mitr' directly.
+- **Spacing:** 4 / 8 / 12 / 16 / 24 / 32px; at least 8px between stacked buttons.
+- **Touch targets:** at least 44×44px; where a control looks smaller (chips, switches, inline links), extend the hit area with a pseudo-element or negative margin rather than resizing it.
+- **Sheets:** never taller than the screen (the card scrolls), and every dismissable sheet has an X in the top-right corner; consent, set-name and the sign-in wait sheet must be answered.
+- **Dark mode:** not supported on purpose; `<meta name="color-scheme" content="light">` stops browsers forcing it.
 - **Shadows:** keep them few and soft.
 
 ## Motion

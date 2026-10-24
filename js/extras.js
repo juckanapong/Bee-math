@@ -3,7 +3,27 @@
 
 // ---------- เริ่มต้นใช้งาน (เป้าหมาย + วัดระดับ) ----------
 function viewOnboarding() {
-  const o = UI.ob || (UI.ob = { step: 'goal', goal: S.goal, remind: S.remind.on, level: 'basic' });
+  const o = UI.ob || (UI.ob = { step: 'welcome', goal: S.goal, remind: S.remind.on, level: 'basic' });
+  // หน้าต้อนรับ: คนที่เพิ่งเปิดลิงก์ครั้งแรกรู้ทันทีว่าเว็บนี้คืออะไร ช่วยใคร แล้วค่อยเลือกเป้าหมาย
+  if (o.step === 'welcome') {
+    const signIn = typeof Cloud !== 'undefined' && Cloud.enabled() && !Cloud.user;
+    return `<div class="lesson onboarding welcome">
+      <main class="lesson-body welcome-body">
+        <div class="welcome-hero hex">${bee(150, 'cheer')}</div>
+        <h1 class="welcome-title">Bee<em>Math</em></h1>
+        <p class="welcome-lead">ฝึกแก้สมการตัวแปรเดียวด้วย<span class="nowrap">บาร์โมเดล</span> ทีละนิดทุกวันกับน้องผึ้ง</p>
+        <ul class="welcome-points">
+          <li>${hex(icon('clock', 20), 'ico small', '--h:var(--honey);color:var(--ink)')}<span>วันละ 5–10 นาที เล่นเป็นด่านเหมือนเกม</span></li>
+          <li>${hex(icon('cap', 20), 'ico small', '--h:var(--green);color:var(--green-ink)')}<span>สำหรับนักเรียน ม.ต้น และทุกคนที่อยากเก่งสมการ</span></li>
+          <li>${hex(icon('heart', 20), 'ico small', '--h:var(--blue);color:#fff')}<span>ฟรี ไม่ต้องสมัครก็เริ่มเรียนได้เลย</span></li>
+        </ul>
+      </main>
+      <footer class="lesson-foot welcome-foot">
+        <button class="btn primary wide" data-act="ob-start">เริ่มเลย</button>
+        ${signIn ? '<button class="btn link wide" data-act="go" data-v="account">มีบัญชีอยู่แล้ว? เข้าสู่ระบบ</button>' : ''}
+      </footer>
+    </div>${sheetHTML()}`;
+  }
   const isGoal = o.step === 'goal';
   const body = isGoal
     ? `<div class="talk">${bee(72)}<div class="bubble">อยากฝึกวันละเท่าไหร่ดี? เปลี่ยนทีหลังได้เสมอนะ</div></div>
@@ -235,7 +255,7 @@ function viewPracticeHub() {
   const legendAny = legendReady || Object.keys(S.legend).length;
   const ex = top && lessonSample(top.n);
   const coach = top
-    ? `<p>${top.s.days >= 7 ? `ไม่ได้ฝึกเรื่อง<b>${top.n.title}</b>มา ${top.s.days} วันแล้ว ลืมง่ายนะ` : `เรื่อง<b>${top.n.title}</b>ยังพลาดบ่อย ตอบถูก ${top.s.acc}% จาก 10 ข้อล่าสุด`}</p>
+    ? `<p>${top.s.days >= 7 ? `ไม่ได้ฝึกเรื่อง <b>${top.n.title}</b> มา ${top.s.days} วันแล้ว ลืมง่ายนะ` : `เรื่อง <b>${top.n.title}</b> ยังพลาดบ่อย ตอบถูก ${top.s.acc}% จาก 10 ข้อล่าสุด`}</p>
       ${ex ? `<div class="coach-eq" aria-label="ตัวอย่างโจทย์">${M(ex)}</div>` : ''}
       <button class="btn primary wide" data-act="skill" data-i="${NODES.indexOf(top.n)}">ฝึกเรื่องนี้ 8 ข้อ</button>`
     : `<p>เรียนบทเรียนสัก 1–2 บทก่อน น้องผึ้งจะดูให้ว่าเรื่องไหนควรฝึกเพิ่ม</p>
@@ -522,7 +542,7 @@ function viewSettings() {
     </div></section>
     <section><h2 class="shop-sec">เสียง</h2><div class="list-card">
       ${setRow('เสียงประกอบ', 'ตอบถูก ตอบผิด จบบทเรียน และรับรางวัล', switchHTML('sound', st.sound, 'เปิดเสียงประกอบ'))}
-      ${setRow('เพลงประกอบ', 'เล่นวนระหว่างใช้แอป เบาลงตอนทำโจทย์ · เปิด/ปิดเร็ว ๆ ได้ที่ปุ่มโน้ตข้างหัวใจ', switchHTML('music', S.settings.music !== false, 'เปิดเพลงประกอบ'))}
+      ${setRow('เพลงประกอบ', 'เล่นวนระหว่างใช้แอป และเบาลงตอนทำโจทย์ กดปุ่มโน้ตข้างหัวใจเพื่อ<span class="nowrap">เปิดหรือปิด</span>ได้เร็ว ๆ', switchHTML('music', S.settings.music !== false, 'เปิดเพลงประกอบ'))}
       ${setRow('ระดับเสียง', '', `<span class="vol"><input type="range" id="volume" min="0" max="100" step="10" value="${Math.round(st.volume * 100)}" aria-label="ระดับเสียง" ${st.sound ? '' : 'disabled'}>
         <button class="price-btn ghost" data-act="sfx-test" ${st.sound ? '' : 'disabled'}>ลองฟัง</button></span>`)}
     </div></section>
@@ -601,6 +621,7 @@ Object.assign(VIEWS, {
   timed: viewTimed, story: viewStory, achievements: viewAchievements, settings: viewSettings,
 });
 Object.assign(ACT, {
+  'ob-start': () => { UI.ob.step = 'goal'; render(); },
   'ob-goal': (d) => { UI.ob.goal = +d.g; render(); },
   'toggle-ob-remind': () => { UI.ob.remind = !UI.ob.remind; render(); },
   'ob-level': (d) => { UI.ob.level = d.l; render(); },
